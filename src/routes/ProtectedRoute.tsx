@@ -1,19 +1,22 @@
-import { useAuthStore } from "../store/authStore";
 import { Navigate } from "react-router-dom";
-import type { ReactNode } from "react";
+import { useAuthStore } from "@/store/authStore";
+import type React from "react";
 
-interface ProtectedRouteProps {
-  children: ReactNode;
-}
+export default function ProtectedRoute({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, loading } = useAuthStore();
 
-const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const user = useAuthStore((state) => state.user);
+  // ⏳ Wait for auth hydration
+  if (loading) {
+    return <div className="p-8">Loading...</div>;
+  }
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
-};
-
-export default ProtectedRoute;
+  return children;
+}

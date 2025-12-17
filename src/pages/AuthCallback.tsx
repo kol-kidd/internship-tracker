@@ -9,6 +9,12 @@ export default function AuthCallback() {
   const { setUser } = useAuthStore();
 
   useEffect(() => {
+    supabase.auth.getSession().then(() => {
+      navigate("/dashboard");
+    });
+  }, [navigate]);
+
+  useEffect(() => {
     const handleCallback = async () => {
       try {
         const {

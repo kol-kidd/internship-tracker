@@ -42,10 +42,7 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     setLoading(true);
     const { data, error } = await signInWithGoogle();
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    }
+    if (error) setError(error.message);
     // Supabase will redirect automatically
   };
 
