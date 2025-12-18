@@ -36,8 +36,15 @@ export default function Register() {
       return;
     }
 
+    if (!fullName || fullName.trim() === "") {
+      setError("Please enter your full name");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { data, error } = await signUp(email, password);
+      console.log("Full name", fullName);
+      const { data, error } = await signUp(email, password, fullName.trim());
 
       if (error) {
         // Handle email already registered (including Google OAuth)
@@ -60,7 +67,7 @@ export default function Register() {
       }
 
       // Create or update profile
-      await createOrUpdateProfile(data.user, fullName);
+      await createOrUpdateProfile(data.user, fullName.trim());
 
       if (data.session) {
         // Logged in automatically

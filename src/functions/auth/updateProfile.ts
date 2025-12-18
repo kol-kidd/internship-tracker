@@ -1,12 +1,13 @@
 import { supabase } from "@/config/supabaseClient";
 
-export async function createOrUpdateProfile(user: any, fullName?: string) {
+export async function createOrUpdateProfile(user: any, fullName: string) {
+  console.log("creating full name in profiles", fullName)
   const { data, error } = await supabase
     .from("profiles")
     .upsert({
       id: user.id,
       email: user.email,
-      full_name: fullName ?? user.email,
+      full_name: fullName && fullName.trim() !== "" ? fullName.trim() : user.email,
     })
     .select()
     .single();

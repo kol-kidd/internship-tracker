@@ -28,7 +28,10 @@ export default function Login() {
       } else if (data.session?.user) {
         if (data.session) {
           setUser(data.session.user);
-          await createOrUpdateProfile(data.session.user, "Optional Full Name");
+          await createOrUpdateProfile(
+            data.session.user,
+            data.session.user.user_metadata.full_name
+          );
           navigate("/dashboard");
         }
       }

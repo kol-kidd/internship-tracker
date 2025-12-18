@@ -1,30 +1,37 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Calendar,
   Timer,
   Bell,
   Settings,
   ChevronDown,
-  ChevronRight,
   Plus,
   Search,
   Clock,
   Play,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
+import { signOut } from "@/functions/auth/signOut";
+import { useAuthStore } from "@/store/authStore";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const Layout = ({ children }: LayoutProps) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [isProjectsOpen, setIsProjectsOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { user } = useAuthStore();
 
   const handleLogout = async () => {
     console.log("Logging out...");
+    try {
+      await signOut();
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (
@@ -66,23 +73,15 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-neutral-900 font-bold text-sm">OJT</span>
+              <span className="text-neutral-900 font-bold text-sm">T</span>
             </div>
             <div>
-              <h1 className="font-semibold text-sm text-white">OJT Tracker</h1>
-              <p className="text-xs text-neutral-400">Free Trial</p>
+              <h1 className="font-semibold text-sm text-white">Tracktern</h1>
+              <p className="text-xs text-neutral-400">
+                {user?.user_metadata.full_name}
+              </p>
             </div>
           </div>
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="text-neutral-400 hover:text-neutral-300"
-          >
-            <ChevronRight
-              className={`w-4 h-4 transition-transform ${
-                isMenuOpen ? "rotate-180" : ""
-              }`}
-            />
-          </button>
         </div>
 
         {/* Main Menu Section */}
@@ -163,39 +162,6 @@ const Layout = ({ children }: LayoutProps) => {
               </nav>
             )}
           </div>
-
-          {/* Accounts Section */}
-          <div className="p-3 mt-4">
-            <button className="flex items-center gap-3 w-full text-neutral-500 hover:text-neutral-300 text-xs font-medium mb-2">
-              ACCOUNTS
-              <Plus className="w-3 h-3 ml-auto" />
-            </button>
-
-            <button className="flex items-center gap-3 w-full px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors">
-              <div className="w-6 h-6 bg-neutral-700 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                ZS
-              </div>
-              <span className="truncate">Zulkifli Syukur</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Upgrade Section */}
-        <div className="p-4 border-t border-neutral-800">
-          <div className="bg-neutral-800 rounded-xl p-4 text-center border border-neutral-700">
-            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-2xl">🚀</span>
-            </div>
-            <h3 className="font-semibold text-sm mb-1 text-white">
-              Upgrade to Pro!
-            </h3>
-            <p className="text-xs text-neutral-400 mb-3">
-              Unlock all features by upgrading to Pro.
-            </p>
-            <button className="w-full bg-white hover:bg-neutral-200 text-neutral-900 text-sm font-medium py-2 px-4 rounded-lg transition-colors">
-              Upgrade Now
-            </button>
-          </div>
         </div>
       </aside>
 
@@ -213,22 +179,17 @@ const Layout = ({ children }: LayoutProps) => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
-            <button className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors">
+            {/* <button className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors">
               <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Task</span>
-            </button>
-
-            <div className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-neutral-700 border border-neutral-200 rounded-lg">
-              <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="font-mono text-xs">00:00:00</span>
-            </div>
+            </button> */}
 
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-neutral-900 hover:bg-neutral-800 rounded-lg transition-colors"
             >
-              <Play className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Start</span>
+              <LogOut className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </header>
