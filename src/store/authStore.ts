@@ -1,13 +1,13 @@
 import { create } from "zustand";
 import { supabase } from "@/config/supabaseClient";
-import type { User, Session } from "@supabase/supabase-js"
+import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthState {
   user: User | null;
   session: Session | null;
   loading: boolean;
   setUser: (user: User | null) => void;
-    setLoading: (loading: boolean) => void;
+  setLoading: (loading: boolean) => void;
 
   setSession: (session: Session | null) => void;
   initAuth: () => void;
