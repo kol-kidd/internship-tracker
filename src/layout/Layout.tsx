@@ -1,14 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Calendar,
   Timer,
   Bell,
   Settings,
   ChevronDown,
-  Plus,
   Search,
-  Clock,
-  Play,
   Menu,
   X,
   LogOut,

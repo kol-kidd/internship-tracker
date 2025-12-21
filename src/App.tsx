@@ -8,6 +8,7 @@ import AuthCallback from "./pages/AuthCallback";
 import { useAuthStore } from "./store/authStore";
 import { useEffect } from "react";
 import { useAppStore } from "./store/applicationStore";
+import { Bounce, ToastContainer } from "react-toastify";
 
 function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
@@ -55,6 +56,16 @@ function App() {
         />
         <Route path="*" element={<div>Not Found</div>} />
       </Routes>
+      <ToastContainer
+        position="top-right"
+        autoClose={2000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick={false}
+        rtl={false}
+        theme="light"
+        transition={Bounce}
+      />
     </>
   );
 }

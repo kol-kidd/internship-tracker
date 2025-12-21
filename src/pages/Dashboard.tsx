@@ -26,6 +26,7 @@ import TableBody from "@mui/material/TableBody";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Skeleton from "@mui/material/Skeleton";
+import { Bounce, toast } from "react-toastify";
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
@@ -85,12 +86,12 @@ export default function Dashboard() {
       setProgress(0); // reset
       timer = setInterval(() => {
         setProgress((oldProgress) => {
-          if (oldProgress >= 90) return oldProgress; // max while loading
+          if (oldProgress >= 90) return oldProgress;
           return oldProgress + 10;
         });
       }, 200);
     } else {
-      setProgress(100); // complete when loading finished
+      setProgress(100);
     }
 
     return () => clearInterval(timer);
@@ -116,9 +117,26 @@ export default function Dashboard() {
           companyAddress,
           "applied"
         );
+
+        toast.success("Application saved", {
+          position: "top-right",
+          hideProgressBar: false,
+          closeOnClick: false,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+        });
       }
     } catch (error) {
       console.log("Error adding your application: ", error);
+      toast.error("Failed to save your application", {
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: false,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
     } finally {
       handleModal();
       setCompanyAddress("");
@@ -238,7 +256,7 @@ export default function Dashboard() {
                   </TableHead>
                   <TableBody>
                     {applications.slice(0, 5).map((row, index) => (
-                      <TableRow key={row.id}>
+                      <TableRow key={index}>
                         <TableCell component="th" scope="row">
                           {index + 1}
                         </TableCell>
