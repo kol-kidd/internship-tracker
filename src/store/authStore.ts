@@ -10,7 +10,7 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
 
   setSession: (session: Session | null) => void;
-  initAuth: () => void;
+  initAuth: () => () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -21,14 +21,28 @@ export const useAuthStore = create<AuthState>((set) => ({
   setSession: (session) => set({ session }),
   setLoading: (loading) => set({ loading }),
   initAuth: () => {
-    // Get initial session
+    set({ loading: true });
+
     supabase.auth.getSession().then(({ data }) => {
-      set({ session: data.session, user: data.session?.user ?? null });
+      set({
+        session: data.session,
+        user: data.session?.user ?? null,
+        loading: false,
+      });
     });
 
-    // Listen to auth state changes
-    supabase.auth.onAuthStateChange((_event, session) => {
-      set({ session, user: session?.user ?? null });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      set({
+        session,
+        user: session?.user ?? null,
+        loading: false,
+      });
     });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   },
 }));

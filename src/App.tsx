@@ -7,27 +7,33 @@ import Register from "./pages/Registration";
 import AuthCallback from "./pages/AuthCallback";
 import { useAuthStore } from "./store/authStore";
 import { useEffect } from "react";
-import { supabase } from "./config/supabaseClient";
+import { useAppStore } from "./store/applicationStore";
 
 function App() {
-  const { setUser, setLoading } = useAuthStore();
+  const initAuth = useAuthStore((state) => state.initAuth);
+  const initApp = useAppStore((state) => state.initApp);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) {
-        setUser(data.session.user);
-      }
-      setLoading(false); // 👈 auth hydration finished
-    });
+    let unsubscribe: (() => void) | undefined;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+    const init = async () => {
+      unsubscribe = await initApp();
+    };
 
-    return () => subscription.unsubscribe();
-  }, [setUser, setLoading]);
+    init();
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [initApp]);
+
+  useEffect(() => {
+    const cleanup = initAuth();
+
+    return () => {
+      cleanup?.();
+    };
+  }, [initAuth]);
 
   return (
     <>

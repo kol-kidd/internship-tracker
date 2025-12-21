@@ -7,6 +7,7 @@ type CustomInputProps = {
   type: "text" | "password" | "email";
   value: string;
   onChange: (e: any) => void;
+  size?: "small" | "medium";
 };
 
 export default function CustomInput({
@@ -15,6 +16,7 @@ export default function CustomInput({
   label,
   type = "text",
   value,
+  size = "medium",
   onChange,
 }: CustomInputProps) {
   return (
@@ -24,7 +26,7 @@ export default function CustomInput({
       variant={variant}
       type={type}
       value={value}
-      size="small"
+      size={size}
       className="w-full"
       onChange={onChange}
     />

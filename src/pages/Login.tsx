@@ -124,6 +124,7 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  size="small"
                 />
               </div>
 
@@ -134,6 +135,7 @@ export default function Login() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  size="small"
                 />
               </div>
 

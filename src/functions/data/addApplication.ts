@@ -9,7 +9,7 @@ import { supabase } from "@/config/supabaseClient";
     status,
 */
 
-export async function addApplication(userId: string, companyName: string, companyAddress: string, status: string) {
+export async function addApplication(userId: string, dateApplied: Date, companyName: string, companyAddress: string, status: string) {
     const { data: existingUser, error: checkError } = await supabase
     .from('profiles')
     .select('id')
@@ -39,6 +39,7 @@ export async function addApplication(userId: string, companyName: string, compan
     .from("applications")
     .upsert({
         user_id: userId,
+        date_applied: dateApplied,
         company_name: companyName,
         company_address: companyAddress,
         status
