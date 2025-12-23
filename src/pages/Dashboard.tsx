@@ -104,7 +104,7 @@ export default function Dashboard() {
             + Add Internship
           </button>
           <button
-            onClick={() => navigate("/application-list")}
+            onClick={() => navigate("/applications")}
             className="px-5 py-3 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100"
           >
             View All Applications
@@ -118,7 +118,7 @@ export default function Dashboard() {
                 Recent Applications
               </h2>
               <span
-                onClick={() => navigate("/application-list")}
+                onClick={() => navigate("/applications")}
                 className="text-sm text-gray-500 cursor-pointer hover:underline"
               >
                 View all

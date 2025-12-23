@@ -31,11 +31,12 @@ const Layout = ({ children }: LayoutProps) => {
   const { fetchApplications, subscribeApplications } = useAppStore();
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
     if (user?.id) {
       fetchApplications(user.id);
-      unsubscribe = subscribeApplications(user.id);
+      const unsubscribe = subscribeApplications(user.id);
+      return () => {
+        unsubscribe();
+      };
     }
   }, [user?.id, fetchApplications, subscribeApplications]);
 

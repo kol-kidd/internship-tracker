@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Typography,
   TextField,
@@ -8,13 +8,17 @@ import {
 } from "@mui/material";
 import { Search, SlidersHorizontal, Plus } from "lucide-react";
 import { useAppStore } from "@/store/applicationStore";
-import { useNavigate } from "react-router-dom";
 import Card from "@/components/Application/Card";
 import SortMenu from "@/components/Dropdown";
 import Modal from "@/components/Application/Modal";
+import { deleteApplication } from "@/functions/data/deleteApplication";
+import { useAuthStore } from "@/store/authStore";
+import { Bounce, toast } from "react-toastify";
+import ConfirmationDialog from "@/components/Application/ConfirmationDialog";
+import LoadingOverlay from "@/components/Loading";
 
 interface Application {
-  id: string;
+  id: number;
   user_id: string;
   company_name: string;
   company_address: string;
@@ -73,8 +77,14 @@ export default function ApplicationList() {
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [open, setOpen] = useState(false);
 
-  const navigate = useNavigate();
   const { applications, loading } = useAppStore();
+  const { user } = useAuthStore();
+
+  const [selectedAppId, setSelectedAppId] = useState<number>();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedAppName, setSelectedAppName] = useState<string>("");
+
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredAndSortedApps = useMemo(() => {
     let filtered = [...applications];
@@ -141,16 +151,64 @@ export default function ApplicationList() {
     return statusConfig[normalizedStatus] || statusConfig.applied;
   };
 
-  const handleViewApplication = (appId: string): void => {
+  const handleViewApplication = (appId: number): void => {
     console.log("View application:", appId);
   };
 
-  const handleEditApplication = (appId: string): void => {
+  const handleEditApplication = (appId: number): void => {
     console.log("Edit application:", appId);
   };
 
-  const handleDeleteApplication = (appId: string): void => {
-    console.log("Delete application:", appId);
+  const handleDeleteClick = (appId: number, companyName: string) => {
+    setSelectedAppId(appId);
+    setSelectedAppName(companyName);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteApplication = async (confirmed: boolean): Promise<void> => {
+    console.log("Delete application:", selectedAppId);
+
+    setDeleteDialogOpen(false);
+    setIsDeleting(true);
+    try {
+      if (user && selectedAppId)
+        if (confirmed) {
+          const { error } = await deleteApplication(user?.id, selectedAppId);
+
+          if (error) {
+            toast.error("Delete unsuccessful", {
+              position: "top-right",
+              hideProgressBar: false,
+              closeOnClick: false,
+              progress: undefined,
+              theme: "light",
+              transition: Bounce,
+            });
+
+            return;
+          }
+          toast.success("Delete successful", {
+            position: "top-right",
+            hideProgressBar: false,
+            closeOnClick: false,
+            progress: undefined,
+            theme: "light",
+            transition: Bounce,
+          });
+        }
+    } catch (error) {
+      console.error("Error deleting", error);
+      toast.error("Delete unsuccessful", {
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: false,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleModal = () => {
@@ -357,7 +415,7 @@ export default function ApplicationList() {
                 notes={app.notes}
                 viewApplication={handleViewApplication}
                 editApplication={handleEditApplication}
-                deleteApplication={handleDeleteApplication}
+                deleteApplication={handleDeleteClick}
                 getStatusConfig={getStatusConfig}
               />
             ))}
@@ -365,6 +423,12 @@ export default function ApplicationList() {
         )}
       </div>
       <Modal open={open} handleModal={handleModal} />
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteApplication}
+        itemName={selectedAppName}
+      />
+      <LoadingOverlay open={isDeleting} message="Deleting application..." />
     </div>
   );
 }

@@ -14,16 +14,16 @@ interface StatusConfig {
 }
 
 type CardProps = {
-  id: string;
+  id: number;
   company_name: string;
   company_address: string;
   position: string | undefined;
   date_applied: string;
   status: string;
   notes: string | undefined;
-  viewApplication: (appId: string) => void;
-  editApplication: (appId: string) => void;
-  deleteApplication: (appId: string) => void;
+  viewApplication: (appId: number) => void;
+  editApplication: (appId: number) => void;
+  deleteApplication: (appId: number, companyName: string) => void;
   getStatusConfig: (status: string) => StatusConfig;
 };
 
@@ -104,7 +104,9 @@ export default function Card(props: CardProps) {
             <Edit2 className="w-4 h-4 text-gray-600" />
           </button>
           <button
-            onClick={() => props.deleteApplication(props.id)}
+            onClick={() =>
+              props.deleteApplication(props.id, props.company_name)
+            }
             className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
           >
             <Trash2 className="w-4 h-4 text-red-600" />
