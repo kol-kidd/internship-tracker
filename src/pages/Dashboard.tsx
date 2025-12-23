@@ -1,20 +1,5 @@
-import { addApplication } from "@/functions/data/addApplication";
-import { useAuthStore } from "@/store/authStore";
-import Dialog, { type DialogProps } from "@mui/material/Dialog";
 import React, { useEffect, useState } from "react";
-
-import type { TransitionProps } from "@mui/material/transitions";
-import { styled } from "@mui/material/styles";
-import Slide from "@mui/material/Slide";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import dayjs, { Dayjs } from "dayjs";
-import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
-import { CircleX } from "lucide-react";
-import CustomInput from "@/components/Input";
+import dayjs from "dayjs";
 import { useAppStore } from "@/store/applicationStore";
 import TableContainer from "@mui/material/TableContainer";
 import Paper from "@mui/material/Paper";
@@ -26,35 +11,14 @@ import TableBody from "@mui/material/TableBody";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Skeleton from "@mui/material/Skeleton";
-import { Bounce, toast } from "react-toastify";
-
-const Transition = React.forwardRef(function Transition(
-  props: TransitionProps & {
-    children: React.ReactElement<any, any>;
-  },
-  ref: React.Ref<unknown>
-) {
-  return <Slide direction="down" ref={ref} {...props} />;
-});
-
-const BootstrapDialog = styled(Dialog)(({ theme }) => ({
-  "& .MuiDialogContent-root": {
-    padding: theme.spacing(2),
-  },
-  "& .MuiDialogActions-root": {
-    padding: theme.spacing(1),
-  },
-}));
+import { useNavigate } from "react-router-dom";
+import Modal from "@/components/Application/Modal";
 
 export default function Dashboard() {
-  const [companyName, setCompanyName] = useState("");
-  const [companyAddress, setCompanyAddress] = useState("");
-  const [dateApplied, setDateApplied] = useState<Dayjs | null>(dayjs());
   const [open, setOpen] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const [fullWidth] = React.useState(true);
-  const [maxWidth] = React.useState<DialogProps["maxWidth"]>("sm");
+  const navigate = useNavigate();
 
   const { applications, loading } = useAppStore();
 
@@ -78,8 +42,6 @@ export default function Dashboard() {
   //   "No longer interested",
   // ];
 
-  const { user } = useAuthStore();
-
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
     if (loading) {
@@ -97,59 +59,9 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, [loading]);
 
-  const handleCreateApplication = async () => {
-    try {
-      if (
-        !companyName ||
-        !companyAddress ||
-        companyName.trim() === "" ||
-        companyAddress.trim() === "" ||
-        !dateApplied
-      ) {
-        return;
-      }
-
-      if (user && dateApplied) {
-        await addApplication(
-          user.id,
-          dateApplied.toDate(),
-          companyName,
-          companyAddress,
-          "applied"
-        );
-
-        toast.success("Application saved", {
-          position: "top-right",
-          hideProgressBar: false,
-          closeOnClick: false,
-          progress: undefined,
-          theme: "light",
-          transition: Bounce,
-        });
-      }
-    } catch (error) {
-      console.log("Error adding your application: ", error);
-      toast.error("Failed to save your application", {
-        position: "top-right",
-        hideProgressBar: false,
-        closeOnClick: false,
-        progress: undefined,
-        theme: "light",
-        transition: Bounce,
-      });
-    } finally {
-      handleModal();
-      setCompanyAddress("");
-      setCompanyName("");
-      setDateApplied(dayjs());
-    }
-  };
-
   const handleModal = () => {
     setOpen(!open);
   };
-
-  // console.log(applications)
 
   return (
     <div className="h-full bg-gray-50 px-6 py-3">
@@ -191,7 +103,10 @@ export default function Dashboard() {
           >
             + Add Internship
           </button>
-          <button className="px-5 py-3 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100">
+          <button
+            onClick={() => navigate("/application-list")}
+            className="px-5 py-3 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100"
+          >
             View All Applications
           </button>
         </div>
@@ -202,7 +117,10 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold text-gray-900">
                 Recent Applications
               </h2>
-              <span className="text-sm text-gray-500 cursor-pointer hover:underline">
+              <span
+                onClick={() => navigate("/application-list")}
+                className="text-sm text-gray-500 cursor-pointer hover:underline"
+              >
                 View all
               </span>
             </div>
@@ -301,92 +219,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      <BootstrapDialog
-        open={open}
-        slots={{
-          transition: Transition,
-        }}
-        keepMounted
-        onClose={handleModal}
-        fullWidth={fullWidth}
-        maxWidth={maxWidth}
-        // aria-describedby="alert-dialog-slide-description"
-      >
-        <DialogTitle sx={{ m: 0, p: 2 }} id="customized-dialog-title">
-          Internship
-        </DialogTitle>
-        <IconButton
-          aria-label="close"
-          onClick={handleModal}
-          sx={(theme) => ({
-            position: "absolute",
-            right: 8,
-            top: 8,
-            color: theme.palette.grey[500],
-          })}
-        >
-          <CircleX />
-        </IconButton>
-        <DialogContent dividers className="flex flex-col gap-3">
-          <DatePicker
-            label="Date Applied"
-            value={dateApplied}
-            onChange={(newValue) => {
-              setDateApplied(newValue);
-            }}
-            maxDate={dayjs()}
-          />
-
-          <CustomInput
-            type="text"
-            variant="outlined"
-            label="Company Name"
-            value={companyName}
-            onChange={(e) => {
-              setCompanyName(e.target.value);
-            }}
-          />
-          <CustomInput
-            type="text"
-            variant="outlined"
-            label="Company Address"
-            value={companyAddress}
-            onChange={(e) => {
-              setCompanyAddress(e.target.value);
-            }}
-          />
-
-          {/* <FormControl>
-            <FormLabel id="demo-row-radio-buttons-group-label">
-              Status
-            </FormLabel>
-            <RadioGroup
-              row
-              aria-labelledby="demo-row-radio-buttons-group-label"
-              name="row-radio-buttons-group"
-            >
-              {statusOptions.map((item) => (
-                <FormControlLabel
-                  id="item"
-                  value={item}
-                  control={<Radio />}
-                  label={item}
-                />
-              ))}
-            </RadioGroup>
-          </FormControl> */}
-        </DialogContent>
-        <DialogActions>
-          <Button
-            autoFocus
-            onClick={handleCreateApplication}
-            disabled={loading}
-          >
-            {loading ? "SAVING...." : "SAVE CHANGES"}
-          </Button>
-        </DialogActions>
-      </BootstrapDialog>
+      <Modal open={open} handleModal={handleModal} />
     </div>
   );
 }

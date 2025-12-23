@@ -7,26 +7,11 @@ import Register from "./pages/Registration";
 import AuthCallback from "./pages/AuthCallback";
 import { useAuthStore } from "./store/authStore";
 import { useEffect } from "react";
-import { useAppStore } from "./store/applicationStore";
 import { Bounce, ToastContainer } from "react-toastify";
+import ApplicationList from "./pages/ApplicationList";
 
 function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
-  const initApp = useAppStore((state) => state.initApp);
-
-  useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    const init = async () => {
-      unsubscribe = await initApp();
-    };
-
-    init();
-
-    return () => {
-      unsubscribe?.();
-    };
-  }, [initApp]);
 
   useEffect(() => {
     const cleanup = initAuth();
@@ -50,6 +35,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/applications"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ApplicationList />
               </Layout>
             </ProtectedRoute>
           }
