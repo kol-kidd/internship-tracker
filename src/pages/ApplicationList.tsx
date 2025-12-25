@@ -16,6 +16,7 @@ import { useAuthStore } from "@/store/authStore";
 import { Bounce, toast } from "react-toastify";
 import ConfirmationDialog from "@/components/Application/ConfirmationDialog";
 import LoadingOverlay from "@/components/Loading";
+import { updateAppStatus } from "@/functions/data/updateStatus";
 
 interface Application {
   id: number;
@@ -83,8 +84,10 @@ export default function ApplicationList() {
   const [selectedAppId, setSelectedAppId] = useState<number>();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedAppName, setSelectedAppName] = useState<string>("");
+  const [selectedAppAddress, setSelectedAppAddress] = useState<string>("");
 
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdating, setUpdating] = useState(false);
 
   const filteredAndSortedApps = useMemo(() => {
     let filtered = [...applications];
@@ -155,8 +158,16 @@ export default function ApplicationList() {
     console.log("View application:", appId);
   };
 
-  const handleEditApplication = (appId: number): void => {
-    console.log("Edit application:", appId);
+  const handleEditApplication = (
+    appId: number,
+    companyName: string,
+    companyAddress: string
+  ): void => {
+    setSelectedAppId(appId);
+    setSelectedAppName(companyName);
+    setSelectedAppAddress(companyAddress);
+    setUpdating(true);
+    setOpen(true);
   };
 
   const handleDeleteClick = (appId: number, companyName: string) => {
@@ -212,7 +223,42 @@ export default function ApplicationList() {
   };
 
   const handleModal = () => {
+    if (open) {
+      setUpdating(false);
+      setSelectedAppId(undefined);
+      setSelectedAppName("");
+      setSelectedAppAddress("");
+    }
     setOpen(!open);
+  };
+
+  const handleStatusUpdate = async (appId: number, newStatus: string) => {
+    console.log("new status: ", newStatus);
+
+    try {
+      if (user) {
+        await updateAppStatus(user.id, appId, newStatus);
+
+        toast.success("Application status updated", {
+          position: "top-right",
+          hideProgressBar: false,
+          closeOnClick: false,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+        });
+      }
+    } catch (error) {
+      console.log("Error adding your application: ", error);
+      toast.error("Failed to update your application status", {
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: false,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+    }
   };
 
   if (loading) {
@@ -248,7 +294,7 @@ export default function ApplicationList() {
             <Button
               variant="contained"
               startIcon={<Plus className="w-4 h-4" />}
-              onClick={handleModal}
+              onClick={() => handleModal()}
               sx={{
                 bgcolor: "black",
                 "&:hover": { bgcolor: "grey.800" },
@@ -415,6 +461,7 @@ export default function ApplicationList() {
                 notes={app.notes}
                 viewApplication={handleViewApplication}
                 editApplication={handleEditApplication}
+                updateStatus={handleStatusUpdate}
                 deleteApplication={handleDeleteClick}
                 getStatusConfig={getStatusConfig}
               />
@@ -422,7 +469,14 @@ export default function ApplicationList() {
           </div>
         )}
       </div>
-      <Modal open={open} handleModal={handleModal} />
+      <Modal
+        open={open}
+        handleModal={handleModal}
+        isUpdate={isUpdating}
+        appId={selectedAppId}
+        companyName={selectedAppName}
+        companyAddress={selectedAppAddress}
+      />
       <ConfirmationDialog
         open={deleteDialogOpen}
         onClose={handleDeleteApplication}

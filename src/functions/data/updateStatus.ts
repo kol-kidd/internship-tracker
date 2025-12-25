@@ -1,16 +1,7 @@
 import { supabase } from "@/config/supabaseClient";
 
-/* 
-    table for internship
-    id,
-    user_id,
-    company_name,
-    company_address,
-    status,
-*/
-
-export async function addApplication(userId: string, dateApplied: Date, companyName: string, companyAddress: string, status: string) {
-    const { data: existingUser, error: checkError } = await supabase
+export async function updateAppStatus(userId: string, appId: number, status: string) {
+     const { data: existingUser, error: checkError } = await supabase
     .from('profiles')
     .select('id')
     .eq('id', userId)
@@ -37,16 +28,14 @@ export async function addApplication(userId: string, dateApplied: Date, companyN
 
     const {data: appData, error: appError} = await supabase
     .from("applications")
-    .upsert({
-        user_id: userId,
-        date_applied: dateApplied,
-        company_name: companyName,
-        company_address: companyAddress,
+    .update({
         status,
+        updated_at: new Date().toISOString(),
     })
-    .select()
-    .single();
+    .eq('id', appId)
+    .eq("user_id", userId)
+    .select();
 
-    if(appError) console.error("Application upsert error: ", appError.message);
+    if(appError) console.error("Application status update error: ", appError.message);
     return appData;
 }

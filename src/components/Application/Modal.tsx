@@ -13,11 +13,12 @@ import type { TransitionProps } from "@mui/material/transitions";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import { CircleX } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import CustomInput from "../Input";
 import { useAuthStore } from "@/store/authStore";
 import { addApplication } from "@/functions/data/addApplication";
 import { Bounce, toast } from "react-toastify";
+import { updateApplication } from "@/functions/data/updateApplication";
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
@@ -39,6 +40,10 @@ const BootstrapDialog = styled(Dialog)(({ theme }) => ({
 
 type ModalProps = {
   handleModal: () => void;
+  isUpdate?: boolean;
+  appId?: number;
+  companyName?: string;
+  companyAddress?: string;
   open: boolean;
 };
 
@@ -53,20 +58,90 @@ export default function Modal(props: ModalProps) {
   const [dateApplied, setDateApplied] = useState<Dayjs | null>(dayjs());
   const [loadingCreate, setLoadingCreate] = useState(false);
 
-  const handleCreateApplication = async () => {
+  // Reset form when modal opens/closes or when switching between add/edit
+  useEffect(() => {
+    if (props.open) {
+      if (props.isUpdate && props.companyName && props.companyAddress) {
+        // Edit mode - populate with existing data
+        setCompanyName(props.companyName);
+        setCompanyAddress(props.companyAddress);
+      } else {
+        // Add mode - reset to defaults
+        setCompanyName("");
+        setCompanyAddress("");
+        setDateApplied(dayjs());
+      }
+    }
+  }, [props.open, props.isUpdate, props.companyName, props.companyAddress]);
+
+  const handleClose = () => {
+    // Reset form on close
+    setCompanyName("");
+    setCompanyAddress("");
+    setDateApplied(dayjs());
+    setLoadingCreate(false);
+    props.handleModal();
+  };
+
+  const handleSaveApplication = async () => {
+    // Validation
+    if (
+      !companyName ||
+      !companyAddress ||
+      companyName.trim() === "" ||
+      companyAddress.trim() === ""
+    ) {
+      toast.error("Please fill in all required fields", {
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: false,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
+
+    if (!props.isUpdate && !dateApplied) {
+      toast.error("Please select a date", {
+        position: "top-right",
+        hideProgressBar: false,
+        closeOnClick: false,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
+
     setLoadingCreate(true);
+
     try {
-      if (
-        !companyName ||
-        !companyAddress ||
-        companyName.trim() === "" ||
-        companyAddress.trim() === "" ||
-        !dateApplied
-      ) {
-        return;
+      if (!user) {
+        throw new Error("User not authenticated");
       }
 
-      if (user && dateApplied) {
+      if (props.isUpdate && props.appId) {
+        // Update existing application
+        await updateApplication(
+          props.appId,
+          user.id,
+          companyName,
+          companyAddress
+        );
+
+        toast.success("Application updated successfully", {
+          position: "top-right",
+          hideProgressBar: false,
+          closeOnClick: false,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+        });
+      } else {
+        // Create new application
+        if (!dateApplied) return;
+
         await addApplication(
           user.id,
           dateApplied.toDate(),
@@ -75,7 +150,7 @@ export default function Modal(props: ModalProps) {
           "applied"
         );
 
-        toast.success("Application saved", {
+        toast.success("Application added successfully", {
           position: "top-right",
           hideProgressBar: false,
           closeOnClick: false,
@@ -84,24 +159,29 @@ export default function Modal(props: ModalProps) {
           transition: Bounce,
         });
       }
+
+      // Close modal and reset form
+      handleClose();
     } catch (error) {
-      console.log("Error adding your application: ", error);
-      toast.error("Failed to save your application", {
-        position: "top-right",
-        hideProgressBar: false,
-        closeOnClick: false,
-        progress: undefined,
-        theme: "light",
-        transition: Bounce,
-      });
+      console.error("Error saving application:", error);
+      toast.error(
+        props.isUpdate
+          ? "Failed to update application"
+          : "Failed to add application",
+        {
+          position: "top-right",
+          hideProgressBar: false,
+          closeOnClick: false,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+        }
+      );
     } finally {
-      props.handleModal();
-      setCompanyAddress("");
-      setCompanyName("");
-      setDateApplied(dayjs());
-      setLoadingCreate(true);
+      setLoadingCreate(false);
     }
   };
+
   return (
     <BootstrapDialog
       open={props.open}
@@ -109,17 +189,16 @@ export default function Modal(props: ModalProps) {
         transition: Transition,
       }}
       keepMounted
-      onClose={props.handleModal}
+      onClose={handleClose}
       fullWidth={fullWidth}
       maxWidth={maxWidth}
-      // aria-describedby="alert-dialog-slide-description"
     >
       <DialogTitle sx={{ m: 0, p: 2 }} id="customized-dialog-title">
-        Internship
+        {props.isUpdate ? "Edit Application" : "Add New Application"}
       </DialogTitle>
       <IconButton
         aria-label="close"
-        onClick={props.handleModal}
+        onClick={handleClose}
         sx={(theme) => ({
           position: "absolute",
           right: 8,
@@ -130,14 +209,16 @@ export default function Modal(props: ModalProps) {
         <CircleX />
       </IconButton>
       <DialogContent dividers className="flex flex-col gap-3">
-        <DatePicker
-          label="Date Applied"
-          value={dateApplied}
-          onChange={(newValue) => {
-            setDateApplied(newValue);
-          }}
-          maxDate={dayjs()}
-        />
+        {!props.isUpdate && (
+          <DatePicker
+            label="Date Applied"
+            value={dateApplied}
+            onChange={(newValue) => {
+              setDateApplied(newValue);
+            }}
+            maxDate={dayjs()}
+          />
+        )}
 
         <CustomInput
           type="text"
@@ -160,11 +241,31 @@ export default function Modal(props: ModalProps) {
       </DialogContent>
       <DialogActions>
         <Button
-          autoFocus
-          onClick={handleCreateApplication}
-          disabled={loadingCreate}
+          onClick={handleClose}
+          sx={{
+            color: "grey.600",
+            "&:hover": {
+              bgcolor: "grey.100",
+            },
+          }}
         >
-          {loadingCreate ? "SAVING...." : "SAVE CHANGES"}
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSaveApplication}
+          disabled={loadingCreate}
+          sx={{
+            bgcolor: "black",
+          }}
+        >
+          {loadingCreate
+            ? props.isUpdate
+              ? "Updating..."
+              : "Saving..."
+            : props.isUpdate
+            ? "Update Application"
+            : "Add Application"}
         </Button>
       </DialogActions>
     </BootstrapDialog>

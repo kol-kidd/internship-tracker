@@ -1,12 +1,6 @@
-import {
-  Building2,
-  Calendar,
-  Edit2,
-  Eye,
-  MapPin,
-  MoreVertical,
-  Trash2,
-} from "lucide-react";
+import { Building2, Calendar, Edit2, Eye, MapPin, Trash2 } from "lucide-react";
+import LongMenu from "./LongMenu";
+import { Chip } from "@mui/material";
 
 interface StatusConfig {
   color: string;
@@ -22,7 +16,12 @@ type CardProps = {
   status: string;
   notes: string | undefined;
   viewApplication: (appId: number) => void;
-  editApplication: (appId: number) => void;
+  editApplication: (
+    appId: number,
+    companyName: string,
+    companyAddress: string
+  ) => void;
+  updateStatus: (appId: number, newStatus: string) => void;
   deleteApplication: (appId: number, companyName: string) => void;
   getStatusConfig: (status: string) => StatusConfig;
 };
@@ -45,6 +44,28 @@ export default function Card(props: CardProps) {
     });
   };
 
+  const getChipColor = (status: string) => {
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
+      case "applied":
+        return { bg: "#EFF6FF", text: "#1E40AF", border: "#BFDBFE" };
+      case "interviewing":
+        return { bg: "#F3E8FF", text: "#6B21A8", border: "#D8B4FE" };
+      case "offer received":
+        return { bg: "#D1FAE5", text: "#065F46", border: "#A7F3D0" };
+      case "rejected":
+        return { bg: "#FEE2E2", text: "#991B1B", border: "#FECACA" };
+      case "accepted":
+        return { bg: "#D1FAE5", text: "#065F46", border: "#6EE7B7" };
+      case "withdrawn":
+        return { bg: "#F3F4F6", text: "#374151", border: "#D1D5DB" };
+      default:
+        return { bg: "#EFF6FF", text: "#1E40AF", border: "#BFDBFE" };
+    }
+  };
+
+  const chipColors = getChipColor(props.status);
+
   return (
     <div
       key={props.id}
@@ -63,9 +84,12 @@ export default function Card(props: CardProps) {
             <p className="text-sm text-gray-600 mb-2">{props.position}</p>
           )}
         </div>
-        <button className="p-1 hover:bg-gray-100 rounded">
-          <MoreVertical className="w-5 h-5 text-gray-400" />
-        </button>
+        <LongMenu
+          currentStatus={props.status}
+          onStatusChange={(newStatus) =>
+            props.updateStatus(props.id, newStatus)
+          }
+        />
       </div>
 
       {/* Details */}
@@ -82,23 +106,37 @@ export default function Card(props: CardProps) {
 
       {/* Status Badge */}
       <div className="flex items-center justify-between">
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-medium border ${
-            props.getStatusConfig(props.status).color
-          }`}
-        >
-          {props.getStatusConfig(props.status).label}
-        </span>
+        <Chip
+          label={props.getStatusConfig(props.status).label}
+          size="small"
+          sx={{
+            backgroundColor: chipColors.bg,
+            color: chipColors.text,
+            border: `1px solid ${chipColors.border}`,
+            fontWeight: 500,
+            fontSize: "0.75rem",
+            height: "28px",
+            "& .MuiChip-label": {
+              px: 1.5,
+            },
+          }}
+        />
 
         <div className="flex items-center gap-1">
-          <button
+          {/* <button
             onClick={() => props.viewApplication(props.id)}
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Eye className="w-4 h-4 text-gray-600" />
-          </button>
+          </button> */}
           <button
-            onClick={() => props.editApplication(props.id)}
+            onClick={() =>
+              props.editApplication(
+                props.id,
+                props.company_name,
+                props.company_address
+              )
+            }
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Edit2 className="w-4 h-4 text-gray-600" />
