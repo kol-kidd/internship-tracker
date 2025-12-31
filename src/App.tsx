@@ -9,6 +9,7 @@ import { useAuthStore } from "./store/authStore";
 import { useEffect } from "react";
 import { Bounce, ToastContainer } from "react-toastify";
 import ApplicationList from "./pages/ApplicationList";
+import LogsPage from "./pages/Logs";
 
 function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
@@ -45,6 +46,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <ApplicationList />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/logs"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <LogsPage />
               </Layout>
             </ProtectedRoute>
           }

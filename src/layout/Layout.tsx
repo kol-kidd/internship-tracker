@@ -17,6 +17,7 @@ import { signOut } from "@/functions/auth/signOut";
 import { useAuthStore } from "@/store/authStore";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/applicationStore";
+import { useJournalStore } from "@/store/journalStore";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -30,15 +31,26 @@ const Layout = ({ children }: LayoutProps) => {
 
   const { fetchApplications, subscribeApplications } = useAppStore();
 
+  const { fetchEntries, subscribeEntries } = useJournalStore();
+
   useEffect(() => {
     if (user?.id) {
       fetchApplications(user.id);
-      const unsubscribe = subscribeApplications(user.id);
+      fetchEntries(user.id);
+      const unsubscribeApplications = subscribeApplications(user.id);
+      const unsubscribeEntries = subscribeEntries(user.id);
       return () => {
-        unsubscribe();
+        unsubscribeApplications();
+        unsubscribeEntries();
       };
     }
-  }, [user?.id, fetchApplications, subscribeApplications]);
+  }, [
+    user?.id,
+    fetchApplications,
+    subscribeApplications,
+    fetchEntries,
+    subscribeEntries,
+  ]);
 
   const sidebar = [
     {
@@ -56,7 +68,7 @@ const Layout = ({ children }: LayoutProps) => {
     {
       key: 2,
       title: "Logs",
-      path: "/dashboard",
+      path: "/logs",
       icon: <ClipboardClock className="w-4 h-4" />,
     },
     {
