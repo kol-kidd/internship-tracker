@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "@/config/supabaseClient";
+import { api } from "@/lib/api";
+import { useAuthStore } from "./authStore";
 
 interface JournalEntry {
   id: number;
@@ -19,32 +21,102 @@ interface JournalState {
   error: string | null;
 
   fetchEntries: (userId: string) => Promise<void>;
+  addEntry: (
+    userId: string,
+    entry: Omit<JournalEntry, "id" | "user_id" | "created_at" | "updated_at">
+  ) => Promise<{ error?: any }>;
+  updateEntry: (
+    userId: string,
+    entryId: number,
+    entry: Partial<Omit<JournalEntry, "id" | "user_id" | "created_at">>
+  ) => Promise<{ error?: any }>;
+  deleteEntry: (userId: string, entryId: number) => Promise<{ error?: any }>;
   subscribeEntries: (userId: string) => () => void;
-  addEntry: (userId: string, entry: Omit<JournalEntry, "id" | "user_id" | "created_at" | "updated_at">) => Promise<{ error: any }>;
-  updateEntry: (userId: string, entryId: number, entry: Partial<Omit<JournalEntry, "id" | "user_id" | "created_at">>) => Promise<{ error: any }>;
-  deleteEntry: (userId: string, entryId: number) => Promise<{ error: any }>;
   clearEntries: () => void;
 }
 
-export const useJournalStore = create<JournalState>((set) => ({
+export const useJournalStore = create<JournalState>((set, get) => ({
   entries: [],
   loading: false,
   error: null,
 
   fetchEntries: async (userId: string) => {
-    set({ loading: true });
-    const { data, error } = await supabase
-      .from("journal_entries")
-      .select("*")
-      .eq("user_id", userId)
-      .order("date", { ascending: false });
-
-    if (error) {
-      set({ error: error.message, loading: false });
+    const token = useAuthStore.getState().accessToken;
+    if (!token) {
+      set({ error: "No authentication token" });
       return;
     }
 
-    set({ entries: data ?? [], loading: false });
+    set({ loading: true, error: null });
+    try {
+      const response: any = await api.getJournalEntries(token);
+      set({ entries: response.entries ?? [], loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+    }
+  },
+
+  addEntry: async (userId: string, entry) => {
+    const token = useAuthStore.getState().accessToken;
+    if (!token) {
+      const error = new Error("No authentication token");
+      set({ error: error.message });
+      return { error };
+    }
+
+    set({ loading: true, error: null });
+    try {
+      await api.addJournalEntry(token, entry);
+      await get().fetchEntries(userId);
+      set({ loading: false });
+      return {};
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      return { error };
+    }
+  },
+
+  updateEntry: async (userId: string, entryId: number, entry) => {
+    const token = useAuthStore.getState().accessToken;
+    if (!token) {
+      const error = new Error("No authentication token");
+      set({ error: error.message });
+      return { error };
+    }
+
+    set({ loading: true, error: null });
+    try {
+      await api.updateJournalEntry(token, entryId, entry);
+      await get().fetchEntries(userId);
+      set({ loading: false });
+      return {};
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      return { error };
+    }
+  },
+
+  deleteEntry: async (userId: string, entryId: number) => {
+    const token = useAuthStore.getState().accessToken;
+    if (!token) {
+      const error = new Error("No authentication token");
+      set({ error: error.message });
+      return { error };
+    }
+
+    set({ loading: true, error: null });
+    try {
+      await api.deleteJournalEntry(token, entryId);
+      // Optimistic update
+      set((state) => ({
+        entries: state.entries.filter((e) => e.id !== entryId),
+        loading: false,
+      }));
+      return {};
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      return { error };
+    }
   },
 
   subscribeEntries: (userId: string) => {
@@ -57,6 +129,7 @@ export const useJournalStore = create<JournalState>((set) => ({
           event: "*",
           schema: "public",
           table: "journal_entries",
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           console.log("Realtime event:", payload.eventType, payload);
@@ -73,10 +146,8 @@ export const useJournalStore = create<JournalState>((set) => ({
               if (index !== -1) entries[index] = payload.new as JournalEntry;
             }
             if (payload.eventType === "DELETE") {
-              console.log("DELETE event - old.id:", (payload.old as any).id);
               const deletedId = (payload.old as any).id;
               entries = entries.filter((e) => e.id !== deletedId);
-              console.log("Entries after delete:", entries.length);
             }
             return { entries };
           });
@@ -90,53 +161,6 @@ export const useJournalStore = create<JournalState>((set) => ({
       console.log("Unsubscribing from realtime");
       supabase.removeChannel(channel);
     };
-  },
-
-  addEntry: async (userId: string, entry) => {
-    const { error } = await supabase.from("journal_entries").insert({
-      user_id: userId,
-      ...entry,
-    });
-
-    if (error) {
-      set({ error: error.message });
-      return { error };
-    }
-
-    return { error: null };
-  },
-
-  updateEntry: async (userId: string, entryId: number, entry) => {
-    const { error } = await supabase
-      .from("journal_entries")
-      .update({
-        ...entry,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", entryId)
-      .eq("user_id", userId);
-
-    if (error) {
-      set({ error: error.message });
-      return { error };
-    }
-
-    return { error: null };
-  },
-
-  deleteEntry: async (userId: string, entryId: number) => {
-    const { error } = await supabase
-      .from("journal_entries")
-      .delete()
-      .eq("id", entryId)
-      .eq("user_id", userId);
-
-    if (error) {
-      set({ error: error.message });
-      return { error };
-    }
-
-    return { error: null };
   },
 
   clearEntries: () => {

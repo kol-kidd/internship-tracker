@@ -6,19 +6,22 @@ interface AuthState {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  accessToken: string | null;
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
-
   setSession: (session: Session | null) => void;
+  setAccessToken: (token: string | null) => void;
   initAuth: () => () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   session: null,
+  accessToken: null,
   loading: true,
   setUser: (user) => set({ user }),
-  setSession: (session) => set({ session }),
+  setSession: (session) => set({ session, accessToken: session?.access_token ?? null }),
+  setAccessToken: (accessToken) => set({ accessToken }),
   setLoading: (loading) => set({ loading }),
   initAuth: () => {
     set({ loading: true });
@@ -27,6 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({
         session: data.session,
         user: data.session?.user ?? null,
+        accessToken: data.session?.access_token ?? null,
         loading: false,
       });
     });
@@ -37,6 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({
         session,
         user: session?.user ?? null,
+        accessToken: session?.access_token ?? null,
         loading: false,
       });
     });
