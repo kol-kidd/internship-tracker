@@ -1,4 +1,4 @@
-import { Building2, Calendar, Edit2, Eye, MapPin, Trash2 } from "lucide-react";
+import { Building2, Calendar, Edit2, MapPin, Trash2 } from "lucide-react";
 import LongMenu from "./LongMenu";
 import { Chip } from "@mui/material";
 
@@ -19,7 +19,7 @@ type CardProps = {
   editApplication: (
     appId: number,
     companyName: string,
-    companyAddress: string
+    companyAddress: string,
   ) => void;
   updateStatus: (appId: number, newStatus: string) => void;
   deleteApplication: (appId: number, companyName: string) => void;
@@ -134,7 +134,7 @@ export default function Card(props: CardProps) {
               props.editApplication(
                 props.id,
                 props.company_name,
-                props.company_address
+                props.company_address,
               )
             }
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"

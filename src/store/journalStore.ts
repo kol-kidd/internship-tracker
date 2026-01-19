@@ -26,7 +26,7 @@ interface JournalState {
   clearEntries: () => void;
 }
 
-export const useJournalStore = create<JournalState>((set, get) => ({
+export const useJournalStore = create<JournalState>((set) => ({
   entries: [],
   loading: false,
   error: null,

@@ -21,7 +21,7 @@ interface AppState {
   clearApplications: () => void;
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set) => ({
   applications: [],
   loading: false,
   error: null,

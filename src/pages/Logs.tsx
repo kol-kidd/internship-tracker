@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   BookOpen,
   Plus,
@@ -210,7 +210,7 @@ const LogsPage = () => {
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
+        tag.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     const matchesMood = filterMood === "all" || entry.mood === filterMood;
     return matchesSearch && matchesMood;
@@ -241,10 +241,13 @@ const LogsPage = () => {
   };
 
   // Calculate stats
-  const moodCounts = entries.reduce((acc, entry) => {
-    acc[entry.mood] = (acc[entry.mood] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const moodCounts = entries.reduce(
+    (acc, entry) => {
+      acc[entry.mood] = (acc[entry.mood] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   const thisMonth = entries.filter((e) => {
     const entryDate = new Date(e.date);

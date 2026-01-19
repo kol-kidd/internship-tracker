@@ -51,7 +51,7 @@ export default function Register() {
         console.log(error.message);
         if (error.message.includes("already registered")) {
           setError(
-            "This email is already registered. Please sign in instead or use Google login."
+            "This email is already registered. Please sign in instead or use Google login.",
           );
         } else {
           setError(error.message);
@@ -90,7 +90,7 @@ export default function Register() {
     setError(null);
 
     try {
-      const { data, error } = await signInWithGoogle();
+      const { error } = await signInWithGoogle();
 
       if (error) {
         setError(error.message);

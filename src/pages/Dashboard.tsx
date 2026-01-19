@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { useAppStore } from "@/store/applicationStore";
 import TableContainer from "@mui/material/TableContainer";
@@ -69,13 +69,13 @@ export default function Dashboard() {
 
   const applicationsCount = applications.length;
   const inProgressCount = applications.filter(
-    (app) => app.status.toLowerCase() === "applied"
+    (app) => app.status.toLowerCase() === "applied",
   ).length;
   const interviewsCount = applications.filter(
-    (app) => app.status.toLowerCase() === "interviewing"
+    (app) => app.status.toLowerCase() === "interviewing",
   ).length;
   const offersCount = applications.filter(
-    (app) => app.status.toLowerCase() === "offer received"
+    (app) => app.status.toLowerCase() === "offer received",
   ).length;
 
   useEffect(() => {

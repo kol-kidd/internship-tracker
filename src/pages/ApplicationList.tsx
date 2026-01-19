@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Typography,
   TextField,
@@ -101,7 +101,7 @@ export default function ApplicationList() {
             .toLowerCase()
             .includes(searchQuery.toLowerCase()) ||
           (app.position?.toLowerCase().includes(searchQuery.toLowerCase()) ??
-            false)
+            false),
       );
     }
 
@@ -109,7 +109,7 @@ export default function ApplicationList() {
     if (statusFilter !== "all") {
       filtered = filtered.filter(
         (app: Application) =>
-          app.status.toLowerCase() === statusFilter.toLowerCase()
+          app.status.toLowerCase() === statusFilter.toLowerCase(),
       );
     }
 
@@ -145,7 +145,7 @@ export default function ApplicationList() {
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       },
-      {}
+      {},
     );
   }, [applications]);
 
@@ -161,7 +161,7 @@ export default function ApplicationList() {
   const handleEditApplication = (
     appId: number,
     companyName: string,
-    companyAddress: string
+    companyAddress: string,
   ): void => {
     setSelectedAppId(appId);
     setSelectedAppName(companyName);

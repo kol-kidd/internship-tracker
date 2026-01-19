@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Calendar,
-  Timer,
-  Bell,
-  Settings,
-  ChevronDown,
   Search,
   Menu,
   X,
@@ -24,7 +19,6 @@ interface LayoutProps {
 }
 
 const Layout = ({ children }: LayoutProps) => {
-  const [isProjectsOpen, setIsProjectsOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();

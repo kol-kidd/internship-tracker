@@ -30,7 +30,7 @@ export default function Login() {
           setUser(data.session.user);
           await createOrUpdateProfile(
             data.session.user,
-            data.session.user.user_metadata.full_name
+            data.session.user.user_metadata.full_name,
           );
           navigate("/dashboard");
         }
@@ -44,7 +44,7 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
-    const { data, error } = await signInWithGoogle();
+    const { error } = await signInWithGoogle();
     if (error) setError(error.message);
     // Supabase will redirect automatically
   };
