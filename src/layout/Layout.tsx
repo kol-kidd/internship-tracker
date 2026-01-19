@@ -71,18 +71,18 @@ const Layout = ({ children }: LayoutProps) => {
       path: "/logs",
       icon: <ClipboardClock className="w-4 h-4" />,
     },
-    {
-      key: 3,
-      title: "Bell",
-      path: "/dashboard",
-      icon: <Bell className="w-4 h-4" />,
-    },
-    {
-      key: 4,
-      title: "Settings",
-      path: "/dashboard",
-      icon: <Settings className="w-4 h-4" />,
-    },
+    // {
+    //   key: 3,
+    //   title: "Bell",
+    //   path: "/dashboard",
+    //   icon: <Bell className="w-4 h-4" />,
+    // },
+    // {
+    //   key: 4,
+    //   title: "Settings",
+    //   path: "/dashboard",
+    //   icon: <Settings className="w-4 h-4" />,
+    // },
   ];
 
   const handleLogout = async () => {
@@ -166,7 +166,7 @@ const Layout = ({ children }: LayoutProps) => {
           </div>
 
           {/* My Projects Section */}
-          <div className="p-3 mt-4">
+          {/* <div className="p-3 mt-4">
             <button
               onClick={() => setIsProjectsOpen(!isProjectsOpen)}
               className="flex items-center gap-3 w-full text-neutral-500 hover:text-neutral-300 text-xs font-medium mb-2"
@@ -203,7 +203,7 @@ const Layout = ({ children }: LayoutProps) => {
                 </button>
               </nav>
             )}
-          </div>
+          </div> */}
         </div>
       </aside>
 
