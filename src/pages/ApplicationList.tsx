@@ -11,7 +11,6 @@ import { useAppStore } from "@/store/applicationStore";
 import Card from "@/components/Application/Card";
 import SortMenu from "@/components/Dropdown";
 import Modal from "@/components/Application/Modal";
-import { useAuthStore } from "@/store/authStore";
 import { Bounce, toast } from "react-toastify";
 import ConfirmationDialog from "@/components/Application/ConfirmationDialog";
 import LoadingOverlay from "@/components/Loading";
