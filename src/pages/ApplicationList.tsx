@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Typography,
   TextField,
@@ -11,12 +11,10 @@ import { useAppStore } from "@/store/applicationStore";
 import Card from "@/components/Application/Card";
 import SortMenu from "@/components/Dropdown";
 import Modal from "@/components/Application/Modal";
-import { deleteApplication } from "@/functions/data/deleteApplication";
 import { useAuthStore } from "@/store/authStore";
 import { Bounce, toast } from "react-toastify";
 import ConfirmationDialog from "@/components/Application/ConfirmationDialog";
 import LoadingOverlay from "@/components/Loading";
-import { updateAppStatus } from "@/functions/data/updateStatus";
 
 interface Application {
   id: number;
@@ -33,10 +31,11 @@ interface Application {
 type StatusType =
   | "applied"
   | "interviewing"
-  | "offer received"
+  | "offer"
   | "rejected"
   | "accepted"
   | "withdrawn";
+
 type SortByType = "date_desc" | "date_asc" | "company_asc" | "company_desc";
 
 interface StatusConfig {
@@ -53,7 +52,7 @@ const statusConfig: Record<StatusType, StatusConfig> = {
     color: "bg-purple-100 text-purple-700 border-purple-200",
     label: "Interviewing",
   },
-  "offer received": {
+  offer: {
     color: "bg-green-100 text-green-700 border-green-200",
     label: "Offer Received",
   },
@@ -78,21 +77,30 @@ export default function ApplicationList() {
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [open, setOpen] = useState(false);
 
-  const { applications, loading } = useAppStore();
-  const { user } = useAuthStore();
-
   const [selectedAppId, setSelectedAppId] = useState<number>();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedAppName, setSelectedAppName] = useState<string>("");
   const [selectedAppAddress, setSelectedAppAddress] = useState<string>("");
-
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setUpdating] = useState(false);
 
+  const {
+    applications,
+    loading,
+    deleteApplication: storeDeleteApplication,
+    updateApplicationStatus: storeUpdateStatus,
+    initSocket,
+  } = useAppStore();
+
+  useEffect(() => {
+    initSocket();
+  }, []);
+
+  // --- Filter + sort ---
   const filteredAndSortedApps = useMemo(() => {
     let filtered = [...applications];
 
-    // Search filter
     if (searchQuery) {
       filtered = filtered.filter(
         (app: Application) =>
@@ -105,7 +113,6 @@ export default function ApplicationList() {
       );
     }
 
-    // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(
         (app: Application) =>
@@ -113,8 +120,7 @@ export default function ApplicationList() {
       );
     }
 
-    // Sort
-    const sorted = [...filtered].sort((a: Application, b: Application) => {
+    return filtered.sort((a: Application, b: Application) => {
       switch (sortBy) {
         case "date_desc":
           return (
@@ -134,8 +140,6 @@ export default function ApplicationList() {
           return 0;
       }
     });
-
-    return sorted;
   }, [applications, searchQuery, statusFilter, sortBy]);
 
   const statusCounts = useMemo(() => {
@@ -150,19 +154,28 @@ export default function ApplicationList() {
   }, [applications]);
 
   const getStatusConfig = (status: string): StatusConfig => {
-    const normalizedStatus = status.toLowerCase() as StatusType;
-    return statusConfig[normalizedStatus] || statusConfig.applied;
+    return (
+      statusConfig[status.toLowerCase() as StatusType] || statusConfig.applied
+    );
   };
 
-  const handleViewApplication = (appId: number): void => {
-    console.log("View application:", appId);
+  // --- Handlers ---
+  const handleModal = () => {
+    if (open) {
+      setUpdating(false);
+      setIsCreating(false);
+      setSelectedAppId(undefined);
+      setSelectedAppName("");
+      setSelectedAppAddress("");
+    }
+    setOpen(!open);
   };
 
   const handleEditApplication = (
     appId: number,
     companyName: string,
     companyAddress: string,
-  ): void => {
+  ) => {
     setSelectedAppId(appId);
     setSelectedAppName(companyName);
     setSelectedAppAddress(companyAddress);
@@ -176,44 +189,23 @@ export default function ApplicationList() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteApplication = async (confirmed: boolean): Promise<void> => {
-    console.log("Delete application:", selectedAppId);
-
+  const handleDeleteApplication = async (confirmed: boolean) => {
     setDeleteDialogOpen(false);
+    if (!confirmed || !selectedAppId) return;
     setIsDeleting(true);
+
     try {
-      if (user && selectedAppId)
-        if (confirmed) {
-          const { error } = await deleteApplication(user?.id, selectedAppId);
+      await storeDeleteApplication(selectedAppId);
 
-          if (error) {
-            toast.error("Delete unsuccessful", {
-              position: "top-right",
-              hideProgressBar: false,
-              closeOnClick: false,
-              progress: undefined,
-              theme: "light",
-              transition: Bounce,
-            });
-
-            return;
-          }
-          toast.success("Delete successful", {
-            position: "top-right",
-            hideProgressBar: false,
-            closeOnClick: false,
-            progress: undefined,
-            theme: "light",
-            transition: Bounce,
-          });
-        }
+      toast.success("Delete successful", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
     } catch (error) {
-      console.error("Error deleting", error);
+      console.error(error);
       toast.error("Delete unsuccessful", {
         position: "top-right",
-        hideProgressBar: false,
-        closeOnClick: false,
-        progress: undefined,
         theme: "light",
         transition: Bounce,
       });
@@ -222,46 +214,33 @@ export default function ApplicationList() {
     }
   };
 
-  const handleModal = () => {
-    if (open) {
-      setUpdating(false);
-      setSelectedAppId(undefined);
-      setSelectedAppName("");
-      setSelectedAppAddress("");
-    }
-    setOpen(!open);
-  };
-
   const handleStatusUpdate = async (appId: number, newStatus: string) => {
-    console.log("new status: ", newStatus);
-
+    setUpdating(true);
     try {
-      if (user) {
-        await updateAppStatus(user.id, appId, newStatus);
+      await storeUpdateStatus(appId, newStatus);
 
-        toast.success("Application status updated", {
-          position: "top-right",
-          hideProgressBar: false,
-          closeOnClick: false,
-          progress: undefined,
-          theme: "light",
-          transition: Bounce,
-        });
-      }
-    } catch (error) {
-      console.log("Error adding your application: ", error);
-      toast.error("Failed to update your application status", {
+      toast.info("Application status updated", {
         position: "top-right",
-        hideProgressBar: false,
-        closeOnClick: false,
-        progress: undefined,
         theme: "light",
         transition: Bounce,
       });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update status", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setUpdating(false);
     }
   };
 
-  if (loading) {
+  const handleViewApplication = (appId: number) => {
+    console.log("View application:", appId);
+  };
+
+  if (loading && !isDeleting && !isUpdating && !isCreating) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -428,7 +407,7 @@ export default function ApplicationList() {
         </div>
       </div>
 
-      {/* Applications Grid/List */}
+      {/* Applications Grid */}
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {filteredAndSortedApps.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
@@ -469,19 +448,23 @@ export default function ApplicationList() {
           </div>
         )}
       </div>
+
       <Modal
         open={open}
         handleModal={handleModal}
         isUpdate={isUpdating}
+        setIsCreating={setIsCreating}
         appId={selectedAppId}
         companyName={selectedAppName}
         companyAddress={selectedAppAddress}
       />
+
       <ConfirmationDialog
         open={deleteDialogOpen}
         onClose={handleDeleteApplication}
         itemName={selectedAppName}
       />
+
       <LoadingOverlay open={isDeleting} message="Deleting application..." />
     </div>
   );

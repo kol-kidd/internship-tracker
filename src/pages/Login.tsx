@@ -26,14 +26,18 @@ export default function Login() {
       if (error) {
         setError(error.message);
       } else if (data.session?.user) {
-        if (data.session) {
-          setUser(data.session.user);
-          await createOrUpdateProfile(
-            data.session.user,
-            data.session.user.user_metadata.full_name,
-          );
-          navigate("/dashboard");
-        }
+        setUser(data.session.user);
+
+        const accessToken = data.session.access_token;
+
+        localStorage.setItem("supabase_token", accessToken);
+
+        await createOrUpdateProfile(
+          data.session.user,
+          data.session.user.user_metadata.full_name,
+        );
+
+        navigate("/dashboard");
       }
     } catch (error) {
       setError("An unexpected error occurred");

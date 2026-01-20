@@ -1,5 +1,7 @@
 import { create } from "zustand";
+import axios from "axios";
 import { supabase } from "@/config/supabaseClient";
+import { io, Socket } from "socket.io-client";
 
 interface JournalEntry {
   id: number;
@@ -17,129 +19,140 @@ interface JournalState {
   entries: JournalEntry[];
   loading: boolean;
   error: string | null;
+  socket: Socket | null;
 
-  fetchEntries: (userId: string) => Promise<void>;
-  subscribeEntries: (userId: string) => () => void;
-  addEntry: (userId: string, entry: Omit<JournalEntry, "id" | "user_id" | "created_at" | "updated_at">) => Promise<{ error: any }>;
-  updateEntry: (userId: string, entryId: number, entry: Partial<Omit<JournalEntry, "id" | "user_id" | "created_at">>) => Promise<{ error: any }>;
-  deleteEntry: (userId: string, entryId: number) => Promise<{ error: any }>;
+  initSocket: () => void;
+  fetchEntries: () => Promise<void>;
+  addEntry: (entry: Omit<JournalEntry, "id" | "user_id" | "created_at" | "updated_at">) => Promise<void>;
+  updateEntry: (entryId: number, entry: Partial<Omit<JournalEntry, "id" | "user_id" | "created_at">>) => Promise<void>;
+  deleteEntry: (entryId: number) => Promise<void>;
   clearEntries: () => void;
 }
 
-export const useJournalStore = create<JournalState>((set) => ({
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+api.interceptors.request.use(async (config) => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const token = session?.access_token;
+  if (token && config.headers) {
+    config.headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  return config;
+});
+
+export const useJournalStore = create<JournalState>((set, get) => ({
   entries: [],
   loading: false,
   error: null,
+  socket: null,
 
-  fetchEntries: async (userId: string) => {
-    set({ loading: true });
-    const { data, error } = await supabase
-      .from("journal_entries")
-      .select("*")
-      .eq("user_id", userId)
-      .order("date", { ascending: false });
+  initSocket: async () => {
+    if (get().socket) return;
 
-    if (error) {
-      set({ error: error.message, loading: false });
-      return;
-    }
-
-    set({ entries: data ?? [], loading: false });
-  },
-
-  subscribeEntries: (userId: string) => {
-    console.log("Realtime subscription started for user:", userId);
-    const channel = supabase
-      .channel(`journal_entries:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "journal_entries",
-        },
-        (payload) => {
-          console.log("Realtime event:", payload.eventType, payload);
-
-          set((state) => {
-            let entries = [...state.entries];
-            if (payload.eventType === "INSERT") {
-              entries.unshift(payload.new as JournalEntry);
-            }
-            if (payload.eventType === "UPDATE") {
-              const index = entries.findIndex(
-                (e) => e.id === (payload.new as JournalEntry).id
-              );
-              if (index !== -1) entries[index] = payload.new as JournalEntry;
-            }
-            if (payload.eventType === "DELETE") {
-              console.log("DELETE event - old.id:", (payload.old as any).id);
-              const deletedId = (payload.old as any).id;
-              entries = entries.filter((e) => e.id !== deletedId);
-              console.log("Entries after delete:", entries.length);
-            }
-            return { entries };
-          });
-        }
-      )
-      .subscribe((status) => {
-        console.log("Subscription status:", status);
-      });
-
-    return () => {
-      console.log("Unsubscribing from realtime");
-      supabase.removeChannel(channel);
-    };
-  },
-
-  addEntry: async (userId: string, entry) => {
-    const { error } = await supabase.from("journal_entries").insert({
-      user_id: userId,
-      ...entry,
+    const socket = io(import.meta.env.VITE_API_URL as string, {
+      auth: async (cb) => {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        cb({ token: session?.access_token });
+      },
     });
 
-    if (error) {
-      set({ error: error.message });
-      return { error };
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+
+    if (userId) {
+      socket.emit("join-room", userId);
     }
 
-    return { error: null };
+    socket.on("journal-entry-added", (entry: JournalEntry) => {
+      set((state) => ({
+        entries: [entry, ...state.entries],
+      }));
+    });
+
+    socket.on("journal-entry-updated", (entry: JournalEntry) => {
+      set((state) => ({
+        entries: state.entries.map((e) =>
+          e.id === entry.id ? entry : e
+        ),
+      }));
+    });
+
+    socket.on("journal-entry-deleted", (deletedEntry: JournalEntry) => {
+      set((state) => ({
+        entries: state.entries.filter((e) => e.id !== deletedEntry.id),
+      }));
+    });
+
+    set({ socket });
   },
 
-  updateEntry: async (userId: string, entryId: number, entry) => {
-    const { error } = await supabase
-      .from("journal_entries")
-      .update({
-        ...entry,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", entryId)
-      .eq("user_id", userId);
-
-    if (error) {
-      set({ error: error.message });
-      return { error };
+  fetchEntries: async () => {
+    set({ loading: true, error: null });
+    try {
+      const res = await api.get("/journal");
+      set({ entries: res.data.entries, loading: false });
+    } catch (err: any) {
+      set({ error: err.response?.data?.error || err.message, loading: false });
+      throw err;
     }
-
-    return { error: null };
   },
 
-  deleteEntry: async (userId: string, entryId: number) => {
-    const { error } = await supabase
-      .from("journal_entries")
-      .delete()
-      .eq("id", entryId)
-      .eq("user_id", userId);
-
-    if (error) {
-      set({ error: error.message });
-      return { error };
+  addEntry: async (entry) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await api.post("/journal", entry);
+      set((state) => ({
+        entries: [res.data.entry, ...state.entries],
+        loading: false,
+      }));
+    } catch (err: any) {
+      set({ error: err.response?.data?.error || err.message, loading: false });
+      throw err;
     }
+  },
 
-    return { error: null };
+  updateEntry: async (entryId, entry) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await api.put(`/journal/${entryId}`, entry);
+      set((state) => ({
+        entries: state.entries.map((e) =>
+          e.id === entryId ? res.data.entry : e
+        ),
+        loading: false,
+      }));
+    } catch (err: any) {
+      set({ error: err.response?.data?.error || err.message, loading: false });
+      throw err;
+    }
+  },
+
+  deleteEntry: async (entryId) => {
+    set({ loading: true, error: null });
+    try {
+      await api.delete(`/journal/${entryId}`);
+      set((state) => ({
+        entries: state.entries.filter((e) => e.id !== entryId),
+        loading: false,
+      }));
+    } catch (err: any) {
+      set({ error: err.response?.data?.error || err.message, loading: false });
+      throw err;
+    }
   },
 
   clearEntries: () => {
-    set({ entries: [], loading: false, error: null });
+    set({ entries: [], loading: false, error: null, socket: null });
   },
 }));

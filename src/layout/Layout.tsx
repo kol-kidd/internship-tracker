@@ -23,28 +23,17 @@ const Layout = ({ children }: LayoutProps) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const { fetchApplications, subscribeApplications } = useAppStore();
+  const { fetchApplications, initSocket } = useAppStore();
 
-  const { fetchEntries, subscribeEntries } = useJournalStore();
+  const { fetchEntries } = useJournalStore();
 
   useEffect(() => {
     if (user?.id) {
-      fetchApplications(user.id);
-      fetchEntries(user.id);
-      const unsubscribeApplications = subscribeApplications(user.id);
-      const unsubscribeEntries = subscribeEntries(user.id);
-      return () => {
-        unsubscribeApplications();
-        unsubscribeEntries();
-      };
+      fetchApplications();
+      fetchEntries();
+      initSocket();
     }
-  }, [
-    user?.id,
-    fetchApplications,
-    subscribeApplications,
-    fetchEntries,
-    subscribeEntries,
-  ]);
+  }, [user?.id, fetchApplications, fetchEntries, initSocket]);
 
   const sidebar = [
     {

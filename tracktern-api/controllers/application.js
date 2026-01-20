@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase.js';
+import { io } from "../index.js"; 
 
 export const addApplication = async (req, res) => {
   try {
@@ -33,7 +34,7 @@ export const addApplication = async (req, res) => {
         date_applied: dateApplied || new Date().toISOString(),
         company_name: companyName,
         company_address: companyAddress,
-        status: status || 'pending'
+        status: status || 'applied'
       })
       .select()
       .single();
@@ -45,6 +46,8 @@ export const addApplication = async (req, res) => {
         details: appError.message
       });
     }
+
+    io.to(userId).emit("application-added", appData);
 
     res.status(201).json({
       application: appData,
@@ -183,6 +186,8 @@ export const updateApplication = async (req, res) => {
       });
     }
 
+    io.to(userId).emit("application-updated", appData);
+
     res.json({
       application: appData,
       message: 'Application updated successfully'
@@ -200,11 +205,14 @@ export const updateApplicationStatus = async (req, res) => {
     const { status } = req.body;
     const userId = req.user.id;
 
-    // Validate status
-    const validStatuses = ['pending', 'accepted', 'rejected', 'interviewing', 'offered'];
-    if (!validStatuses.includes(status)) {
+    const normalizedStatus = status?.toLowerCase().trim();
+
+    const validStatuses = ['applied', 'interviewing', 'offer', 'rejected', 'accepted', 'withdrawn'];
+    
+    if (!normalizedStatus || !validStatuses.includes(normalizedStatus)) {
       return res.status(400).json({
         error: 'Invalid status',
+        received: status,
         validStatuses
       });
     }
@@ -229,11 +237,11 @@ export const updateApplicationStatus = async (req, res) => {
       });
     }
 
-    // Update status
+    // Update status with normalized value
     const { data: appData, error: appError } = await supabase
       .from('applications')
       .update({
-        status,
+        status: normalizedStatus,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -251,6 +259,8 @@ export const updateApplicationStatus = async (req, res) => {
         details: appError.message
       });
     }
+
+    io.to(userId).emit("application-status-updated", appData);
 
     res.json({
       application: appData,
@@ -315,6 +325,8 @@ export const deleteApplication = async (req, res) => {
         error: 'Application not found or unauthorized'
       });
     }
+
+   io.to(userId).emit("application-deleted", appData);
 
     res.json({
       message: 'Application deleted successfully',

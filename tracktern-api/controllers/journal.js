@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase.js';
+import { io } from "../index.js"; 
 
 export const getEntries = async (req, res) => {
   try {
@@ -82,6 +83,7 @@ export const addEntry = async (req, res) => {
       });
     }
 
+    io.to(userId).emit("journal-entry-added", data);
     res.status(201).json({
       entry: data,
       message: 'Entry created successfully'
@@ -126,6 +128,7 @@ export const updateEntry = async (req, res) => {
       });
     }
 
+    io.to(userId).emit("journal-entry-updated", data);
     res.json({
       entry: data,
       message: 'Entry updated successfully'
@@ -163,6 +166,7 @@ export const deleteEntry = async (req, res) => {
       });
     }
 
+    io.to(userId).emit("journal-entry-deleted", data);
     res.json({
       message: 'Entry deleted successfully',
       deletedEntry: data[0]

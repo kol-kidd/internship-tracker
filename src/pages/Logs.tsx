@@ -37,15 +37,8 @@ interface JournalEntry {
 
 const LogsPage = () => {
   const { user } = useAuthStore();
-  const {
-    entries,
-    loading,
-    fetchEntries,
-    subscribeEntries,
-    addEntry,
-    updateEntry,
-    deleteEntry,
-  } = useJournalStore();
+  const { entries, loading, initSocket, addEntry, updateEntry, deleteEntry } =
+    useJournalStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,16 +57,12 @@ const LogsPage = () => {
     tags: "",
   });
 
-  // Fetch entries and subscribe to real-time changes
+  // Initialize socket and fetch entries
   useEffect(() => {
     if (user?.id) {
-      fetchEntries(user.id);
-      const unsubscribe = subscribeEntries(user.id);
-      return () => {
-        unsubscribe();
-      };
+      initSocket();
     }
-  }, [user?.id, fetchEntries, subscribeEntries]);
+  }, [user?.id, initSocket]);
 
   const handleSubmit = async () => {
     if (!formData.title || !formData.content || !formData.date) {
@@ -94,18 +83,15 @@ const LogsPage = () => {
         .map((tag) => tag.trim())
         .filter(Boolean);
 
-      let result;
       if (editingEntry) {
         // Update existing entry
-        result = await updateEntry(user.id, editingEntry.id, {
+        await updateEntry(editingEntry.id, {
           title: formData.title,
           date: formData.date,
           content: formData.content,
           mood: formData.mood,
           tags: tagsArray,
         });
-
-        if (result.error) throw result.error;
 
         toast.success("Entry updated successfully", {
           position: "top-right",
@@ -114,15 +100,13 @@ const LogsPage = () => {
         });
       } else {
         // Create new entry
-        result = await addEntry(user.id, {
+        await addEntry({
           title: formData.title,
           date: formData.date,
           content: formData.content,
           mood: formData.mood,
           tags: tagsArray,
         });
-
-        if (result.error) throw result.error;
 
         toast.success("Entry created successfully", {
           position: "top-right",
@@ -181,9 +165,7 @@ const LogsPage = () => {
 
     try {
       setSaving(true);
-      const result = await deleteEntry(user.id, selectedEntryId);
-
-      if (result.error) throw result.error;
+      await deleteEntry(selectedEntryId);
 
       toast.success("Entry deleted successfully", {
         position: "top-right",
@@ -265,7 +247,7 @@ const LogsPage = () => {
     return entryDate >= weekAgo;
   }).length;
 
-  if (loading) {
+  if (loading && entries.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

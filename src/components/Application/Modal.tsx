@@ -16,15 +16,14 @@ import { CircleX } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import CustomInput from "../Input";
 import { useAuthStore } from "@/store/authStore";
-import { addApplication } from "@/functions/data/addApplication";
+import { useAppStore } from "@/store/applicationStore";
 import { Bounce, toast } from "react-toastify";
-import { updateApplication } from "@/functions/data/updateApplication";
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
     children: React.ReactElement<any, any>;
   },
-  ref: React.Ref<unknown>
+  ref: React.Ref<unknown>,
 ) {
   return <Slide direction="down" ref={ref} {...props} />;
 });
@@ -41,6 +40,7 @@ const BootstrapDialog = styled(Dialog)(({ theme }) => ({
 type ModalProps = {
   handleModal: () => void;
   isUpdate?: boolean;
+  setIsCreating?: (value: boolean) => void;
   appId?: number;
   companyName?: string;
   companyAddress?: string;
@@ -49,6 +49,11 @@ type ModalProps = {
 
 export default function Modal(props: ModalProps) {
   const { user } = useAuthStore();
+
+  const {
+    addApplication: storeAddApplication,
+    updateApplication: storeUpdateApplication,
+  } = useAppStore();
 
   const [fullWidth] = useState(true);
   const [maxWidth] = useState<DialogProps["maxWidth"]>("sm");
@@ -115,6 +120,7 @@ export default function Modal(props: ModalProps) {
     }
 
     setLoadingCreate(true);
+    props.setIsCreating && props.setIsCreating(true);
 
     try {
       if (!user) {
@@ -123,14 +129,12 @@ export default function Modal(props: ModalProps) {
 
       if (props.isUpdate && props.appId) {
         // Update existing application
-        await updateApplication(
-          props.appId,
-          user.id,
-          companyName,
-          companyAddress
-        );
+        await storeUpdateApplication(props.appId, {
+          companyName: companyName,
+          companyAddress: companyAddress,
+        });
 
-        toast.success("Application updated successfully", {
+        toast.info("Application updated successfully", {
           position: "top-right",
           hideProgressBar: false,
           closeOnClick: false,
@@ -142,13 +146,12 @@ export default function Modal(props: ModalProps) {
         // Create new application
         if (!dateApplied) return;
 
-        await addApplication(
-          user.id,
-          dateApplied.toDate(),
+        await storeAddApplication({
           companyName,
           companyAddress,
-          "applied"
-        );
+          dateApplied: dateApplied.toISOString(),
+          status: "applied",
+        });
 
         toast.success("Application added successfully", {
           position: "top-right",
@@ -175,7 +178,7 @@ export default function Modal(props: ModalProps) {
           progress: undefined,
           theme: "light",
           transition: Bounce,
-        }
+        },
       );
     } finally {
       setLoadingCreate(false);
@@ -264,8 +267,8 @@ export default function Modal(props: ModalProps) {
               ? "Updating..."
               : "Saving..."
             : props.isUpdate
-            ? "Update Application"
-            : "Add Application"}
+              ? "Update Application"
+              : "Add Application"}
         </Button>
       </DialogActions>
     </BootstrapDialog>

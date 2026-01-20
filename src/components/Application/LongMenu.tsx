@@ -22,7 +22,7 @@ const statusOptions = [
     color: "#8B5CF6",
   },
   {
-    value: "offer received",
+    value: "offer",
     label: "Offer received",
     icon: Gift,
     color: "#10B981",

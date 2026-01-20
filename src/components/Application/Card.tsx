@@ -51,7 +51,7 @@ export default function Card(props: CardProps) {
         return { bg: "#EFF6FF", text: "#1E40AF", border: "#BFDBFE" };
       case "interviewing":
         return { bg: "#F3E8FF", text: "#6B21A8", border: "#D8B4FE" };
-      case "offer received":
+      case "offer":
         return { bg: "#D1FAE5", text: "#065F46", border: "#A7F3D0" };
       case "rejected":
         return { bg: "#FEE2E2", text: "#991B1B", border: "#FECACA" };
@@ -72,34 +72,38 @@ export default function Card(props: CardProps) {
       className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
+      <div className="flex items-start justify-between gap-2 mb-4">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Building2 className="w-5 h-5 text-gray-400" />
+            <Building2 className="w-5 h-5 text-gray-400 flex-shrink-0" />
             <h3 className="text-lg font-semibold text-gray-900 truncate">
               {props.company_name}
             </h3>
           </div>
           {props.position && (
-            <p className="text-sm text-gray-600 mb-2">{props.position}</p>
+            <p className="text-sm text-gray-600 mb-2 truncate">
+              {props.position}
+            </p>
           )}
         </div>
-        <LongMenu
-          currentStatus={props.status}
-          onStatusChange={(newStatus) =>
-            props.updateStatus(props.id, newStatus)
-          }
-        />
+        <div className="flex-shrink-0">
+          <LongMenu
+            currentStatus={props.status}
+            onStatusChange={(newStatus) =>
+              props.updateStatus(props.id, newStatus)
+            }
+          />
+        </div>
       </div>
 
       {/* Details */}
       <div className="space-y-2 mb-4">
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <MapPin className="w-4 h-4 text-gray-400" />
+          <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <span className="truncate">{props.company_address}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Calendar className="w-4 h-4 text-gray-400" />
+          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <span>Applied {formatDate(props.date_applied)}</span>
         </div>
       </div>

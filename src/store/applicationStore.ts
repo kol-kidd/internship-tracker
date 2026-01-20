@@ -1,5 +1,7 @@
 import { create } from "zustand";
+import axios from "axios";
 import { supabase } from "@/config/supabaseClient";
+import { io, Socket } from "socket.io-client";
 
 interface Application {
   id: number;
@@ -11,83 +13,184 @@ interface Application {
   created_at: string;
 }
 
+// Separate interface for API updates (camelCase)
+interface UpdateApplicationData {
+  companyName?: string;
+  companyAddress?: string;
+}
+
 interface AppState {
   applications: Application[];
   loading: boolean;
   error: string | null;
+  socket: Socket | null;
 
-  fetchApplications: (userId: string) => Promise<void>;
-  subscribeApplications: (userId: string) => () => void;
+  initSocket: () => void;
+
+  fetchApplications: () => Promise<void>;
+  addApplication: (data: {
+    companyName: string;
+    companyAddress: string;
+    status?: string;
+    dateApplied?: string;
+  }) => Promise<void>;
+  updateApplication: (id: number, data: UpdateApplicationData) => Promise<void>;
+  updateApplicationStatus: (id: number, status: string) => Promise<void>;
+  deleteApplication: (id: number) => Promise<void>;
   clearApplications: () => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL, 
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+api.interceptors.request.use(async (config) => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const token = session?.access_token;
+  if (token && config.headers) {
+    config.headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  return config;
+});
+
+
+export const useAppStore = create<AppState>((set, get) => ({
   applications: [],
   loading: false,
   error: null,
+  socket: null, 
 
-  fetchApplications: async (userId: string) => {
-    set({ loading: true });
-    const { data, error } = await supabase
-      .from("applications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+  initSocket: async () => {
+    if (get().socket) return; 
 
-    if (error) {
-      set({ error: error.message, loading: false });
-      return;
-    }
-
-    set({ applications: data ?? [], loading: false });
-  },
-
-  subscribeApplications: (userId: string) => {
-  console.log("Realtime subscription started for user:", userId);
-  const channel = supabase
-    .channel(`applications:${userId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "applications",
+    const socket = io(import.meta.env.VITE_API_URL as string, {
+      auth: async (cb) => {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        cb({ token: session?.access_token });
       },
-      (payload) => {
-        console.log("Realtime event:", payload.eventType, payload);
-      
-        
-        set((state) => {
-          let apps = [...state.applications];
-          if (payload.eventType === "INSERT") {
-            apps.unshift(payload.new as Application);
-          }
-          if (payload.eventType === "UPDATE") {
-            const index = apps.findIndex(
-              (a) => a.id === (payload.new as Application).id
-            );
-            if (index !== -1) apps[index] = payload.new as Application;
-          }
-          if (payload.eventType === "DELETE") {
-            console.log("DELETE event - old.id:", (payload.old as any).id);
-            const deletedId = (payload.old as any).id;
-            apps = apps.filter((a) => a.id !== deletedId);
-            console.log("Apps after delete:", apps.length);
-          }
-          return { applications: apps };
-        });
-      }
-    )
-    .subscribe((status) => {
-      console.log("Subscription status:", status);
     });
 
-  return () => {
-    console.log("Unsubscribing from realtime");
-    supabase.removeChannel(channel);
-  };
-},
+   const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
 
+    if (userId) {
+      socket.emit("join-room", userId); 
+    }
+
+    socket.on("application-added", (app: Application) => {
+      set((state) => ({
+        applications: [app, ...state.applications],
+      }));
+    });
+
+    socket.on("application-updated", (app: Application) => {
+      set((state) => ({
+        applications: state.applications.map((a) =>
+          a.id === app.id ? app : a
+        ),
+      }));
+    });
+
+    socket.on("application-status-updated", (app: Application) => {
+      set((state) => ({
+        applications: state.applications.map((a) =>
+          a.id === app.id ? app : a
+        ),
+      }));
+    });
+
+    socket.on("application-deleted", (id: number) => {
+      set((state) => ({
+        applications: state.applications.filter((a) => a.id !== id),
+      }));
+    });
+
+    set({ socket });
+  },
+
+  // Fetch all applications
+  fetchApplications: async () => {
+    set({ loading: true, error: null });
+    try {
+      const res = await api.get("/applications");
+      set({ applications: res.data.applications, loading: false });
+    } catch (err: any) {
+      set({ error: err.response?.data?.error || err.message, loading: false });
+    }
+  },
+
+  // Add a new application
+  addApplication: async (data) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await api.post("/applications", data);
+      set((state) => ({
+        applications: [res.data.application, ...state.applications],
+        loading: false,
+      }));
+    } catch (err: any) {
+      set({ error: err.response?.data?.error || err.message, loading: false });
+    }
+  },
+
+  // Update an application
+  updateApplication: async (id, data) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await api.put(`/applications/${id}`, data);
+      set((state) => ({
+        applications: state.applications.map((a) =>
+          a.id === id ? res.data.application : a
+        ),
+        loading: false,
+      }));
+    } catch (err: any) {
+      set({ error: err.response?.data?.error || err.message, loading: false });
+    }
+  },
+
+  // Update status only
+  updateApplicationStatus: async (id, status) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await api.patch(`/applications/${id}/status`, { status });
+      
+      set((state) => ({
+        applications: state.applications.map((a) =>
+          a.id === id ? res.data.application : a
+        ),
+        loading: false,
+      }));
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+      console.log("Error updating status:", err.message);
+    }
+  },
+
+  // Delete application
+  deleteApplication: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      await api.delete(`/applications/${id}`);
+      set((state) => ({
+        applications: state.applications.filter((a) => a.id !== id),
+        loading: false,
+      }));
+    } catch (err: any) {
+      set({ error: err.response?.data?.error || err.message, loading: false });
+    }
+  },
+
+  // Clear all applications
   clearApplications: () => {
     set({ applications: [], loading: false, error: null });
   },

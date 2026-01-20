@@ -29,7 +29,12 @@ export const validateEmail = [
 export const validateAddApplication = [
   body('companyName').trim().notEmpty().withMessage('Company name is required'),
   body('companyAddress').trim().notEmpty().withMessage('Company address is required'),
-  body('status').optional().isIn(['pending', 'accepted', 'rejected', 'interviewing', 'offered']),
+  body('status')
+    .optional()
+    .trim()
+    .toLowerCase()
+    .isIn(['applied', 'interviewing', 'offer', 'rejected', 'accepted', 'withdrawn'])
+    .withMessage('Invalid status'),
   body('dateApplied').optional().isISO8601().withMessage('Invalid date format'),
   handleValidationErrors
 ];
@@ -43,7 +48,11 @@ export const validateUpdateApplication = [
 
 export const validateUpdateStatus = [
   param('id').isInt().withMessage('Invalid application ID'),
-  body('status').isIn(['pending', 'accepted', 'rejected', 'interviewing', 'offered']).withMessage('Invalid status'),
+  body('status')
+    .trim()
+    .customSanitizer(value => value.toLowerCase().trim())
+    .isIn(['applied', 'interviewing', 'offer', 'rejected', 'accepted', 'withdrawn'])
+    .withMessage('Invalid status'),
   handleValidationErrors
 ];
 
@@ -53,7 +62,7 @@ export const validateApplicationId = [
 ];
 
 export const validateGetApplications = [
-  query('status').optional().isIn(['pending', 'accepted', 'rejected', 'interviewing', 'offered']),
+  query('status').optional().isIn(['applied', 'interviewing', 'offer', 'rejected', 'accepted', 'withdrawn']),
   query('limit').optional().isInt({ min: 1, max: 100 }),
   query('offset').optional().isInt({ min: 0 }),
   handleValidationErrors
