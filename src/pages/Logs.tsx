@@ -9,6 +9,7 @@ import {
   X,
   Save,
   SlidersHorizontal,
+  Clock,
 } from "lucide-react";
 import {
   Typography,
@@ -31,6 +32,8 @@ interface JournalEntry {
   content: string;
   mood: string;
   tags: string[];
+  time_in: string | null;
+  time_out: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +58,8 @@ const LogsPage = () => {
     content: "",
     mood: "neutral",
     tags: "",
+    time_in: "",
+    time_out: "",
   });
 
   // Initialize socket and fetch entries
@@ -91,6 +96,8 @@ const LogsPage = () => {
           content: formData.content,
           mood: formData.mood,
           tags: tagsArray,
+          time_in: formData.time_in || null,
+          time_out: formData.time_out || null,
         });
 
         toast.success("Entry updated successfully", {
@@ -106,6 +113,8 @@ const LogsPage = () => {
           content: formData.content,
           mood: formData.mood,
           tags: tagsArray,
+          time_in: formData.time_in || null,
+          time_out: formData.time_out || null,
         });
 
         toast.success("Entry created successfully", {
@@ -135,6 +144,8 @@ const LogsPage = () => {
       content: "",
       mood: "neutral",
       tags: "",
+      time_in: "",
+      time_out: "",
     });
     setEditingEntry(null);
     setIsModalOpen(false);
@@ -148,6 +159,8 @@ const LogsPage = () => {
       content: entry.content,
       mood: entry.mood,
       tags: entry.tags.join(", "),
+      time_in: entry.time_in || "",
+      time_out: entry.time_out || "",
     });
     setIsModalOpen(true);
   };
@@ -185,6 +198,38 @@ const LogsPage = () => {
       setSelectedEntryTitle("");
     }
   };
+
+  // Calculate hours worked
+  const calculateHours = (timeIn: string, timeOut: string) => {
+    if (!timeIn || !timeOut) return 0;
+    const [inHour, inMin] = timeIn.split(":").map(Number);
+    const [outHour, outMin] = timeOut.split(":").map(Number);
+    const totalMinutes = outHour * 60 + outMin - (inHour * 60 + inMin);
+    const hours = totalMinutes / 60;
+    return hours;
+  };
+
+  // Format time for display (e.g., "11:00:00" -> "11am", "13:00:00" -> "1pm")
+  const formatTime = (time: string) => {
+    if (!time) return "";
+    const [hour] = time.split(":").map(Number);
+    const period = hour >= 12 ? "pm" : "am";
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}${period}`;
+  };
+
+  // Calculate total hours logged
+  const totalHoursLogged = entries.reduce((total, entry) => {
+    if (entry.time_in && entry.time_out) {
+      const hours = calculateHours(entry.time_in, entry.time_out);
+      return total + hours;
+    }
+    return total;
+  }, 0);
+
+  // Required internship hours (default: 702 hours)
+  const requiredHours = 702;
+  const hoursRemaining = Math.max(0, requiredHours - totalHoursLogged);
 
   // Filter and search entries
   const filteredEntries = entries.filter((entry) => {
@@ -231,21 +276,21 @@ const LogsPage = () => {
     {} as Record<string, number>,
   );
 
-  const thisMonth = entries.filter((e) => {
-    const entryDate = new Date(e.date);
-    const now = new Date();
-    return (
-      entryDate.getMonth() === now.getMonth() &&
-      entryDate.getFullYear() === now.getFullYear()
-    );
-  }).length;
+  // const thisMonth = entries.filter((e) => {
+  //   const entryDate = new Date(e.date);
+  //   const now = new Date();
+  //   return (
+  //     entryDate.getMonth() === now.getMonth() &&
+  //     entryDate.getFullYear() === now.getFullYear()
+  //   );
+  // }).length;
 
-  const thisWeek = entries.filter((e) => {
-    const entryDate = new Date(e.date);
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    return entryDate >= weekAgo;
-  }).length;
+  // const thisWeek = entries.filter((e) => {
+  //   const entryDate = new Date(e.date);
+  //   const now = new Date();
+  //   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  //   return entryDate >= weekAgo;
+  // }).length;
 
   if (loading && entries.length === 0) {
     return (
@@ -408,7 +453,7 @@ const LogsPage = () => {
       {/* Applications Grid/List */}
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <Typography variant="body2" sx={{ color: "grey.600", mb: 1 }}>
               Total Entries
@@ -422,24 +467,38 @@ const LogsPage = () => {
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <Typography variant="body2" sx={{ color: "grey.600", mb: 1 }}>
-              This Month
+              Hours Logged
             </Typography>
             <Typography
               variant="h4"
               sx={{ fontWeight: 600, color: "grey.900" }}
             >
-              {thisMonth}
+              {totalHoursLogged.toFixed(1)}h
             </Typography>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <Typography variant="body2" sx={{ color: "grey.600", mb: 1 }}>
-              This Week
+              Hours Remaining
+            </Typography>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 600,
+                color: hoursRemaining > 0 ? "orange.600" : "green.600",
+              }}
+            >
+              {hoursRemaining.toFixed(1)}h
+            </Typography>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <Typography variant="body2" sx={{ color: "grey.600", mb: 1 }}>
+              Progress
             </Typography>
             <Typography
               variant="h4"
               sx={{ fontWeight: 600, color: "grey.900" }}
             >
-              {thisWeek}
+              {((totalHoursLogged / requiredHours) * 100).toFixed(0)}%
             </Typography>
           </div>
         </div>
@@ -486,6 +545,20 @@ const LogsPage = () => {
                         })}
                       </Typography>
                     </div>
+                    {entry.time_in && entry.time_out && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <Typography variant="body2" sx={{ color: "grey.600" }}>
+                          {formatTime(entry.time_in)} -{" "}
+                          {formatTime(entry.time_out)} •{" "}
+                          {calculateHours(
+                            entry.time_in,
+                            entry.time_out,
+                          ).toFixed(1)}
+                          hrs
+                        </Typography>
+                      </div>
+                    )}
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                         moodColors[entry.mood]
@@ -652,6 +725,62 @@ const LogsPage = () => {
                     <option value="challenging">😔 Challenging</option>
                     <option value="stressful">😰 Stressful</option>
                   </TextField>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Time In
+                  </label>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="time"
+                    value={formData.time_in}
+                    onChange={(e) =>
+                      setFormData({ ...formData, time_in: e.target.value })
+                    }
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2,
+                        "&:hover fieldset": {
+                          borderColor: "grey.400",
+                        },
+                        "&.Mui-focused fieldset": {
+                          borderColor: "black",
+                          borderWidth: 2,
+                        },
+                      },
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Time Out
+                  </label>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="time"
+                    value={formData.time_out}
+                    onChange={(e) =>
+                      setFormData({ ...formData, time_out: e.target.value })
+                    }
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2,
+                        "&:hover fieldset": {
+                          borderColor: "grey.400",
+                        },
+                        "&.Mui-focused fieldset": {
+                          borderColor: "black",
+                          borderWidth: 2,
+                        },
+                      },
+                    }}
+                  />
                 </div>
               </div>
 

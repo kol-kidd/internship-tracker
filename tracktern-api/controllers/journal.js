@@ -60,7 +60,7 @@ export const getEntryById = async (req, res) => {
 export const addEntry = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, date, content, mood, tags } = req.body;
+    const { title, date, content, mood, tags, time_in, time_out } = req.body;
 
     const { data, error } = await supabase
       .from('journal_entries')
@@ -70,7 +70,9 @@ export const addEntry = async (req, res) => {
         date,
         content,
         mood,
-        tags: tags || []
+        tags: tags || [],
+        time_in,
+        time_out
       })
       .select()
       .single();
@@ -99,7 +101,7 @@ export const updateEntry = async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-    const { title, date, content, mood, tags } = req.body;
+    const { title, date, content, mood, tags, time_in, time_out } = req.body;
 
     const updateData = {};
     if (title !== undefined) updateData.title = title;
@@ -107,6 +109,8 @@ export const updateEntry = async (req, res) => {
     if (content !== undefined) updateData.content = content;
     if (mood !== undefined) updateData.mood = mood;
     if (tags !== undefined) updateData.tags = tags;
+    if (time_in !== undefined) updateData.time_in = time_in;
+    if (time_out !== undefined) updateData.time_out = time_out;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase

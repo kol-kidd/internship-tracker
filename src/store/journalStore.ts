@@ -11,6 +11,8 @@ interface JournalEntry {
   content: string;
   mood: string;
   tags: string[];
+  time_in: string | null;
+  time_out: string | null;
   created_at: string;
   updated_at: string;
 }
