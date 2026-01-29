@@ -1,5 +1,6 @@
 import CustomButton from "@/components/Buttons";
 import CustomInput from "@/components/Input";
+import SEO from "@/components/SEO";
 import { signInWithGoogle } from "@/functions/auth/googleAuth";
 import { signIn } from "@/functions/auth/signIn";
 import { createOrUpdateProfile } from "@/functions/auth/updateProfile";
@@ -54,8 +55,13 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAFF]">
-      {/* Left Side - Branding */}
+    <>
+      <SEO
+        title="Login"
+        description="Sign in to InternPal to track your internship applications and manage your career journey."
+      />
+      <div className="flex min-h-screen bg-[#FAFAFF]">
+        {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/3 bg-linear-to-br from-[#7C3AED] to-[#1E1B4B] p-12 items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-white max-w-md">
@@ -236,6 +242,7 @@ disabled:opacity-50 disabled:cursor-not-allowed"
           </p>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

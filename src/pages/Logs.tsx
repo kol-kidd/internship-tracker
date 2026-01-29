@@ -23,6 +23,7 @@ import {
   FileEdit,
   AlignLeft,
 } from "lucide-react";
+import SEO from "@/components/SEO";
 import { jsPDF } from "jspdf";
 import { useAuthStore } from "@/store/authStore";
 import { useJournalStore } from "@/store/journalStore";
@@ -601,699 +602,709 @@ const LogsPage = () => {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <div className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-[#DDD6FE]/30 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 rounded-full bg-[#38BDF8] animate-pulse" />
-                <span className="text-xs font-medium text-[#38BDF8] uppercase tracking-wider">
-                  Journal
-                </span>
-              </div>
-              <h1 className="text-2xl font-bold text-[#1E1B4B]">
-                Internship Journal
-              </h1>
-              <p className="text-[#1E1B4B]/60 mt-1">
-                Document your journey, reflections, and daily experiences
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={exportToPDF}
-                disabled={filteredEntries.length === 0}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] text-sm font-medium hover:bg-[#DDD6FE]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download className="w-4 h-4" />
-                Export PDF
-              </button>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white text-sm font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                New Entry
-              </button>
-            </div>
-          </div>
-
-          {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1E1B4B]/40" />
-              <input
-                type="text"
-                placeholder="Search entries..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 rounded-xl border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#DDD6FE]/50 flex items-center justify-center hover:bg-[#DDD6FE] transition-colors"
-                >
-                  <X className="w-3 h-3 text-[#1E1B4B]/60" />
-                </button>
-              )}
-            </div>
-
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
-                showFilters
-                  ? "bg-[#7C3AED] text-white border-[#7C3AED]"
-                  : "border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20"
-              }`}
-            >
-              <Filter className="w-4 h-4" />
-              Filter
-              {filterMood !== "all" && (
-                <span className="w-2 h-2 rounded-full bg-[#38BDF8]" />
-              )}
-            </button>
-          </div>
-
-          {/* Filter Panel */}
-          {showFilters && (
-            <div className="mt-4 p-4 bg-[#FAFAFF] rounded-xl border border-[#DDD6FE]/30">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-4 h-4 text-[#7C3AED]" />
-                <span className="text-sm font-medium text-[#1E1B4B]">
-                  Filter by Mood
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setFilterMood("all")}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    filterMood === "all"
-                      ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
-                      : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
-                  }`}
-                >
-                  All ({entries.length})
-                </button>
-                {Object.entries(moodConfig).map(([mood, config]) => (
-                  <button
-                    key={mood}
-                    onClick={() => setFilterMood(mood)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                      filterMood === mood
-                        ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
-                        : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
-                    }`}
-                  >
-                    <span>{moodEmojis[mood]}</span>
-                    {config.label} ({moodCounts[mood] || 0})
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center">
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-sm text-[#1E1B4B]/60">Total Entries</span>
-            </div>
-            <p className="text-3xl font-bold text-[#1E1B4B]">
-              {entries.length}
-            </p>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#38BDF8] to-[#7DD3FC] flex items-center justify-center">
-                <Clock className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-sm text-[#1E1B4B]/60">Hours Logged</span>
-            </div>
-            <p className="text-3xl font-bold text-[#1E1B4B]">
-              {totalHoursLogged.toFixed(1)}h
-            </p>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#F472B6] to-[#FB7185] flex items-center justify-center">
-                <Target className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#1E1B4B]/60">Remaining</span>
-                  <div className="flex items-center gap-1 text-xs text-[#1E1B4B]/40">
-                    <span>of</span>
-                    <input
-                      type="number"
-                      value={requiredHours}
-                      onChange={(e) =>
-                        handleRequiredHoursChange(e.target.value)
-                      }
-                      className="w-14 px-1.5 py-0.5 border border-[#DDD6FE]/50 rounded text-center text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED]"
-                      min="0"
-                    />
-                    <span>hrs</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p
-              className={`text-3xl font-bold ${hoursRemaining > 0 ? "text-[#F472B6]" : "text-emerald-500"}`}
-            >
-              {hoursRemaining.toFixed(1)}h
-            </p>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#34D399] to-[#6EE7B7] flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-sm text-[#1E1B4B]/60">Progress</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <p className="text-3xl font-bold text-[#1E1B4B]">
-                {progressPercent.toFixed(0)}%
-              </p>
-              <div className="flex-1 h-2 bg-[#DDD6FE]/30 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-linear-to-r from-[#7C3AED] to-[#38BDF8] rounded-full transition-all duration-500"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Entries Grid */}
-        {filteredEntries.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-12 text-center">
-            <div className="relative inline-block mb-6">
-              <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-[#DDD6FE]/50 to-[#FAFAFF] flex items-center justify-center">
-                <BookOpen className="w-10 h-10 text-[#7C3AED]/40" />
-              </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-[#38BDF8]/10 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-[#38BDF8]" />
-              </div>
-            </div>
-            <h3 className="text-xl font-semibold text-[#1E1B4B] mb-2">
-              No journal entries found
-            </h3>
-            <p className="text-[#1E1B4B]/60 mb-6 max-w-md mx-auto">
-              {searchQuery || filterMood !== "all"
-                ? "Try adjusting your filters or search query"
-                : "Start documenting your internship journey today!"}
-            </p>
-            {!searchQuery && filterMood === "all" && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                Create Your First Entry
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-            {filteredEntries.map((entry) => (
-              <div
-                key={entry.id}
-                onClick={() => setViewingEntry(entry)}
-                className="group bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:border-[#7C3AED]/30 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all cursor-pointer"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-[#1E1B4B] truncate group-hover:text-[#7C3AED] transition-colors">
-                      {entry.title}
-                    </h3>
-                  </div>
-                  <span
-                    className={`shrink-0 ml-2 px-2 py-1 rounded-lg text-xs font-medium ${moodConfig[entry.mood]?.color || "bg-gray-100"}`}
-                  >
-                    {moodEmojis[entry.mood]}
+    <>
+      <SEO
+        title="Journal"
+        description="Document your internship journey with AI-enhanced journal entries. Track hours, reflect on experiences, and grow professionally."
+      />
+      <div className="min-h-screen">
+        {/* Header */}
+        <div className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-[#DDD6FE]/30 z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-[#38BDF8] animate-pulse" />
+                  <span className="text-xs font-medium text-[#38BDF8] uppercase tracking-wider">
+                    Journal
                   </span>
                 </div>
-
-                <div className="flex items-center gap-3 text-xs text-[#1E1B4B]/50 mb-3">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>
-                      {new Date(entry.date).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </div>
-                  {entry.time_in && entry.time_out && (
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      <span>
-                        {calculateHours(
-                          entry.time_in,
-                          entry.time_out,
-                          entry.break_time,
-                        ).toFixed(1)}
-                        h
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-sm text-[#1E1B4B]/60 line-clamp-2 mb-3">
-                  {entry.content}
+                <h1 className="text-2xl font-bold text-[#1E1B4B]">
+                  Internship Journal
+                </h1>
+                <p className="text-[#1E1B4B]/60 mt-1">
+                  Document your journey, reflections, and daily experiences
                 </p>
-
-                <div className="flex items-center justify-between pt-3 border-t border-[#DDD6FE]/30">
-                  <div className="flex gap-1 overflow-hidden">
-                    {entry.tags.slice(0, 2).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-0.5 bg-[#FAFAFF] text-[#1E1B4B]/60 rounded text-xs truncate max-w-[70px]"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                    {entry.tags.length > 2 && (
-                      <span className="text-xs text-[#1E1B4B]/40">
-                        +{entry.tags.length - 2}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(entry);
-                      }}
-                      className="p-1.5 text-[#1E1B4B]/50 hover:text-[#7C3AED] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteClick(entry.id, entry.title);
-                      }}
-                      className="p-1.5 text-[#1E1B4B]/50 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Create/Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-[#1E1B4B]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-[#DDD6FE]/30 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-[#1E1B4B]">
-                {editingEntry ? "Edit Entry" : "New Journal Entry"}
-              </h2>
-              <button
-                onClick={resetForm}
-                className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
-              >
-                <X className="w-5 h-5 text-[#1E1B4B]/60" />
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={exportToPDF}
+                  disabled={filteredEntries.length === 0}
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] text-sm font-medium hover:bg-[#DDD6FE]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download className="w-4 h-4" />
+                  Export PDF
+                </button>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white text-sm font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Entry
+                </button>
+              </div>
             </div>
 
-            <div className="p-6 space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
-                  Title *
-                </label>
+            {/* Search and Filters */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1E1B4B]/40" />
                 <input
                   type="text"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  placeholder="What happened today?"
-                  className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                  placeholder="Search entries..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
-                    Date *
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, date: e.target.value })
-                    }
-                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
-                    Mood *
-                  </label>
-                  <select
-                    value={formData.mood}
-                    onChange={(e) =>
-                      setFormData({ ...formData, mood: e.target.value })
-                    }
-                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
-                  >
-                    <option value="great">😊 Great</option>
-                    <option value="good">🙂 Good</option>
-                    <option value="neutral">😐 Neutral</option>
-                    <option value="challenging">😔 Challenging</option>
-                    <option value="stressful">😰 Stressful</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
-                    Time In
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.time_in}
-                    onChange={(e) =>
-                      setFormData({ ...formData, time_in: e.target.value })
-                    }
-                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
-                    Time Out
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.time_out}
-                    onChange={(e) =>
-                      setFormData({ ...formData, time_out: e.target.value })
-                    }
-                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
-                    Break (mins)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.break_time}
-                    onChange={(e) =>
-                      setFormData({ ...formData, break_time: e.target.value })
-                    }
-                    placeholder="60"
-                    min="0"
-                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-[#1E1B4B]">
-                    Entry *
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowAIMenu(!showAIMenu)}
-                      disabled={isEnhancing || !formData.content.trim()}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-linear-to-r from-[#38BDF8] to-[#7DD3FC] text-white text-xs font-medium hover:shadow-md hover:shadow-[#38BDF8]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isEnhancing ? (
-                        <>
-                          <RefreshCw className="w-3 h-3 animate-spin" />
-                          Enhancing...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-3 h-3" />
-                          AI Enhance
-                          <ChevronDown className="w-3 h-3" />
-                        </>
-                      )}
-                    </button>
-
-                    {showAIMenu && (
-                      <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-[#DDD6FE]/50 shadow-lg shadow-[#7C3AED]/10 z-10 overflow-hidden">
-                        <div className="p-2">
-                          <div className="text-xs font-medium text-[#1E1B4B]/40 px-3 py-1.5 uppercase tracking-wide">
-                            AI Actions
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleAIEnhance("improve")}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-[#7C3AED]/10 flex items-center justify-center">
-                              <Zap className="w-3.5 h-3.5 text-[#7C3AED]" />
-                            </div>
-                            <div>
-                              <div className="font-medium">Improve Writing</div>
-                              <div className="text-xs text-[#1E1B4B]/50">
-                                Fix grammar & clarity
-                              </div>
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleAIEnhance("expand")}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-[#38BDF8]/10 flex items-center justify-center">
-                              <FileEdit className="w-3.5 h-3.5 text-[#38BDF8]" />
-                            </div>
-                            <div>
-                              <div className="font-medium">Expand Content</div>
-                              <div className="text-xs text-[#1E1B4B]/50">
-                                Add more detail & depth
-                              </div>
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleAIEnhance("professional")}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
-                              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                            </div>
-                            <div>
-                              <div className="font-medium">
-                                Make Professional
-                              </div>
-                              <div className="text-xs text-[#1E1B4B]/50">
-                                Portfolio-ready style
-                              </div>
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleAIEnhance("summarize")}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-                              <AlignLeft className="w-3.5 h-3.5 text-amber-600" />
-                            </div>
-                            <div>
-                              <div className="font-medium">Summarize</div>
-                              <div className="text-xs text-[#1E1B4B]/50">
-                                Brief key points
-                              </div>
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <textarea
-                  rows={6}
-                  value={formData.content}
-                  onChange={(e) =>
-                    setFormData({ ...formData, content: e.target.value })
-                  }
-                  placeholder="Write about your day, what you learned, challenges faced..."
-                  className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all resize-none"
-                />
-
-                {originalContent && (
+                {searchQuery && (
                   <button
-                    type="button"
-                    onClick={handleRevertContent}
-                    className="mt-2 flex items-center gap-1.5 text-xs text-[#7C3AED] hover:text-[#6D28D9] transition-colors"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#DDD6FE]/50 flex items-center justify-center hover:bg-[#DDD6FE] transition-colors"
                   >
-                    <RefreshCw className="w-3 h-3" />
-                    Revert to original
+                    <X className="w-3 h-3 text-[#1E1B4B]/60" />
                   </button>
                 )}
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-[#1E1B4B]">
-                    Tags (comma-separated)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAISuggestTags}
-                    disabled={isEnhancing || !formData.content.trim()}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[#38BDF8] hover:bg-[#38BDF8]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Tag className="w-3 h-3" />
-                    AI Suggest
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={formData.tags}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tags: e.target.value })
-                  }
-                  placeholder="learning, meeting, project, milestone"
-                  className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
-                />
-              </div>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                  showFilters
+                    ? "bg-[#7C3AED] text-white border-[#7C3AED]"
+                    : "border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20"
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                Filter
+                {filterMood !== "all" && (
+                  <span className="w-2 h-2 rounded-full bg-[#38BDF8]" />
+                )}
+              </button>
+            </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleSubmit}
-                  disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {editingEntry ? "Update Entry" : "Save Entry"}
-                </button>
-                <button
-                  onClick={resetForm}
-                  className="px-6 py-3 rounded-xl border border-[#DDD6FE] text-[#1E1B4B] font-medium hover:bg-[#DDD6FE]/30 transition-all"
-                >
-                  Cancel
-                </button>
+            {/* Filter Panel */}
+            {showFilters && (
+              <div className="mt-4 p-4 bg-[#FAFAFF] rounded-xl border border-[#DDD6FE]/30">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="w-4 h-4 text-[#7C3AED]" />
+                  <span className="text-sm font-medium text-[#1E1B4B]">
+                    Filter by Mood
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setFilterMood("all")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      filterMood === "all"
+                        ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
+                        : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
+                    }`}
+                  >
+                    All ({entries.length})
+                  </button>
+                  {Object.entries(moodConfig).map(([mood, config]) => (
+                    <button
+                      key={mood}
+                      onClick={() => setFilterMood(mood)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                        filterMood === mood
+                          ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
+                          : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
+                      }`}
+                    >
+                      <span>{moodEmojis[mood]}</span>
+                      {config.label} ({moodCounts[mood] || 0})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-sm text-[#1E1B4B]/60">Total Entries</span>
+              </div>
+              <p className="text-3xl font-bold text-[#1E1B4B]">
+                {entries.length}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#38BDF8] to-[#7DD3FC] flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-sm text-[#1E1B4B]/60">Hours Logged</span>
+              </div>
+              <p className="text-3xl font-bold text-[#1E1B4B]">
+                {totalHoursLogged.toFixed(1)}h
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#F472B6] to-[#FB7185] flex items-center justify-center">
+                  <Target className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-[#1E1B4B]/60">Remaining</span>
+                    <div className="flex items-center gap-1 text-xs text-[#1E1B4B]/40">
+                      <span>of</span>
+                      <input
+                        type="number"
+                        value={requiredHours}
+                        onChange={(e) =>
+                          handleRequiredHoursChange(e.target.value)
+                        }
+                        className="w-14 px-1.5 py-0.5 border border-[#DDD6FE]/50 rounded text-center text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED]"
+                        min="0"
+                      />
+                      <span>hrs</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p
+                className={`text-3xl font-bold ${hoursRemaining > 0 ? "text-[#F472B6]" : "text-emerald-500"}`}
+              >
+                {hoursRemaining.toFixed(1)}h
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#34D399] to-[#6EE7B7] flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-sm text-[#1E1B4B]/60">Progress</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <p className="text-3xl font-bold text-[#1E1B4B]">
+                  {progressPercent.toFixed(0)}%
+                </p>
+                <div className="flex-1 h-2 bg-[#DDD6FE]/30 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-linear-to-r from-[#7C3AED] to-[#38BDF8] rounded-full transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* View Entry Modal */}
-      {viewingEntry && (
-        <div className="fixed inset-0 bg-[#1E1B4B]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-[#DDD6FE]/30 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-[#1E1B4B] truncate pr-4">
-                {viewingEntry.title}
-              </h2>
-              <div className="flex items-center gap-2 shrink-0">
+          {/* Entries Grid */}
+          {filteredEntries.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-12 text-center">
+              <div className="relative inline-block mb-6">
+                <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-[#DDD6FE]/50 to-[#FAFAFF] flex items-center justify-center">
+                  <BookOpen className="w-10 h-10 text-[#7C3AED]/40" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-[#38BDF8]/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-[#38BDF8]" />
+                </div>
+              </div>
+              <h3 className="text-xl font-semibold text-[#1E1B4B] mb-2">
+                No journal entries found
+              </h3>
+              <p className="text-[#1E1B4B]/60 mb-6 max-w-md mx-auto">
+                {searchQuery || filterMood !== "all"
+                  ? "Try adjusting your filters or search query"
+                  : "Start documenting your internship journey today!"}
+              </p>
+              {!searchQuery && filterMood === "all" && (
                 <button
-                  onClick={() => {
-                    handleEdit(viewingEntry);
-                    setViewingEntry(null);
-                  }}
-                  className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
+                  onClick={() => setIsModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
                 >
-                  <Edit2 className="w-5 h-5 text-[#7C3AED]" />
+                  <Plus className="w-4 h-4" />
+                  Create Your First Entry
                 </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+              {filteredEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  onClick={() => setViewingEntry(entry)}
+                  className="group bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:border-[#7C3AED]/30 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all cursor-pointer"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-[#1E1B4B] truncate group-hover:text-[#7C3AED] transition-colors">
+                        {entry.title}
+                      </h3>
+                    </div>
+                    <span
+                      className={`shrink-0 ml-2 px-2 py-1 rounded-lg text-xs font-medium ${moodConfig[entry.mood]?.color || "bg-gray-100"}`}
+                    >
+                      {moodEmojis[entry.mood]}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs text-[#1E1B4B]/50 mb-3">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      <span>
+                        {new Date(entry.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    {entry.time_in && entry.time_out && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>
+                          {calculateHours(
+                            entry.time_in,
+                            entry.time_out,
+                            entry.break_time,
+                          ).toFixed(1)}
+                          h
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-[#1E1B4B]/60 line-clamp-2 mb-3">
+                    {entry.content}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-[#DDD6FE]/30">
+                    <div className="flex gap-1 overflow-hidden">
+                      {entry.tags.slice(0, 2).map((tag, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-0.5 bg-[#FAFAFF] text-[#1E1B4B]/60 rounded text-xs truncate max-w-[70px]"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                      {entry.tags.length > 2 && (
+                        <span className="text-xs text-[#1E1B4B]/40">
+                          +{entry.tags.length - 2}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(entry);
+                        }}
+                        className="p-1.5 text-[#1E1B4B]/50 hover:text-[#7C3AED] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(entry.id, entry.title);
+                        }}
+                        className="p-1.5 text-[#1E1B4B]/50 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Create/Edit Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-[#1E1B4B]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+              <div className="p-6 border-b border-[#DDD6FE]/30 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-[#1E1B4B]">
+                  {editingEntry ? "Edit Entry" : "New Journal Entry"}
+                </h2>
                 <button
-                  onClick={() => setViewingEntry(null)}
+                  onClick={resetForm}
                   className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
                 >
                   <X className="w-5 h-5 text-[#1E1B4B]/60" />
                 </button>
               </div>
-            </div>
 
-            <div className="p-6">
-              <div className="flex flex-wrap items-center gap-4 mb-6">
-                <div className="flex items-center gap-2 text-[#1E1B4B]/60">
-                  <Calendar className="w-4 h-4" />
-                  <span>
-                    {new Date(viewingEntry.date).toLocaleDateString("en-US", {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </span>
+              <div className="p-6 space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                    placeholder="What happened today?"
+                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                  />
                 </div>
-                {viewingEntry.time_in && viewingEntry.time_out && (
-                  <div className="flex items-center gap-2 text-[#1E1B4B]/60">
-                    <Clock className="w-4 h-4" />
-                    <span>
-                      {formatTime(viewingEntry.time_in)} -{" "}
-                      {formatTime(viewingEntry.time_out)}
-                      {viewingEntry.break_time
-                        ? ` • ${viewingEntry.break_time}min break`
-                        : ""}{" "}
-                      •{" "}
-                      {calculateHours(
-                        viewingEntry.time_in,
-                        viewingEntry.time_out,
-                        viewingEntry.break_time,
-                      ).toFixed(1)}{" "}
-                      hours
-                    </span>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                      Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) =>
+                        setFormData({ ...formData, date: e.target.value })
+                      }
+                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                    />
                   </div>
-                )}
-                <span
-                  className={`px-3 py-1 rounded-lg text-sm font-medium ${moodConfig[viewingEntry.mood]?.color || "bg-gray-100"}`}
-                >
-                  {moodEmojis[viewingEntry.mood]} {viewingEntry.mood}
-                </span>
-              </div>
-
-              <div className="bg-[#FAFAFF] rounded-xl p-5 mb-6">
-                <p className="text-[#1E1B4B] whitespace-pre-wrap leading-relaxed">
-                  {viewingEntry.content}
-                </p>
-              </div>
-
-              {viewingEntry.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {viewingEntry.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-[#DDD6FE]/30 text-[#7C3AED] rounded-lg text-sm"
+                  <div>
+                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                      Mood *
+                    </label>
+                    <select
+                      value={formData.mood}
+                      onChange={(e) =>
+                        setFormData({ ...formData, mood: e.target.value })
+                      }
+                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
                     >
-                      #{tag}
-                    </span>
-                  ))}
+                      <option value="great">😊 Great</option>
+                      <option value="good">🙂 Good</option>
+                      <option value="neutral">😐 Neutral</option>
+                      <option value="challenging">😔 Challenging</option>
+                      <option value="stressful">😰 Stressful</option>
+                    </select>
+                  </div>
                 </div>
-              )}
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                      Time In
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.time_in}
+                      onChange={(e) =>
+                        setFormData({ ...formData, time_in: e.target.value })
+                      }
+                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                      Time Out
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.time_out}
+                      onChange={(e) =>
+                        setFormData({ ...formData, time_out: e.target.value })
+                      }
+                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                      Break (mins)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.break_time}
+                      onChange={(e) =>
+                        setFormData({ ...formData, break_time: e.target.value })
+                      }
+                      placeholder="60"
+                      min="0"
+                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-[#1E1B4B]">
+                      Entry *
+                    </label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowAIMenu(!showAIMenu)}
+                        disabled={isEnhancing || !formData.content.trim()}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-linear-to-r from-[#38BDF8] to-[#7DD3FC] text-white text-xs font-medium hover:shadow-md hover:shadow-[#38BDF8]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isEnhancing ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            Enhancing...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="w-3 h-3" />
+                            AI Enhance
+                            <ChevronDown className="w-3 h-3" />
+                          </>
+                        )}
+                      </button>
+
+                      {showAIMenu && (
+                        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-[#DDD6FE]/50 shadow-lg shadow-[#7C3AED]/10 z-10 overflow-hidden">
+                          <div className="p-2">
+                            <div className="text-xs font-medium text-[#1E1B4B]/40 px-3 py-1.5 uppercase tracking-wide">
+                              AI Actions
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAIEnhance("improve")}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                            >
+                              <div className="w-7 h-7 rounded-lg bg-[#7C3AED]/10 flex items-center justify-center">
+                                <Zap className="w-3.5 h-3.5 text-[#7C3AED]" />
+                              </div>
+                              <div>
+                                <div className="font-medium">
+                                  Improve Writing
+                                </div>
+                                <div className="text-xs text-[#1E1B4B]/50">
+                                  Fix grammar & clarity
+                                </div>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAIEnhance("expand")}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                            >
+                              <div className="w-7 h-7 rounded-lg bg-[#38BDF8]/10 flex items-center justify-center">
+                                <FileEdit className="w-3.5 h-3.5 text-[#38BDF8]" />
+                              </div>
+                              <div>
+                                <div className="font-medium">
+                                  Expand Content
+                                </div>
+                                <div className="text-xs text-[#1E1B4B]/50">
+                                  Add more detail & depth
+                                </div>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAIEnhance("professional")}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                            >
+                              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium">
+                                  Make Professional
+                                </div>
+                                <div className="text-xs text-[#1E1B4B]/50">
+                                  Portfolio-ready style
+                                </div>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAIEnhance("summarize")}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                            >
+                              <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                                <AlignLeft className="w-3.5 h-3.5 text-amber-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium">Summarize</div>
+                                <div className="text-xs text-[#1E1B4B]/50">
+                                  Brief key points
+                                </div>
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <textarea
+                    rows={6}
+                    value={formData.content}
+                    onChange={(e) =>
+                      setFormData({ ...formData, content: e.target.value })
+                    }
+                    placeholder="Write about your day, what you learned, challenges faced..."
+                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all resize-none"
+                  />
+
+                  {originalContent && (
+                    <button
+                      type="button"
+                      onClick={handleRevertContent}
+                      className="mt-2 flex items-center gap-1.5 text-xs text-[#7C3AED] hover:text-[#6D28D9] transition-colors"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Revert to original
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-[#1E1B4B]">
+                      Tags (comma-separated)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAISuggestTags}
+                      disabled={isEnhancing || !formData.content.trim()}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[#38BDF8] hover:bg-[#38BDF8]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Tag className="w-3 h-3" />
+                      AI Suggest
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.tags}
+                    onChange={(e) =>
+                      setFormData({ ...formData, tags: e.target.value })
+                    }
+                    placeholder="learning, meeting, project, milestone"
+                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={handleSubmit}
+                    disabled={saving}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {editingEntry ? "Update Entry" : "Save Entry"}
+                  </button>
+                  <button
+                    onClick={resetForm}
+                    className="px-6 py-3 rounded-xl border border-[#DDD6FE] text-[#1E1B4B] font-medium hover:bg-[#DDD6FE]/30 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <ConfirmationDialog
-        open={deleteDialogOpen}
-        onClose={handleDelete}
-        itemName={selectedEntryTitle}
-      />
-      <LoadingOverlay open={saving} message="Processing..." />
-    </div>
+        {/* View Entry Modal */}
+        {viewingEntry && (
+          <div className="fixed inset-0 bg-[#1E1B4B]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+              <div className="p-6 border-b border-[#DDD6FE]/30 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-[#1E1B4B] truncate pr-4">
+                  {viewingEntry.title}
+                </h2>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      handleEdit(viewingEntry);
+                      setViewingEntry(null);
+                    }}
+                    className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
+                  >
+                    <Edit2 className="w-5 h-5 text-[#7C3AED]" />
+                  </button>
+                  <button
+                    onClick={() => setViewingEntry(null)}
+                    className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
+                  >
+                    <X className="w-5 h-5 text-[#1E1B4B]/60" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="flex flex-wrap items-center gap-4 mb-6">
+                  <div className="flex items-center gap-2 text-[#1E1B4B]/60">
+                    <Calendar className="w-4 h-4" />
+                    <span>
+                      {new Date(viewingEntry.date).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                  {viewingEntry.time_in && viewingEntry.time_out && (
+                    <div className="flex items-center gap-2 text-[#1E1B4B]/60">
+                      <Clock className="w-4 h-4" />
+                      <span>
+                        {formatTime(viewingEntry.time_in)} -{" "}
+                        {formatTime(viewingEntry.time_out)}
+                        {viewingEntry.break_time
+                          ? ` • ${viewingEntry.break_time}min break`
+                          : ""}{" "}
+                        •{" "}
+                        {calculateHours(
+                          viewingEntry.time_in,
+                          viewingEntry.time_out,
+                          viewingEntry.break_time,
+                        ).toFixed(1)}{" "}
+                        hours
+                      </span>
+                    </div>
+                  )}
+                  <span
+                    className={`px-3 py-1 rounded-lg text-sm font-medium ${moodConfig[viewingEntry.mood]?.color || "bg-gray-100"}`}
+                  >
+                    {moodEmojis[viewingEntry.mood]} {viewingEntry.mood}
+                  </span>
+                </div>
+
+                <div className="bg-[#FAFAFF] rounded-xl p-5 mb-6">
+                  <p className="text-[#1E1B4B] whitespace-pre-wrap leading-relaxed">
+                    {viewingEntry.content}
+                  </p>
+                </div>
+
+                {viewingEntry.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {viewingEntry.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-[#DDD6FE]/30 text-[#7C3AED] rounded-lg text-sm"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ConfirmationDialog
+          open={deleteDialogOpen}
+          onClose={handleDelete}
+          itemName={selectedEntryTitle}
+        />
+        <LoadingOverlay open={saving} message="Processing..." />
+      </div>
+    </>
   );
 };
 

@@ -1,5 +1,6 @@
 import CustomButton from "@/components/Buttons";
 import CustomInput from "@/components/Input";
+import SEO from "@/components/SEO";
 import { signInWithGoogle } from "@/functions/auth/googleAuth";
 import { signUp } from "@/functions/auth/signUp";
 import { createOrUpdateProfile } from "@/functions/auth/updateProfile";
@@ -146,10 +147,15 @@ export default function Register() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAFF]">
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/3 bg-linear-to-br from-[#7C3AED] to-[#1E1B4B] p-12 items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/10" />
+    <>
+      <SEO
+        title="Sign Up"
+        description="Create your InternPal account to start tracking internship applications and enhance your career journey with AI."
+      />
+      <div className="flex min-h-screen bg-[#FAFAFF]">
+        {/* Left Side - Branding */}
+        <div className="hidden lg:flex lg:w-1/3 bg-linear-to-br from-[#7C3AED] to-[#1E1B4B] p-12 items-center justify-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-black/10" />
 
         <div className="relative z-10 text-white max-w-md">
           <h1 className="text-5xl font-bold mb-6">InternPal</h1>
@@ -338,7 +344,8 @@ disabled:opacity-50 disabled:cursor-not-allowed"
             </p>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
