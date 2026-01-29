@@ -3,7 +3,7 @@ import axios from "axios";
 import { supabase } from "@/config/supabaseClient";
 import { io, Socket } from "socket.io-client";
 
-interface Application {
+export interface Application {
   id: number;
   user_id: string;
   company_name: string;
@@ -11,6 +11,8 @@ interface Application {
   date_applied: string;
   status: string;
   created_at: string;
+  position?: string;
+  notes?: string;
 }
 
 // Separate interface for API updates (camelCase)

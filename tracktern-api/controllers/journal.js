@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase.js';
-import { io } from "../index.js"; 
+import { io } from "../index.js";
+import { geminiModel } from '../config/gemini.js'; 
 
 export const getEntries = async (req, res) => {
   try {
@@ -60,7 +61,7 @@ export const getEntryById = async (req, res) => {
 export const addEntry = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, date, content, mood, tags, time_in, time_out } = req.body;
+    const { title, date, content, mood, tags, time_in, time_out, break_time } = req.body;
 
     const { data, error } = await supabase
       .from('journal_entries')
@@ -72,7 +73,8 @@ export const addEntry = async (req, res) => {
         mood,
         tags: tags || [],
         time_in,
-        time_out
+        time_out,
+        break_time: break_time || null
       })
       .select()
       .single();
@@ -101,7 +103,7 @@ export const updateEntry = async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-    const { title, date, content, mood, tags, time_in, time_out } = req.body;
+    const { title, date, content, mood, tags, time_in, time_out, break_time } = req.body;
 
     const updateData = {};
     if (title !== undefined) updateData.title = title;
@@ -111,6 +113,7 @@ export const updateEntry = async (req, res) => {
     if (tags !== undefined) updateData.tags = tags;
     if (time_in !== undefined) updateData.time_in = time_in;
     if (time_out !== undefined) updateData.time_out = time_out;
+    if (break_time !== undefined) updateData.break_time = break_time;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -179,5 +182,166 @@ export const deleteEntry = async (req, res) => {
   } catch (error) {
     console.error('Delete Entry Error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const enhanceEntry = async (req, res) => {
+  try {
+    const { content, title, enhanceType } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ 
+        error: 'AI service not configured',
+        details: 'GEMINI_API_KEY is not set'
+      });
+    }
+
+    let prompt = '';
+    
+    switch (enhanceType) {
+      case 'improve':
+        prompt = `You are an internship journal writing assistant. Improve the following journal entry by:
+- Fixing grammar and spelling errors
+- Making the writing more professional and clear
+- Keeping the original meaning and personal voice
+- Maintaining a first-person perspective
+- Keep the response concise and natural
+
+Original entry title: "${title || 'Untitled'}"
+Original content:
+${content}
+
+Please provide only the improved content without any explanations or prefixes. Do not include the title.`;
+        break;
+        
+      case 'expand':
+        prompt = `You are an internship journal writing assistant. Expand the following journal entry by:
+- Adding more detail and depth to the experiences described
+- Including potential reflections on what was learned
+- Suggesting connections to career goals or skills gained
+- Maintaining a first-person perspective and personal voice
+- Keep it authentic and not overly formal
+
+Original entry title: "${title || 'Untitled'}"
+Original content:
+${content}
+
+Please provide only the expanded content without any explanations or prefixes. Do not include the title.`;
+        break;
+        
+      case 'professional':
+        prompt = `You are an internship journal writing assistant. Rewrite the following journal entry to be more professional and suitable for a portfolio or performance review:
+- Use professional language while maintaining authenticity
+- Highlight achievements, skills gained, and contributions
+- Structure the content clearly
+- Keep the first-person perspective
+- Quantify accomplishments where possible
+
+Original entry title: "${title || 'Untitled'}"
+Original content:
+${content}
+
+Please provide only the professional version without any explanations or prefixes. Do not include the title.`;
+        break;
+        
+      case 'summarize':
+        prompt = `You are an internship journal writing assistant. Summarize the following journal entry into a brief, impactful summary:
+- Capture the key points and main takeaways
+- Keep it to 2-3 sentences
+- Maintain the first-person perspective
+- Focus on accomplishments and learnings
+
+Original entry title: "${title || 'Untitled'}"
+Original content:
+${content}
+
+Please provide only the summary without any explanations or prefixes.`;
+        break;
+        
+      default:
+        prompt = `You are an internship journal writing assistant. Improve the following journal entry by fixing grammar, improving clarity, and making it more engaging while keeping the original voice and meaning:
+
+Original entry title: "${title || 'Untitled'}"
+Original content:
+${content}
+
+Please provide only the improved content without any explanations or prefixes. Do not include the title.`;
+    }
+
+    const result = await geminiModel.generateContent(prompt);
+    const response = await result.response;
+    const enhancedContent = response.text();
+
+    res.json({ 
+      enhancedContent,
+      originalContent: content,
+      enhanceType: enhanceType || 'improve'
+    });
+
+  } catch (error) {
+    console.error('Enhance Entry Error:', error);
+    
+    if (error.message?.includes('API key')) {
+      return res.status(500).json({ 
+        error: 'AI service configuration error',
+        details: 'Invalid or missing API key'
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to enhance entry',
+      details: error.message 
+    });
+  }
+};
+
+export const suggestTags = async (req, res) => {
+  try {
+    const { content, title } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ 
+        error: 'AI service not configured',
+        details: 'GEMINI_API_KEY is not set'
+      });
+    }
+
+    const prompt = `You are an internship journal assistant. Suggest relevant tags for this journal entry. 
+Return only a JSON array of 3-5 single-word or short tags (no hashtags, no explanation).
+Tags should be relevant to internship experiences, skills, or activities mentioned.
+
+Title: "${title || 'Untitled'}"
+Content: ${content}
+
+Respond with only a JSON array like: ["tag1", "tag2", "tag3"]`;
+
+    const result = await geminiModel.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text().trim();
+    
+    let tags;
+    try {
+      tags = JSON.parse(text);
+    } catch {
+      const match = text.match(/\[.*\]/);
+      tags = match ? JSON.parse(match[0]) : [];
+    }
+
+    res.json({ tags: Array.isArray(tags) ? tags : [] });
+
+  } catch (error) {
+    console.error('Suggest Tags Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to suggest tags',
+      details: error.message 
+    });
   }
 };

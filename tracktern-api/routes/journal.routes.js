@@ -37,9 +37,20 @@ const validateEntryId = [
   handleValidationErrors
 ];
 
+const validateEnhanceRequest = [
+  body('content').trim().notEmpty().withMessage('Content is required'),
+  body('enhanceType').optional().isIn(['improve', 'expand', 'professional', 'summarize']),
+  handleValidationErrors
+];
+
 // All routes require authentication
 router.use(authenticateToken);
 
+// AI enhancement routes (must be before /:id routes)
+router.post('/ai/enhance', validateEnhanceRequest, journalController.enhanceEntry);
+router.post('/ai/suggest-tags', journalController.suggestTags);
+
+// CRUD routes
 router.get('/', journalController.getEntries);
 router.get('/:id', validateEntryId, journalController.getEntryById);
 router.post('/', validateAddEntry, journalController.addEntry);

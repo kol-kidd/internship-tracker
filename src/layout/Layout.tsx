@@ -78,11 +78,11 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   return (
-    <div className="h-screen flex overflow-hidden bg-neutral-50">
+    <div className="h-screen flex overflow-hidden bg-[#FAFAFF]">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-neutral-900 text-white rounded-lg shadow-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#7C3AED] text-white rounded-lg shadow-lg"
       >
         {isMobileSidebarOpen ? (
           <X className="w-5 h-5" />
@@ -103,7 +103,7 @@ const Layout = ({ children }: LayoutProps) => {
       <aside
         className={`
         fixed lg:static inset-y-0 left-0 z-40
-        w-64 bg-neutral-900 border-r border-neutral-800 flex flex-col
+        w-64 bg-[#1E1B4B] border-r border-[#2D2A5B] flex flex-col
         transform transition-transform duration-300 ease-in-out
         ${
           isMobileSidebarOpen
@@ -113,14 +113,14 @@ const Layout = ({ children }: LayoutProps) => {
       `}
       >
         {/* Logo */}
-        <div className="p-4 border-b border-neutral-800 flex items-center justify-between flex-shrink-0">
+        <div className="p-4 border-b border-[#2D2A5B] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-neutral-900 font-bold text-sm">T</span>
+            <div className="w-8 h-8 bg-[#7C3AED] rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">IP</span>
             </div>
             <div>
-              <h1 className="font-semibold text-sm text-white">Tracktern</h1>
-              <p className="text-xs text-neutral-400">
+              <h1 className="font-semibold text-sm text-white">InternPal</h1>
+              <p className="text-xs text-[#DDD6FE]">
                 {user?.user_metadata.full_name}
               </p>
             </div>
@@ -130,7 +130,7 @@ const Layout = ({ children }: LayoutProps) => {
         {/* Main Menu Section - Scrollable */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-3">
-            <button className="flex items-center gap-3 w-full text-neutral-500 hover:text-neutral-300 text-xs font-medium mb-2">
+            <button className="flex items-center gap-3 w-full text-[#DDD6FE]/60 hover:text-[#DDD6FE] text-xs font-medium mb-2">
               MAIN MENU
             </button>
 
@@ -139,7 +139,7 @@ const Layout = ({ children }: LayoutProps) => {
                 <button
                   key={item.key}
                   onClick={() => navigate(`${item.path}`)}
-                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer"
+                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-[#DDD6FE] hover:bg-[#7C3AED]/20 rounded-lg transition-colors cursor-pointer"
                 >
                   {item.icon}
                   <span>{item.title}</span>
@@ -193,20 +193,20 @@ const Layout = ({ children }: LayoutProps) => {
       {/* Main Content Area - Flex Column */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header - Fixed at Top */}
-        <header className="bg-white border-b border-neutral-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 justify-between flex-shrink-0">
+        <header className="bg-white border-b border-[#DDD6FE]/30 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 justify-between shrink-0">
           <div className="flex items-center gap-4 flex-1 w-full sm:max-w-2xl ml-0 lg:ml-0 pl-0 sm:pl-0 lg:pl-0">
-            <Search className="w-5 h-5 text-neutral-400 hidden sm:block" />
+            <Search className="w-5 h-5 text-[#1E1B4B]/40 hidden sm:block" />
             <input
               type="text"
               placeholder="What are you working on..."
-              className="flex-1 outline-none text-sm text-neutral-700 placeholder-neutral-400 w-full pl-12 sm:pl-0 lg:pl-0"
+              className="flex-1 outline-none text-sm text-[#1E1B4B] placeholder-[#1E1B4B]/40 w-full pl-12 sm:pl-0 lg:pl-0 bg-transparent"
             />
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-neutral-900 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-[#7C3AED] hover:bg-[#6D28D9] rounded-lg transition-colors cursor-pointer"
             >
               <LogOut className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Logout</span>
@@ -215,7 +215,7 @@ const Layout = ({ children }: LayoutProps) => {
         </header>
 
         {/* Main Content Area - Scrollable Only */}
-        <main className="flex-1 overflow-y-auto bg-neutral-50">
+        <main className="flex-1 overflow-y-auto bg-[#FAFAFF]">
           <div className="p-4 sm:p-6">{children}</div>
         </main>
       </div>

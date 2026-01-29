@@ -13,6 +13,7 @@ interface JournalEntry {
   tags: string[];
   time_in: string | null;
   time_out: string | null;
+  break_time: number | null;
   created_at: string;
   updated_at: string;
 }

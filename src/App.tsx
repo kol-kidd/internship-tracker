@@ -5,6 +5,8 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "./layout/Layout";
 import Register from "./pages/Registration";
 import AuthCallback from "./pages/AuthCallback";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import { useAuthStore } from "./store/authStore";
 import { useEffect } from "react";
 import { Bounce, ToastContainer } from "react-toastify";
@@ -28,6 +30,8 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
 
         <Route

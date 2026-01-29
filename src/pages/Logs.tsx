@@ -8,21 +8,32 @@ import {
   Trash2,
   X,
   Save,
-  SlidersHorizontal,
   Clock,
+  Download,
+  Filter,
+  Sparkles,
+  TrendingUp,
+  Target,
+  FileText,
+  Wand2,
+  ChevronDown,
+  RefreshCw,
+  Tag,
+  Zap,
+  FileEdit,
+  AlignLeft,
 } from "lucide-react";
-import {
-  Typography,
-  TextField,
-  InputAdornment,
-  Collapse,
-  Button,
-} from "@mui/material";
+import { jsPDF } from "jspdf";
 import { useAuthStore } from "@/store/authStore";
 import { useJournalStore } from "@/store/journalStore";
 import { Bounce, toast } from "react-toastify";
 import LoadingOverlay from "@/components/Loading";
 import ConfirmationDialog from "@/components/Application/ConfirmationDialog";
+import {
+  enhanceJournalEntry,
+  suggestTags,
+  type EnhanceType,
+} from "@/functions/ai/journalAI";
 
 interface JournalEntry {
   id: number;
@@ -34,12 +45,13 @@ interface JournalEntry {
   tags: string[];
   time_in: string | null;
   time_out: string | null;
+  break_time: number | null;
   created_at: string;
   updated_at: string;
 }
 
 const LogsPage = () => {
-  const { user } = useAuthStore();
+  const { user, session } = useAuthStore();
   const { entries, loading, initSocket, addEntry, updateEntry, deleteEntry } =
     useJournalStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,6 +63,7 @@ const LogsPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [selectedEntryTitle, setSelectedEntryTitle] = useState("");
+  const [viewingEntry, setViewingEntry] = useState<JournalEntry | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -60,9 +73,161 @@ const LogsPage = () => {
     tags: "",
     time_in: "",
     time_out: "",
+    break_time: "",
   });
 
-  // Initialize socket and fetch entries
+  // AI Enhancement State
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [showAIMenu, setShowAIMenu] = useState(false);
+  const [originalContent, setOriginalContent] = useState<string | null>(null);
+
+  const [requiredHours, setRequiredHours] = useState(() => {
+    const saved = localStorage.getItem("internship_required_hours");
+    return saved ? Number(saved) : 702;
+  });
+
+  const handleRequiredHoursChange = (value: string) => {
+    const hours = Number(value) || 0;
+    setRequiredHours(hours);
+    localStorage.setItem("internship_required_hours", String(hours));
+  };
+
+  // AI Enhancement Functions
+  const handleAIEnhance = async (enhanceType: EnhanceType) => {
+    if (!formData.content.trim()) {
+      toast.error("Please write some content first", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
+
+    if (!session?.access_token) {
+      toast.error("Authentication required", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
+
+    setIsEnhancing(true);
+    setShowAIMenu(false);
+
+    try {
+      if (!originalContent) {
+        setOriginalContent(formData.content);
+      }
+
+      const result = await enhanceJournalEntry(
+        formData.content,
+        formData.title,
+        enhanceType,
+        session.access_token,
+      );
+
+      setFormData((prev) => ({
+        ...prev,
+        content: result.enhancedContent,
+      }));
+
+      const typeLabels: Record<EnhanceType, string> = {
+        improve: "improved",
+        expand: "expanded",
+        professional: "made professional",
+        summarize: "summarized",
+      };
+
+      toast.success(`Content ${typeLabels[enhanceType]} with AI!`, {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } catch (error) {
+      console.error("AI Enhancement Error:", error);
+      toast.error("Failed to enhance content. Please try again.", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+  const handleAISuggestTags = async () => {
+    if (!formData.content.trim()) {
+      toast.error("Please write some content first", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
+
+    if (!session?.access_token) {
+      toast.error("Authentication required", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
+
+    setIsEnhancing(true);
+    setShowAIMenu(false);
+
+    try {
+      const tags = await suggestTags(
+        formData.content,
+        formData.title,
+        session.access_token,
+      );
+
+      const existingTags = formData.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const allTags = [...new Set([...existingTags, ...tags])];
+
+      setFormData((prev) => ({
+        ...prev,
+        tags: allTags.join(", "),
+      }));
+
+      toast.success(`Added ${tags.length} AI-suggested tags!`, {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } catch (error) {
+      console.error("AI Tag Suggestion Error:", error);
+      toast.error("Failed to suggest tags. Please try again.", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+  const handleRevertContent = () => {
+    if (originalContent) {
+      setFormData((prev) => ({
+        ...prev,
+        content: originalContent,
+      }));
+      setOriginalContent(null);
+      toast.info("Reverted to original content", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    }
+  };
+
   useEffect(() => {
     if (user?.id) {
       initSocket();
@@ -89,7 +254,6 @@ const LogsPage = () => {
         .filter(Boolean);
 
       if (editingEntry) {
-        // Update existing entry
         await updateEntry(editingEntry.id, {
           title: formData.title,
           date: formData.date,
@@ -98,6 +262,7 @@ const LogsPage = () => {
           tags: tagsArray,
           time_in: formData.time_in || null,
           time_out: formData.time_out || null,
+          break_time: formData.break_time ? Number(formData.break_time) : null,
         });
 
         toast.success("Entry updated successfully", {
@@ -106,7 +271,6 @@ const LogsPage = () => {
           transition: Bounce,
         });
       } else {
-        // Create new entry
         await addEntry({
           title: formData.title,
           date: formData.date,
@@ -115,6 +279,7 @@ const LogsPage = () => {
           tags: tagsArray,
           time_in: formData.time_in || null,
           time_out: formData.time_out || null,
+          break_time: formData.break_time ? Number(formData.break_time) : null,
         });
 
         toast.success("Entry created successfully", {
@@ -146,9 +311,12 @@ const LogsPage = () => {
       tags: "",
       time_in: "",
       time_out: "",
+      break_time: "",
     });
     setEditingEntry(null);
     setIsModalOpen(false);
+    setOriginalContent(null);
+    setShowAIMenu(false);
   };
 
   const handleEdit = (entry: JournalEntry) => {
@@ -161,6 +329,7 @@ const LogsPage = () => {
       tags: entry.tags.join(", "),
       time_in: entry.time_in || "",
       time_out: entry.time_out || "",
+      break_time: entry.break_time ? String(entry.break_time) : "",
     });
     setIsModalOpen(true);
   };
@@ -199,17 +368,20 @@ const LogsPage = () => {
     }
   };
 
-  // Calculate hours worked
-  const calculateHours = (timeIn: string, timeOut: string) => {
+  const calculateHours = (
+    timeIn: string,
+    timeOut: string,
+    breakTime?: number | null,
+  ) => {
     if (!timeIn || !timeOut) return 0;
     const [inHour, inMin] = timeIn.split(":").map(Number);
     const [outHour, outMin] = timeOut.split(":").map(Number);
-    const totalMinutes = outHour * 60 + outMin - (inHour * 60 + inMin);
-    const hours = totalMinutes / 60;
-    return hours;
+    const breakMinutes = breakTime || 0;
+    const totalMinutes =
+      outHour * 60 + outMin - (inHour * 60 + inMin) - breakMinutes;
+    return Math.max(0, totalMinutes / 60);
   };
 
-  // Format time for display (e.g., "11:00:00" -> "11am", "13:00:00" -> "1pm")
   const formatTime = (time: string) => {
     if (!time) return "";
     const [hour] = time.split(":").map(Number);
@@ -218,20 +390,24 @@ const LogsPage = () => {
     return `${displayHour}${period}`;
   };
 
-  // Calculate total hours logged
   const totalHoursLogged = entries.reduce((total, entry) => {
     if (entry.time_in && entry.time_out) {
-      const hours = calculateHours(entry.time_in, entry.time_out);
+      const hours = calculateHours(
+        entry.time_in,
+        entry.time_out,
+        entry.break_time,
+      );
       return total + hours;
     }
     return total;
   }, 0);
 
-  // Required internship hours (default: 702 hours)
-  const requiredHours = 702;
   const hoursRemaining = Math.max(0, requiredHours - totalHoursLogged);
+  const progressPercent =
+    requiredHours > 0
+      ? Math.min(100, (totalHoursLogged / requiredHours) * 100)
+      : 0;
 
-  // Filter and search entries
   const filteredEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -251,23 +427,37 @@ const LogsPage = () => {
     stressful: "😰",
   };
 
-  const moodColors: Record<string, string> = {
-    great: "bg-green-100 text-green-700 border-green-200",
-    good: "bg-blue-100 text-blue-700 border-blue-200",
-    neutral: "bg-gray-100 text-gray-700 border-gray-200",
-    challenging: "bg-orange-100 text-orange-700 border-orange-200",
-    stressful: "bg-red-100 text-red-700 border-red-200",
+  const moodConfig: Record<
+    string,
+    { label: string; color: string; gradient: string }
+  > = {
+    great: {
+      label: "Great",
+      color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      gradient: "from-emerald-500 to-emerald-600",
+    },
+    good: {
+      label: "Good",
+      color: "bg-blue-100 text-blue-700 border-blue-200",
+      gradient: "from-blue-500 to-blue-600",
+    },
+    neutral: {
+      label: "Neutral",
+      color: "bg-gray-100 text-gray-700 border-gray-200",
+      gradient: "from-gray-500 to-gray-600",
+    },
+    challenging: {
+      label: "Challenging",
+      color: "bg-amber-100 text-amber-700 border-amber-200",
+      gradient: "from-amber-500 to-amber-600",
+    },
+    stressful: {
+      label: "Stressful",
+      color: "bg-red-100 text-red-700 border-red-200",
+      gradient: "from-red-500 to-red-600",
+    },
   };
 
-  const moodConfig: Record<string, { label: string; color: string }> = {
-    great: { label: "Great", color: "green" },
-    good: { label: "Good", color: "blue" },
-    neutral: { label: "Neutral", color: "gray" },
-    challenging: { label: "Challenging", color: "orange" },
-    stressful: { label: "Stressful", color: "red" },
-  };
-
-  // Calculate stats
   const moodCounts = entries.reduce(
     (acc, entry) => {
       acc[entry.mood] = (acc[entry.mood] || 0) + 1;
@@ -276,607 +466,822 @@ const LogsPage = () => {
     {} as Record<string, number>,
   );
 
-  // const thisMonth = entries.filter((e) => {
-  //   const entryDate = new Date(e.date);
-  //   const now = new Date();
-  //   return (
-  //     entryDate.getMonth() === now.getMonth() &&
-  //     entryDate.getFullYear() === now.getFullYear()
-  //   );
-  // }).length;
+  const exportToPDF = () => {
+    if (filteredEntries.length === 0) {
+      toast.error("No entries to export", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
 
-  // const thisWeek = entries.filter((e) => {
-  //   const entryDate = new Date(e.date);
-  //   const now = new Date();
-  //   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  //   return entryDate >= weekAgo;
-  // }).length;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+
+    const sortedEntries = [...filteredEntries].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
+
+    sortedEntries.forEach((entry, index) => {
+      if (index > 0) doc.addPage();
+
+      let yPosition = margin;
+
+      doc.setFontSize(12);
+      doc.setTextColor(150);
+      doc.text(
+        `Day ${index + 1} of ${sortedEntries.length}`,
+        margin,
+        yPosition,
+      );
+      yPosition += 10;
+
+      doc.setFontSize(20);
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "bold");
+      const titleLines = doc.splitTextToSize(entry.title, contentWidth);
+      doc.text(titleLines, margin, yPosition);
+      yPosition += titleLines.length * 8 + 5;
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
+
+      const dateStr = new Date(entry.date).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      doc.text(dateStr, margin, yPosition);
+      yPosition += 6;
+
+      if (entry.time_in && entry.time_out) {
+        const hours = calculateHours(
+          entry.time_in,
+          entry.time_out,
+          entry.break_time,
+        );
+        let timeStr = `${formatTime(entry.time_in)} - ${formatTime(entry.time_out)}`;
+        if (entry.break_time) timeStr += ` | ${entry.break_time} min break`;
+        timeStr += ` | ${hours.toFixed(1)} hours`;
+        doc.text(timeStr, margin, yPosition);
+        yPosition += 6;
+      }
+
+      const moodText = `Mood: ${moodEmojis[entry.mood] || ""} ${entry.mood}`;
+      doc.text(moodText, margin, yPosition);
+      yPosition += 12;
+
+      doc.setDrawColor(220);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 10;
+
+      doc.setFontSize(11);
+      doc.setTextColor(50);
+      doc.setFont("helvetica", "normal");
+
+      const contentLines = doc.splitTextToSize(entry.content, contentWidth);
+      const lineHeight = 5.5;
+
+      contentLines.forEach((line: string) => {
+        if (yPosition + lineHeight < pageHeight - 40) {
+          doc.text(line, margin, yPosition);
+          yPosition += lineHeight;
+        }
+      });
+
+      if (entry.tags.length > 0) {
+        yPosition = Math.max(yPosition + 10, pageHeight - 35);
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        const tagsStr = entry.tags.map((tag) => `#${tag}`).join("  ");
+        const tagLines = doc.splitTextToSize(tagsStr, contentWidth);
+        doc.text(tagLines.slice(0, 2), margin, yPosition);
+      }
+
+      doc.setFontSize(9);
+      doc.setTextColor(180);
+      doc.text(
+        `Page ${index + 1} of ${sortedEntries.length}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: "center" },
+      );
+    });
+
+    const fileName = `internship-journal-${new Date().toISOString().split("T")[0]}.pdf`;
+    doc.save(fileName);
+
+    toast.success(`Exported ${sortedEntries.length} entries to PDF`, {
+      position: "top-right",
+      theme: "light",
+      transition: Bounce,
+    });
+  };
 
   if (loading && entries.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#FAFAFF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto"></div>
-          <Typography sx={{ mt: 2, color: "grey.600" }}>
-            Loading journal entries...
-          </Typography>
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="w-8 h-8 text-white animate-pulse" />
+            </div>
+            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#38BDF8] animate-ping" />
+          </div>
+          <p className="text-[#1E1B4B]/60">Loading journal entries...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
+      <div className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-[#DDD6FE]/30 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
             <div>
-              <Typography
-                variant="h4"
-                sx={{ fontWeight: 600, color: "grey.900" }}
-              >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-[#38BDF8] animate-pulse" />
+                <span className="text-xs font-medium text-[#38BDF8] uppercase tracking-wider">
+                  Journal
+                </span>
+              </div>
+              <h1 className="text-2xl font-bold text-[#1E1B4B]">
                 Internship Journal
-              </Typography>
-              <Typography variant="body2" sx={{ color: "grey.500", mt: 0.5 }}>
+              </h1>
+              <p className="text-[#1E1B4B]/60 mt-1">
                 Document your journey, reflections, and daily experiences
-              </Typography>
+              </p>
             </div>
-            <Button
-              variant="contained"
-              startIcon={<Plus className="w-4 h-4" />}
-              onClick={() => setIsModalOpen(true)}
-              sx={{
-                bgcolor: "black",
-                "&:hover": { bgcolor: "grey.800" },
-                textTransform: "none",
-                fontWeight: 500,
-                borderRadius: 2,
-              }}
-            >
-              New Entry
-            </Button>
+
+            <div className="flex gap-3">
+              <button
+                onClick={exportToPDF}
+                disabled={filteredEntries.length === 0}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] text-sm font-medium hover:bg-[#DDD6FE]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" />
+                Export PDF
+              </button>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white text-sm font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                New Entry
+              </button>
+            </div>
           </div>
 
           {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Search by title, content, or tags..."
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1E1B4B]/40" />
+              <input
+                type="text"
+                placeholder="Search entries..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search size={20} color="#9CA3AF" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 2,
-                    height: "40px",
-                    "&:hover fieldset": {
-                      borderColor: "grey.400",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "black",
-                      borderWidth: 2,
-                    },
-                  },
-                }}
+                className="w-full pl-12 pr-4 py-3 rounded-xl border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#DDD6FE]/50 flex items-center justify-center hover:bg-[#DDD6FE] transition-colors"
+                >
+                  <X className="w-3 h-3 text-[#1E1B4B]/60" />
+                </button>
+              )}
             </div>
 
-            <div className="flex gap-2">
-              <Button
-                variant={showFilters ? "contained" : "outlined"}
-                startIcon={<SlidersHorizontal className="w-4 h-4" />}
-                onClick={() => setShowFilters(!showFilters)}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 500,
-                  minWidth: 120,
-                  height: "40px",
-                  bgcolor: showFilters ? "grey.100" : "white",
-                  color: "grey.700",
-                  borderColor: "grey.300",
-                  borderRadius: 2,
-                  "&:hover": {
-                    bgcolor: showFilters ? "grey.200" : "grey.50",
-                    borderColor: "grey.400",
-                  },
-                }}
-              >
-                Filters
-              </Button>
-            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                showFilters
+                  ? "bg-[#7C3AED] text-white border-[#7C3AED]"
+                  : "border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20"
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              Filter
+              {filterMood !== "all" && (
+                <span className="w-2 h-2 rounded-full bg-[#38BDF8]" />
+              )}
+            </button>
           </div>
 
           {/* Filter Panel */}
-          <Collapse in={showFilters}>
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <Typography
-                variant="subtitle2"
-                sx={{ fontWeight: 600, color: "grey.900", mb: 2 }}
-              >
-                Filter by Mood
-              </Typography>
+          {showFilters && (
+            <div className="mt-4 p-4 bg-[#FAFAFF] rounded-xl border border-[#DDD6FE]/30">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-[#7C3AED]" />
+                <span className="text-sm font-medium text-[#1E1B4B]">
+                  Filter by Mood
+                </span>
+              </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={filterMood === "all" ? "contained" : "outlined"}
+                <button
                   onClick={() => setFilterMood("all")}
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: 500,
-                    bgcolor: filterMood === "all" ? "black" : "white",
-                    color: filterMood === "all" ? "white" : "grey.700",
-                    borderColor: "grey.300",
-                    borderRadius: 2,
-                    "&:hover": {
-                      bgcolor: filterMood === "all" ? "grey.800" : "grey.50",
-                      borderColor: "grey.400",
-                    },
-                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    filterMood === "all"
+                      ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
+                      : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
+                  }`}
                 >
                   All ({entries.length})
-                </Button>
+                </button>
                 {Object.entries(moodConfig).map(([mood, config]) => (
-                  <Button
+                  <button
                     key={mood}
-                    variant={filterMood === mood ? "contained" : "outlined"}
                     onClick={() => setFilterMood(mood)}
-                    sx={{
-                      textTransform: "none",
-                      fontWeight: 500,
-                      bgcolor: filterMood === mood ? "black" : "white",
-                      color: filterMood === mood ? "white" : "grey.700",
-                      borderColor: filterMood === mood ? "black" : "grey.300",
-                      borderRadius: 2,
-                      "&:hover": {
-                        bgcolor: filterMood === mood ? "grey.800" : "grey.50",
-                        opacity: 0.9,
-                      },
-                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                      filterMood === mood
+                        ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
+                        : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
+                    }`}
                   >
-                    {moodEmojis[mood]} {config.label} ({moodCounts[mood] || 0})
-                  </Button>
+                    <span>{moodEmojis[mood]}</span>
+                    {config.label} ({moodCounts[mood] || 0})
+                  </button>
                 ))}
               </div>
             </div>
-          </Collapse>
+          )}
         </div>
       </div>
 
-      {/* Applications Grid/List */}
-      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <Typography variant="body2" sx={{ color: "grey.600", mb: 1 }}>
-              Total Entries
-            </Typography>
-            <Typography
-              variant="h4"
-              sx={{ fontWeight: 600, color: "grey.900" }}
-            >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-sm text-[#1E1B4B]/60">Total Entries</span>
+            </div>
+            <p className="text-3xl font-bold text-[#1E1B4B]">
               {entries.length}
-            </Typography>
+            </p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <Typography variant="body2" sx={{ color: "grey.600", mb: 1 }}>
-              Hours Logged
-            </Typography>
-            <Typography
-              variant="h4"
-              sx={{ fontWeight: 600, color: "grey.900" }}
-            >
+
+          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#38BDF8] to-[#7DD3FC] flex items-center justify-center">
+                <Clock className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-sm text-[#1E1B4B]/60">Hours Logged</span>
+            </div>
+            <p className="text-3xl font-bold text-[#1E1B4B]">
               {totalHoursLogged.toFixed(1)}h
-            </Typography>
+            </p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <Typography variant="body2" sx={{ color: "grey.600", mb: 1 }}>
-              Hours Remaining
-            </Typography>
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 600,
-                color: hoursRemaining > 0 ? "orange.600" : "green.600",
-              }}
+
+          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#F472B6] to-[#FB7185] flex items-center justify-center">
+                <Target className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#1E1B4B]/60">Remaining</span>
+                  <div className="flex items-center gap-1 text-xs text-[#1E1B4B]/40">
+                    <span>of</span>
+                    <input
+                      type="number"
+                      value={requiredHours}
+                      onChange={(e) =>
+                        handleRequiredHoursChange(e.target.value)
+                      }
+                      className="w-14 px-1.5 py-0.5 border border-[#DDD6FE]/50 rounded text-center text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED]"
+                      min="0"
+                    />
+                    <span>hrs</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p
+              className={`text-3xl font-bold ${hoursRemaining > 0 ? "text-[#F472B6]" : "text-emerald-500"}`}
             >
               {hoursRemaining.toFixed(1)}h
-            </Typography>
+            </p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <Typography variant="body2" sx={{ color: "grey.600", mb: 1 }}>
-              Progress
-            </Typography>
-            <Typography
-              variant="h4"
-              sx={{ fontWeight: 600, color: "grey.900" }}
-            >
-              {((totalHoursLogged / requiredHours) * 100).toFixed(0)}%
-            </Typography>
+
+          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#34D399] to-[#6EE7B7] flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-sm text-[#1E1B4B]/60">Progress</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <p className="text-3xl font-bold text-[#1E1B4B]">
+                {progressPercent.toFixed(0)}%
+              </p>
+              <div className="flex-1 h-2 bg-[#DDD6FE]/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-linear-to-r from-[#7C3AED] to-[#38BDF8] rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Entries Grid */}
         {filteredEntries.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-8 h-8 text-gray-400" />
+          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-12 text-center">
+            <div className="relative inline-block mb-6">
+              <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-[#DDD6FE]/50 to-[#FAFAFF] flex items-center justify-center">
+                <BookOpen className="w-10 h-10 text-[#7C3AED]/40" />
+              </div>
+              <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-[#38BDF8]/10 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-[#38BDF8]" />
+              </div>
             </div>
-            <Typography
-              variant="h6"
-              sx={{ fontWeight: 500, color: "grey.900", mb: 1 }}
-            >
+            <h3 className="text-xl font-semibold text-[#1E1B4B] mb-2">
               No journal entries found
-            </Typography>
-            <Typography variant="body2" sx={{ color: "grey.500" }}>
+            </h3>
+            <p className="text-[#1E1B4B]/60 mb-6 max-w-md mx-auto">
               {searchQuery || filterMood !== "all"
                 ? "Try adjusting your filters or search query"
                 : "Start documenting your internship journey today!"}
-            </Typography>
+            </p>
+            {!searchQuery && filterMood === "all" && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Create Your First Entry
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             {filteredEntries.map((entry) => (
               <div
                 key={entry.id}
-                className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+                onClick={() => setViewingEntry(entry)}
+                className="group bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:border-[#7C3AED]/30 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <Typography
-                      variant="h6"
-                      sx={{ fontWeight: 600, color: "grey.900", mb: 1 }}
-                    >
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-[#1E1B4B] truncate group-hover:text-[#7C3AED] transition-colors">
                       {entry.title}
-                    </Typography>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <Typography variant="body2" sx={{ color: "grey.600" }}>
-                        {new Date(entry.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </Typography>
-                    </div>
-                    {entry.time_in && entry.time_out && (
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock className="w-4 h-4 text-gray-400" />
-                        <Typography variant="body2" sx={{ color: "grey.600" }}>
-                          {formatTime(entry.time_in)} -{" "}
-                          {formatTime(entry.time_out)} •{" "}
-                          {calculateHours(
-                            entry.time_in,
-                            entry.time_out,
-                          ).toFixed(1)}
-                          hrs
-                        </Typography>
-                      </div>
-                    )}
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                        moodColors[entry.mood]
-                      }`}
-                    >
-                      {moodEmojis[entry.mood]} {entry.mood}
-                    </span>
+                    </h3>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleEdit(entry)}
-                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(entry.id, entry.title)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <span
+                    className={`shrink-0 ml-2 px-2 py-1 rounded-lg text-xs font-medium ${moodConfig[entry.mood]?.color || "bg-gray-100"}`}
+                  >
+                    {moodEmojis[entry.mood]}
+                  </span>
                 </div>
 
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: "grey.700",
-                    mb: 2,
-                    display: "-webkit-box",
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {entry.content}
-                </Typography>
+                <div className="flex items-center gap-3 text-xs text-[#1E1B4B]/50 mb-3">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    <span>
+                      {new Date(entry.date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </div>
+                  {entry.time_in && entry.time_out && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>
+                        {calculateHours(
+                          entry.time_in,
+                          entry.time_out,
+                          entry.break_time,
+                        ).toFixed(1)}
+                        h
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-                {entry.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {entry.tags.map((tag, index) => (
+                <p className="text-sm text-[#1E1B4B]/60 line-clamp-2 mb-3">
+                  {entry.content}
+                </p>
+
+                <div className="flex items-center justify-between pt-3 border-t border-[#DDD6FE]/30">
+                  <div className="flex gap-1 overflow-hidden">
+                    {entry.tags.slice(0, 2).map((tag, index) => (
                       <span
                         key={index}
-                        className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                        className="px-2 py-0.5 bg-[#FAFAFF] text-[#1E1B4B]/60 rounded text-xs truncate max-w-[70px]"
                       >
                         #{tag}
                       </span>
                     ))}
+                    {entry.tags.length > 2 && (
+                      <span className="text-xs text-[#1E1B4B]/40">
+                        +{entry.tags.length - 2}
+                      </span>
+                    )}
                   </div>
-                )}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(entry);
+                      }}
+                      className="p-1.5 text-[#1E1B4B]/50 hover:text-[#7C3AED] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(entry.id, entry.title);
+                      }}
+                      className="p-1.5 text-[#1E1B4B]/50 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Modal */}
+      {/* Create/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <Typography
-                variant="h5"
-                sx={{ fontWeight: 600, color: "grey.900" }}
-              >
+        <div className="fixed inset-0 bg-[#1E1B4B]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-6 border-b border-[#DDD6FE]/30 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-[#1E1B4B]">
                 {editingEntry ? "Edit Entry" : "New Journal Entry"}
-              </Typography>
+              </h2>
               <button
                 onClick={resetForm}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 text-[#1E1B4B]/60" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
                   Title *
                 </label>
-                <TextField
-                  fullWidth
-                  size="small"
+                <input
+                  type="text"
                   value={formData.title}
                   onChange={(e) =>
                     setFormData({ ...formData, title: e.target.value })
                   }
                   placeholder="What happened today?"
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                      "&:hover fieldset": {
-                        borderColor: "grey.400",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "black",
-                        borderWidth: 2,
-                      },
-                    },
-                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
                     Date *
                   </label>
-                  <TextField
-                    fullWidth
-                    size="small"
+                  <input
                     type="date"
                     value={formData.date}
                     onChange={(e) =>
                       setFormData({ ...formData, date: e.target.value })
                     }
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: 2,
-                        "&:hover fieldset": {
-                          borderColor: "grey.400",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "black",
-                          borderWidth: 2,
-                        },
-                      },
-                    }}
+                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
                     Mood *
                   </label>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    select
+                  <select
                     value={formData.mood}
                     onChange={(e) =>
                       setFormData({ ...formData, mood: e.target.value })
                     }
-                    SelectProps={{
-                      native: true,
-                    }}
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: 2,
-                        "&:hover fieldset": {
-                          borderColor: "grey.400",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "black",
-                          borderWidth: 2,
-                        },
-                      },
-                    }}
+                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
                   >
                     <option value="great">😊 Great</option>
                     <option value="good">🙂 Good</option>
                     <option value="neutral">😐 Neutral</option>
                     <option value="challenging">😔 Challenging</option>
                     <option value="stressful">😰 Stressful</option>
-                  </TextField>
+                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
                     Time In
                   </label>
-                  <TextField
-                    fullWidth
-                    size="small"
+                  <input
                     type="time"
                     value={formData.time_in}
                     onChange={(e) =>
                       setFormData({ ...formData, time_in: e.target.value })
                     }
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: 2,
-                        "&:hover fieldset": {
-                          borderColor: "grey.400",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "black",
-                          borderWidth: 2,
-                        },
-                      },
-                    }}
+                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
                     Time Out
                   </label>
-                  <TextField
-                    fullWidth
-                    size="small"
+                  <input
                     type="time"
                     value={formData.time_out}
                     onChange={(e) =>
                       setFormData({ ...formData, time_out: e.target.value })
                     }
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: 2,
-                        "&:hover fieldset": {
-                          borderColor: "grey.400",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "black",
-                          borderWidth: 2,
-                        },
-                      },
-                    }}
+                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                    Break (mins)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.break_time}
+                    onChange={(e) =>
+                      setFormData({ ...formData, break_time: e.target.value })
+                    }
+                    placeholder="60"
+                    min="0"
+                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Entry *
-                </label>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={8}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-[#1E1B4B]">
+                    Entry *
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowAIMenu(!showAIMenu)}
+                      disabled={isEnhancing || !formData.content.trim()}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-linear-to-r from-[#38BDF8] to-[#7DD3FC] text-white text-xs font-medium hover:shadow-md hover:shadow-[#38BDF8]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isEnhancing ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          Enhancing...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-3 h-3" />
+                          AI Enhance
+                          <ChevronDown className="w-3 h-3" />
+                        </>
+                      )}
+                    </button>
+
+                    {showAIMenu && (
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-[#DDD6FE]/50 shadow-lg shadow-[#7C3AED]/10 z-10 overflow-hidden">
+                        <div className="p-2">
+                          <div className="text-xs font-medium text-[#1E1B4B]/40 px-3 py-1.5 uppercase tracking-wide">
+                            AI Actions
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleAIEnhance("improve")}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-[#7C3AED]/10 flex items-center justify-center">
+                              <Zap className="w-3.5 h-3.5 text-[#7C3AED]" />
+                            </div>
+                            <div>
+                              <div className="font-medium">Improve Writing</div>
+                              <div className="text-xs text-[#1E1B4B]/50">
+                                Fix grammar & clarity
+                              </div>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAIEnhance("expand")}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-[#38BDF8]/10 flex items-center justify-center">
+                              <FileEdit className="w-3.5 h-3.5 text-[#38BDF8]" />
+                            </div>
+                            <div>
+                              <div className="font-medium">Expand Content</div>
+                              <div className="text-xs text-[#1E1B4B]/50">
+                                Add more detail & depth
+                              </div>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAIEnhance("professional")}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium">
+                                Make Professional
+                              </div>
+                              <div className="text-xs text-[#1E1B4B]/50">
+                                Portfolio-ready style
+                              </div>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAIEnhance("summarize")}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                              <AlignLeft className="w-3.5 h-3.5 text-amber-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium">Summarize</div>
+                              <div className="text-xs text-[#1E1B4B]/50">
+                                Brief key points
+                              </div>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <textarea
+                  rows={6}
                   value={formData.content}
                   onChange={(e) =>
                     setFormData({ ...formData, content: e.target.value })
                   }
-                  placeholder="Write about your day, what you learned, challenges faced, accomplishments..."
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                      "&:hover fieldset": {
-                        borderColor: "grey.400",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "black",
-                        borderWidth: 2,
-                      },
-                    },
-                  }}
+                  placeholder="Write about your day, what you learned, challenges faced..."
+                  className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all resize-none"
                 />
+
+                {originalContent && (
+                  <button
+                    type="button"
+                    onClick={handleRevertContent}
+                    className="mt-2 flex items-center gap-1.5 text-xs text-[#7C3AED] hover:text-[#6D28D9] transition-colors"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Revert to original
+                  </button>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tags (comma-separated)
-                </label>
-                <TextField
-                  fullWidth
-                  size="small"
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-[#1E1B4B]">
+                    Tags (comma-separated)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAISuggestTags}
+                    disabled={isEnhancing || !formData.content.trim()}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[#38BDF8] hover:bg-[#38BDF8]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Tag className="w-3 h-3" />
+                    AI Suggest
+                  </button>
+                </div>
+                <input
+                  type="text"
                   value={formData.tags}
                   onChange={(e) =>
                     setFormData({ ...formData, tags: e.target.value })
                   }
                   placeholder="learning, meeting, project, milestone"
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                      "&:hover fieldset": {
-                        borderColor: "grey.400",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "black",
-                        borderWidth: 2,
-                      },
-                    },
-                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
                 />
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button
-                  variant="contained"
-                  startIcon={<Save className="w-4 h-4" />}
+                <button
                   onClick={handleSubmit}
                   disabled={saving}
-                  fullWidth
-                  sx={{
-                    bgcolor: "black",
-                    "&:hover": { bgcolor: "grey.800" },
-                    textTransform: "none",
-                    fontWeight: 500,
-                    borderRadius: 2,
-                    py: 1.5,
-                  }}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all disabled:opacity-50"
                 >
+                  <Save className="w-4 h-4" />
                   {editingEntry ? "Update Entry" : "Save Entry"}
-                </Button>
-                <Button
-                  variant="outlined"
+                </button>
+                <button
                   onClick={resetForm}
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: 500,
-                    borderColor: "grey.300",
-                    color: "grey.700",
-                    borderRadius: 2,
-                    py: 1.5,
-                    minWidth: 120,
-                    "&:hover": {
-                      bgcolor: "grey.50",
-                      borderColor: "grey.400",
-                    },
-                  }}
+                  className="px-6 py-3 rounded-xl border border-[#DDD6FE] text-[#1E1B4B] font-medium hover:bg-[#DDD6FE]/30 transition-all"
                 >
                   Cancel
-                </Button>
+                </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Entry Modal */}
+      {viewingEntry && (
+        <div className="fixed inset-0 bg-[#1E1B4B]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-6 border-b border-[#DDD6FE]/30 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-[#1E1B4B] truncate pr-4">
+                {viewingEntry.title}
+              </h2>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    handleEdit(viewingEntry);
+                    setViewingEntry(null);
+                  }}
+                  className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
+                >
+                  <Edit2 className="w-5 h-5 text-[#7C3AED]" />
+                </button>
+                <button
+                  onClick={() => setViewingEntry(null)}
+                  className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
+                >
+                  <X className="w-5 h-5 text-[#1E1B4B]/60" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="flex flex-wrap items-center gap-4 mb-6">
+                <div className="flex items-center gap-2 text-[#1E1B4B]/60">
+                  <Calendar className="w-4 h-4" />
+                  <span>
+                    {new Date(viewingEntry.date).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+                {viewingEntry.time_in && viewingEntry.time_out && (
+                  <div className="flex items-center gap-2 text-[#1E1B4B]/60">
+                    <Clock className="w-4 h-4" />
+                    <span>
+                      {formatTime(viewingEntry.time_in)} -{" "}
+                      {formatTime(viewingEntry.time_out)}
+                      {viewingEntry.break_time
+                        ? ` • ${viewingEntry.break_time}min break`
+                        : ""}{" "}
+                      •{" "}
+                      {calculateHours(
+                        viewingEntry.time_in,
+                        viewingEntry.time_out,
+                        viewingEntry.break_time,
+                      ).toFixed(1)}{" "}
+                      hours
+                    </span>
+                  </div>
+                )}
+                <span
+                  className={`px-3 py-1 rounded-lg text-sm font-medium ${moodConfig[viewingEntry.mood]?.color || "bg-gray-100"}`}
+                >
+                  {moodEmojis[viewingEntry.mood]} {viewingEntry.mood}
+                </span>
+              </div>
+
+              <div className="bg-[#FAFAFF] rounded-xl p-5 mb-6">
+                <p className="text-[#1E1B4B] whitespace-pre-wrap leading-relaxed">
+                  {viewingEntry.content}
+                </p>
+              </div>
+
+              {viewingEntry.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {viewingEntry.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-[#DDD6FE]/30 text-[#7C3AED] rounded-lg text-sm"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
