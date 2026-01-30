@@ -38,3 +38,30 @@ export async function suggestTags(
   );
   return response.data.tags;
 }
+
+export interface WeeklySummaryEntry {
+  title?: string;
+  date?: string;
+  content?: string;
+  mood?: string;
+  tags?: string[];
+  time_in?: string | null;
+  time_out?: string | null;
+  break_time?: number | null;
+}
+
+interface WeeklySummaryResponse {
+  summary: string;
+}
+
+export async function summarizeWeek(
+  entries: WeeklySummaryEntry[],
+  token: string
+): Promise<string> {
+  const response = await api.post<WeeklySummaryResponse>(
+    "/journal/ai/weekly-summary",
+    { entries },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return response.data.summary;
+}

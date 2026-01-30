@@ -345,3 +345,81 @@ Respond with only a JSON array like: ["tag1", "tag2", "tag3"]`;
     });
   }
 };
+
+export const summarizeWeek = async (req, res) => {
+  try {
+    const { entries } = req.body;
+
+    if (!entries || !Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({
+        error: 'At least one entry is required for weekly summary',
+      });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        error: 'AI service not configured',
+        details: 'GEMINI_API_KEY is not set',
+      });
+    }
+
+    const entriesText = entries
+      .map((e, i) => {
+        const dateStr = e.date
+          ? new Date(e.date).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : 'Unknown date';
+        const hours =
+          e.time_in && e.time_out
+            ? (() => {
+                const [inH, inM] = e.time_in.split(':').map(Number);
+                const [outH, outM] = e.time_out.split(':').map(Number);
+                const breakM = e.break_time || 0;
+                const totalM =
+                  outH * 60 + outM - (inH * 60 + inM) - breakM;
+                return Math.max(0, totalM / 60).toFixed(1);
+              })()
+            : null;
+        return `[${i + 1}] Date: ${dateStr}\nTitle: ${e.title || 'Untitled'}\n${hours ? `Hours: ${hours}\n` : ''}Mood: ${e.mood || '—'}\nContent:\n${e.content || ''}\n${(e.tags && e.tags.length) ? `Tags: ${e.tags.join(', ')}\n` : ''}`;
+      })
+      .join('\n---\n');
+
+    const prompt = `You are an internship journal assistant. Summarize the following week's journal entries into one concise weekly report.
+
+Guidelines:
+- Write in first person, as the intern.
+- Highlight main activities, learnings, challenges, and accomplishments across the week.
+- Keep the summary to 1–2 short paragraphs suitable for a weekly report or supervisor update.
+- Do not add headers or labels; output only the summary text.
+
+Journal entries for the week:
+
+${entriesText}
+
+Provide only the summary text, no preamble.`;
+
+    const result = await geminiModel.generateContent(prompt);
+    const response = await result.response;
+    const summary = response.text().trim();
+
+    res.json({ summary });
+  } catch (error) {
+    console.error('Summarize Week Error:', error);
+
+    if (error.message?.includes('API key')) {
+      return res.status(500).json({
+        error: 'AI service configuration error',
+        details: 'Invalid or missing API key',
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to generate weekly summary',
+      details: error.message,
+    });
+  }
+};

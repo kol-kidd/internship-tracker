@@ -17,11 +17,14 @@ import {
   FileText,
   Wand2,
   ChevronDown,
+  ChevronUp,
   RefreshCw,
   Tag,
   Zap,
   FileEdit,
   AlignLeft,
+  CalendarRange,
+  ClipboardList,
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import { jsPDF } from "jspdf";
@@ -33,8 +36,10 @@ import ConfirmationDialog from "@/components/Application/ConfirmationDialog";
 import {
   enhanceJournalEntry,
   suggestTags,
+  summarizeWeek,
   type EnhanceType,
 } from "@/functions/ai/journalAI";
+import { getWeekBounds, isDateInWeekBounds } from "@/lib/weekUtils";
 
 interface JournalEntry {
   id: number;
@@ -87,6 +92,24 @@ const LogsPage = () => {
     return saved ? Number(saved) : 702;
   });
 
+  const [weeklyReportMode, setWeeklyReportMode] = useState<"view" | "new">(
+    "view"
+  );
+  const [selectedWeekDate, setSelectedWeekDate] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
+  });
+  const [weeklySummary, setWeeklySummary] = useState<string | null>(null);
+  const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(false);
+  const [weeklyLogContent, setWeeklyLogContent] = useState("");
+  const [weeklyLogSaving, setWeeklyLogSaving] = useState(false);
+  const [reportName, setReportName] = useState("");
+  const [reportDate, setReportDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [weeklyReportDrawerOpen, setWeeklyReportDrawerOpen] = useState(true);
+
   const handleRequiredHoursChange = (value: string) => {
     const hours = Number(value) || 0;
     setRequiredHours(hours);
@@ -125,7 +148,7 @@ const LogsPage = () => {
         formData.content,
         formData.title,
         enhanceType,
-        session.access_token,
+        session.access_token
       );
 
       setFormData((prev) => ({
@@ -183,7 +206,7 @@ const LogsPage = () => {
       const tags = await suggestTags(
         formData.content,
         formData.title,
-        session.access_token,
+        session.access_token
       );
 
       const existingTags = formData.tags
@@ -234,6 +257,12 @@ const LogsPage = () => {
       initSocket();
     }
   }, [user?.id, initSocket]);
+
+  useEffect(() => {
+    const name =
+      (user?.user_metadata?.full_name as string) || (user?.email ?? "");
+    if (name && !reportName) setReportName(name);
+  }, [user?.user_metadata?.full_name, user?.email, reportName]);
 
   const handleSubmit = async () => {
     if (!formData.title || !formData.content || !formData.date) {
@@ -372,7 +401,7 @@ const LogsPage = () => {
   const calculateHours = (
     timeIn: string,
     timeOut: string,
-    breakTime?: number | null,
+    breakTime?: number | null
   ) => {
     if (!timeIn || !timeOut) return 0;
     const [inHour, inMin] = timeIn.split(":").map(Number);
@@ -391,12 +420,30 @@ const LogsPage = () => {
     return `${displayHour}${period}`;
   };
 
+  const formatReportDay = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  const formatTimeForTable = (time: string | null) => {
+    if (!time) return "—";
+    const parts = time.split(":").map(Number);
+    const hour = parts[0] ?? 0;
+    const min = parts[1] ?? 0;
+    const period = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}:${String(min).padStart(2, "0")} ${period}`;
+  };
+
   const totalHoursLogged = entries.reduce((total, entry) => {
     if (entry.time_in && entry.time_out) {
       const hours = calculateHours(
         entry.time_in,
         entry.time_out,
-        entry.break_time,
+        entry.break_time
       );
       return total + hours;
     }
@@ -414,7 +461,7 @@ const LogsPage = () => {
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase()),
+        tag.toLowerCase().includes(searchQuery.toLowerCase())
       );
     const matchesMood = filterMood === "all" || entry.mood === filterMood;
     return matchesSearch && matchesMood;
@@ -459,13 +506,294 @@ const LogsPage = () => {
     },
   };
 
-  const moodCounts = entries.reduce(
-    (acc, entry) => {
-      acc[entry.mood] = (acc[entry.mood] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
+  const moodCounts = entries.reduce((acc, entry) => {
+    acc[entry.mood] = (acc[entry.mood] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const weekBounds = getWeekBounds(new Date(selectedWeekDate));
+  const entriesForSelectedWeek = entries.filter((e) =>
+    isDateInWeekBounds(e.date, weekBounds)
   );
+
+  const handleGenerateWeeklySummary = async () => {
+    const entriesToSummarize = entries.filter((e) =>
+      isDateInWeekBounds(e.date, weekBounds)
+    );
+    if (entriesToSummarize.length === 0 || !session?.access_token) {
+      if (entriesToSummarize.length === 0) {
+        toast.error(
+          "No entries in this week. Add entries or pick another week.",
+          {
+            position: "top-right",
+            theme: "light",
+            transition: Bounce,
+          }
+        );
+      }
+      return;
+    }
+    setWeeklySummaryLoading(true);
+    setWeeklySummary(null);
+    try {
+      const payload = entriesToSummarize.map((e) => {
+        const entry: Record<string, unknown> = {
+          title: e.title ?? "",
+          content: e.content ?? "",
+          tags: Array.isArray(e.tags) ? e.tags : [],
+        };
+        if (e.date && String(e.date).trim()) entry.date = e.date;
+        if (e.mood && String(e.mood).trim()) entry.mood = e.mood;
+        if (e.time_in && String(e.time_in).trim()) entry.time_in = e.time_in;
+        if (e.time_out && String(e.time_out).trim())
+          entry.time_out = e.time_out;
+        if (typeof e.break_time === "number") entry.break_time = e.break_time;
+        return entry;
+      });
+      const summary = await summarizeWeek(
+        payload as Parameters<typeof summarizeWeek>[0],
+        session.access_token
+      );
+      setWeeklySummary(summary);
+      toast.success("Weekly summary generated", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } catch (error) {
+      console.error("Weekly summary error:", error);
+      toast.error("Failed to generate weekly summary. Try again.", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setWeeklySummaryLoading(false);
+    }
+  };
+
+  const handleSaveWeeklyLog = async () => {
+    if (!weeklyLogContent.trim() || !user?.id) return;
+    const startDate = new Date(weekBounds.start);
+    const endDate = new Date(weekBounds.end);
+    const title = `Week of ${startDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })} - ${endDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}`;
+    setWeeklyLogSaving(true);
+    try {
+      await addEntry({
+        title,
+        date: weekBounds.start,
+        content: weeklyLogContent.trim(),
+        mood: "neutral",
+        tags: [],
+        time_in: null,
+        time_out: null,
+        break_time: null,
+      });
+      setWeeklyLogContent("");
+      setWeeklySummary(null);
+      toast.success("Weekly log saved", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } catch (error) {
+      console.error("Save weekly log error:", error);
+      toast.error("Failed to save weekly log", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setWeeklyLogSaving(false);
+    }
+  };
+
+  const exportWeeklyReportToPDF = () => {
+    const hasEntries = entriesForSelectedWeek.length > 0;
+    const hasSummary = Boolean(weeklySummary?.trim());
+
+    if (!hasEntries && !hasSummary) {
+      toast.error(
+        "Nothing to export. Add entries or generate an AI summary first.",
+        {
+          position: "top-right",
+          theme: "light",
+          transition: Bounce,
+        }
+      );
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+
+    let y = margin;
+
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(124, 58, 237);
+    doc.text("Weekly", margin, y);
+    doc.setTextColor(30, 27, 75);
+    doc.text(" Report", margin + doc.getTextWidth("Weekly"), y);
+    y += 14;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(107, 114, 128);
+    doc.text(`NAME: ${reportName || "—"}`, margin, y);
+    y += 6;
+    doc.text(`DATE: ${reportDate}`, margin, y);
+    y += 14;
+
+    doc.setFontSize(12);
+    doc.setTextColor(30, 27, 75);
+    doc.setFont("helvetica", "bold");
+    doc.text("PROJECT PROGRESS REPORT", margin, y);
+    y += 10;
+
+    const colWidths = [38, 26, 26, 20, 20, contentWidth - 130];
+    const headers = [
+      "Day",
+      "Project Phase",
+      "Assigned To",
+      "Start Time",
+      "End Time",
+      "Task",
+    ];
+    const rowHeight = 8;
+    const headerBg = [124, 58, 237];
+
+    let x = margin;
+    doc.setFillColor(headerBg[0], headerBg[1], headerBg[2]);
+    doc.rect(margin, y - 5, contentWidth, rowHeight + 2, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    headers.forEach((h, i) => {
+      doc.text(h, x + 2, y + 2);
+      x += colWidths[i];
+    });
+    y += rowHeight + 4;
+
+    const sortedEntries = [...entriesForSelectedWeek].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    const formatDayPDF = (dateStr: string) =>
+      new Date(dateStr).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    const formatTimePDF = (time: string | null) => {
+      if (!time) return "—";
+      const parts = time.split(":").map(Number);
+      const hour = parts[0] ?? 0;
+      const min = parts[1] ?? 0;
+      const period = hour >= 12 ? "PM" : "AM";
+      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      return `${displayHour}:${String(min).padStart(2, "0")} ${period}`;
+    };
+
+    sortedEntries.forEach((entry) => {
+      if (y + rowHeight > pageHeight - 40) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.setDrawColor(221, 214, 254);
+      doc.setFillColor(250, 250, 255);
+      doc.rect(margin, y - 4, contentWidth, rowHeight + 2, "FD");
+      doc.setTextColor(30, 27, 75);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      let rowX = margin;
+      const dayStr = formatDayPDF(entry.date);
+      const cells = [
+        dayStr.length > 22 ? dayStr.slice(0, 21) + "…" : dayStr,
+        entry.tags?.[0] ?? "Daily log",
+        reportName || "—",
+        formatTimePDF(entry.time_in),
+        formatTimePDF(entry.time_out),
+        entry.title.length > 28 ? entry.title.slice(0, 27) + "…" : entry.title,
+      ];
+      cells.forEach((cell, i) => {
+        const w = colWidths[i];
+        const text = doc.splitTextToSize(cell, w - 4);
+        doc.text(text[0] ?? "", rowX + 2, y + 2);
+        rowX += w;
+      });
+      y += rowHeight + 4;
+    });
+
+    if (!hasEntries) {
+      doc.setDrawColor(221, 214, 254);
+      doc.setFillColor(250, 250, 255);
+      doc.rect(margin, y - 4, contentWidth, rowHeight + 2, "FD");
+      doc.setTextColor(107, 114, 128);
+      doc.setFontSize(9);
+      doc.text("No entries for this week.", margin + 4, y + 2);
+      y += rowHeight + 8;
+    }
+
+    y += 8;
+    if (y + 20 > pageHeight - 30) {
+      doc.addPage();
+      y = margin;
+    }
+
+    doc.setFontSize(12);
+    doc.setTextColor(30, 27, 75);
+    doc.setFont("helvetica", "bold");
+    doc.text("CONCLUSION", margin, y);
+    y += 8;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 27, 75);
+    const conclusionText = hasSummary
+      ? weeklySummary ?? ""
+      : "No summary generated for this week. Generate an AI summary from this week's entries to populate the conclusion.";
+    const conclusionLines = doc.splitTextToSize(conclusionText, contentWidth);
+    const lineHeight = 5.5;
+    conclusionLines.forEach((line: string) => {
+      if (y + lineHeight > pageHeight - 25) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += lineHeight;
+    });
+
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setTextColor(180);
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, {
+        align: "center",
+      });
+    }
+
+    const fileName = `weekly-report-${weekBounds.start}-to-${weekBounds.end}.pdf`;
+    doc.save(fileName);
+
+    toast.success("Weekly report exported to PDF", {
+      position: "top-right",
+      theme: "light",
+      transition: Bounce,
+    });
+  };
 
   const exportToPDF = () => {
     if (filteredEntries.length === 0) {
@@ -484,7 +812,7 @@ const LogsPage = () => {
     const contentWidth = pageWidth - margin * 2;
 
     const sortedEntries = [...filteredEntries].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
     sortedEntries.forEach((entry, index) => {
@@ -497,7 +825,7 @@ const LogsPage = () => {
       doc.text(
         `Day ${index + 1} of ${sortedEntries.length}`,
         margin,
-        yPosition,
+        yPosition
       );
       yPosition += 10;
 
@@ -525,9 +853,11 @@ const LogsPage = () => {
         const hours = calculateHours(
           entry.time_in,
           entry.time_out,
-          entry.break_time,
+          entry.break_time
         );
-        let timeStr = `${formatTime(entry.time_in)} - ${formatTime(entry.time_out)}`;
+        let timeStr = `${formatTime(entry.time_in)} - ${formatTime(
+          entry.time_out
+        )}`;
         if (entry.break_time) timeStr += ` | ${entry.break_time} min break`;
         timeStr += ` | ${hours.toFixed(1)} hours`;
         doc.text(timeStr, margin, yPosition);
@@ -571,11 +901,13 @@ const LogsPage = () => {
         `Page ${index + 1} of ${sortedEntries.length}`,
         pageWidth / 2,
         pageHeight - 10,
-        { align: "center" },
+        { align: "center" }
       );
     });
 
-    const fileName = `internship-journal-${new Date().toISOString().split("T")[0]}.pdf`;
+    const fileName = `internship-journal-${
+      new Date().toISOString().split("T")[0]
+    }.pdf`;
     doc.save(fileName);
 
     toast.success(`Exported ${sortedEntries.length} entries to PDF`, {
@@ -776,7 +1108,9 @@ const LogsPage = () => {
                 </div>
               </div>
               <p
-                className={`text-3xl font-bold ${hoursRemaining > 0 ? "text-[#F472B6]" : "text-emerald-500"}`}
+                className={`text-3xl font-bold ${
+                  hoursRemaining > 0 ? "text-[#F472B6]" : "text-emerald-500"
+                }`}
               >
                 {hoursRemaining.toFixed(1)}h
               </p>
@@ -799,6 +1133,273 @@ const LogsPage = () => {
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Weekly Report - drawer */}
+          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 mb-8 text-[#1E1B4B] overflow-hidden shadow-lg shadow-[#7C3AED]/5">
+            <button
+              type="button"
+              onClick={() => setWeeklyReportDrawerOpen((prev) => !prev)}
+              className="w-full flex items-center justify-between gap-4 px-6 py-4 text-left hover:bg-[#DDD6FE]/20 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:ring-inset rounded-t-2xl"
+              aria-expanded={weeklyReportDrawerOpen}
+              aria-controls="weekly-report-content"
+              id="weekly-report-drawer-label"
+            >
+              <h2 className="text-xl font-bold">
+                <span className="text-[#7C3AED]">Weekly</span>{" "}
+                <span className="text-[#1E1B4B]">Report</span>
+              </h2>
+              <span className="shrink-0 p-1 rounded-lg text-[#1E1B4B] hover:bg-[#DDD6FE]/30 transition-colors">
+                {weeklyReportDrawerOpen ? (
+                  <ChevronUp className="w-5 h-5" aria-hidden />
+                ) : (
+                  <ChevronDown className="w-5 h-5" aria-hidden />
+                )}
+              </span>
+            </button>
+
+            <div
+              id="weekly-report-content"
+              role="region"
+              aria-labelledby="weekly-report-drawer-label"
+              className={`transition-all duration-200 ease-out ${
+                weeklyReportDrawerOpen ? "visible" : "hidden"
+              }`}
+            >
+              <div className="px-6 pb-6 pt-0 border-t border-[#DDD6FE]/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pt-6">
+                  <div>
+                    <label className="block bg-[#7C3AED] text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-t w-fit mb-0">
+                      NAME
+                    </label>
+                    <input
+                      type="text"
+                      value={reportName}
+                      onChange={(e) => setReportName(e.target.value)}
+                      placeholder="Your name"
+                      className="w-full px-4 py-2.5 rounded-b rounded-tr border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block bg-[#7C3AED] text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-t w-fit mb-0">
+                      DATE
+                    </label>
+                    <input
+                      type="date"
+                      value={reportDate}
+                      onChange={(e) => setReportDate(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-b rounded-tr border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setWeeklyReportMode("view")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      weeklyReportMode === "view"
+                        ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
+                        : "border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20"
+                    }`}
+                  >
+                    <CalendarRange className="w-4 h-4" />
+                    View week
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWeeklyReportMode("new")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      weeklyReportMode === "new"
+                        ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
+                        : "border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20"
+                    }`}
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    New weekly log
+                  </button>
+                  <div className="flex-1 flex items-center justify-end gap-2">
+                    <label className="text-sm text-[#1E1B4B]/60">Week</label>
+                    <input
+                      type="date"
+                      value={
+                        weeklyReportMode === "new"
+                          ? weekBounds.start
+                          : selectedWeekDate
+                      }
+                      onChange={(e) => setSelectedWeekDate(e.target.value)}
+                      className="px-3 py-2 rounded-xl border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] text-sm focus:outline-none focus:border-[#7C3AED]"
+                    />
+                    <span className="text-sm text-[#1E1B4B]/60">
+                      {weekBounds.start} → {weekBounds.end}
+                    </span>
+                  </div>
+                </div>
+
+                {/* PROJECT PROGRESS REPORT */}
+                <h3 className="text-lg font-bold text-[#1E1B4B] mb-2 mt-6">
+                  PROJECT PROGRESS REPORT
+                </h3>
+                <div className="overflow-x-auto rounded-xl border border-[#DDD6FE]/50 mb-6">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-[#7C3AED] text-white">
+                        <th className="px-3 py-2.5 text-left font-semibold">
+                          Day
+                        </th>
+                        <th className="px-3 py-2.5 text-left font-semibold">
+                          Project Phase
+                        </th>
+                        <th className="px-3 py-2.5 text-left font-semibold">
+                          Assigned To
+                        </th>
+                        <th className="px-3 py-2.5 text-left font-semibold">
+                          Start Time
+                        </th>
+                        <th className="px-3 py-2.5 text-left font-semibold">
+                          End Time
+                        </th>
+                        <th className="px-3 py-2.5 text-left font-semibold">
+                          Task
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-[#FAFAFF]">
+                      {weeklyReportMode === "view" &&
+                      entriesForSelectedWeek.length > 0 ? (
+                        [...entriesForSelectedWeek]
+                          .sort(
+                            (a, b) =>
+                              new Date(a.date).getTime() -
+                              new Date(b.date).getTime()
+                          )
+                          .map((e) => (
+                            <tr
+                              key={e.id}
+                              className="border-t border-[#DDD6FE]/30 hover:bg-[#DDD6FE]/20 cursor-pointer transition-colors"
+                              onClick={() => setViewingEntry(e)}
+                            >
+                              <td className="px-3 py-2 text-[#1E1B4B] whitespace-nowrap">
+                                {formatReportDay(e.date)}
+                              </td>
+                              <td className="px-3 py-2 text-[#1E1B4B]">
+                                {e.tags?.[0] ?? "Daily log"}
+                              </td>
+                              <td className="px-3 py-2 text-[#1E1B4B]">
+                                {reportName || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-[#1E1B4B] whitespace-nowrap">
+                                {formatTimeForTable(e.time_in)}
+                              </td>
+                              <td className="px-3 py-2 text-[#1E1B4B] whitespace-nowrap">
+                                {formatTimeForTable(e.time_out)}
+                              </td>
+                              <td className="px-3 py-2 text-[#1E1B4B]">
+                                {e.title}
+                              </td>
+                            </tr>
+                          ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="px-3 py-8 text-center text-[#1E1B4B]/60"
+                          >
+                            {weeklyReportMode === "new"
+                              ? "Save a weekly log or switch to View week to see entries."
+                              : "No entries for this week. Add journal entries or pick another week."}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* CONCLUSION */}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h3 className="text-lg font-bold text-[#1E1B4B]">
+                    CONCLUSION
+                  </h3>
+                  {weeklySummary && (
+                    <button
+                      type="button"
+                      onClick={() => setWeeklySummary(null)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[#1E1B4B]/70 hover:text-[#1E1B4B] hover:bg-[#DDD6FE]/30 border border-[#DDD6FE]/50 transition-all"
+                      aria-label="Clear conclusion"
+                    >
+                      <X className="w-4 h-4" />
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="mb-4">
+                  <textarea
+                    readOnly
+                    rows={5}
+                    value={weeklySummary ?? ""}
+                    placeholder="Generate an AI summary from this week's entries to see the conclusion here."
+                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 bg-[#FAFAFF] text-[#1E1B4B] placeholder-[#1E1B4B]/40 resize-none focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {entriesForSelectedWeek.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleGenerateWeeklySummary}
+                      disabled={weeklySummaryLoading}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#7C3AED] text-white text-sm font-medium hover:bg-[#6D28D9] hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {weeklySummaryLoading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          Generate AI summary
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {(entriesForSelectedWeek.length > 0 || weeklySummary) && (
+                    <button
+                      type="button"
+                      onClick={exportWeeklyReportToPDF}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] text-sm font-medium hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20 transition-all"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export PDF
+                    </button>
+                  )}
+                </div>
+
+                {weeklyReportMode === "new" && (
+                  <div className="mt-6 pt-6 border-t border-[#DDD6FE]/30">
+                    <label className="block text-sm font-semibold text-[#1E1B4B] mb-2">
+                      Weekly log (one entry for the whole week)
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={weeklyLogContent}
+                      onChange={(e) => setWeeklyLogContent(e.target.value)}
+                      placeholder="Summarize your week: tasks, learnings, challenges, hours or highlights..."
+                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 bg-[#FAFAFF] text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 resize-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveWeeklyLog}
+                      disabled={!weeklyLogContent.trim() || weeklyLogSaving}
+                      className="mt-3 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#7C3AED] text-white text-sm font-medium hover:bg-[#6D28D9] hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Save className="w-4 h-4" />
+                      {weeklyLogSaving ? "Saving..." : "Save weekly log"}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -847,7 +1448,9 @@ const LogsPage = () => {
                       </h3>
                     </div>
                     <span
-                      className={`shrink-0 ml-2 px-2 py-1 rounded-lg text-xs font-medium ${moodConfig[entry.mood]?.color || "bg-gray-100"}`}
+                      className={`shrink-0 ml-2 px-2 py-1 rounded-lg text-xs font-medium ${
+                        moodConfig[entry.mood]?.color || "bg-gray-100"
+                      }`}
                     >
                       {moodEmojis[entry.mood]}
                     </span>
@@ -870,7 +1473,7 @@ const LogsPage = () => {
                           {calculateHours(
                             entry.time_in,
                             entry.time_out,
-                            entry.break_time,
+                            entry.break_time
                           ).toFixed(1)}
                           h
                         </span>
@@ -1261,14 +1864,16 @@ const LogsPage = () => {
                         {calculateHours(
                           viewingEntry.time_in,
                           viewingEntry.time_out,
-                          viewingEntry.break_time,
+                          viewingEntry.break_time
                         ).toFixed(1)}{" "}
                         hours
                       </span>
                     </div>
                   )}
                   <span
-                    className={`px-3 py-1 rounded-lg text-sm font-medium ${moodConfig[viewingEntry.mood]?.color || "bg-gray-100"}`}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                      moodConfig[viewingEntry.mood]?.color || "bg-gray-100"
+                    }`}
                   >
                     {moodEmojis[viewingEntry.mood]} {viewingEntry.mood}
                   </span>

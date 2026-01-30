@@ -46,9 +46,25 @@ const validateEnhanceRequest = [
 // All routes require authentication
 router.use(authenticateToken);
 
+const validateWeeklySummaryRequest = [
+  body('entries')
+    .isArray({ min: 1 })
+    .withMessage('Entries array with at least one entry is required'),
+  body('entries.*.title').optional().trim(),
+  body('entries.*.date').optional().isISO8601(),
+  body('entries.*.content').optional().trim(),
+  body('entries.*.mood').optional().trim(),
+  body('entries.*.tags').optional().isArray(),
+  body('entries.*.time_in').optional().trim(),
+  body('entries.*.time_out').optional().trim(),
+  body('entries.*.break_time').optional().isInt(),
+  handleValidationErrors,
+];
+
 // AI enhancement routes (must be before /:id routes)
 router.post('/ai/enhance', validateEnhanceRequest, journalController.enhanceEntry);
 router.post('/ai/suggest-tags', journalController.suggestTags);
+router.post('/ai/weekly-summary', validateWeeklySummaryRequest, journalController.summarizeWeek);
 
 // CRUD routes
 router.get('/', journalController.getEntries);
