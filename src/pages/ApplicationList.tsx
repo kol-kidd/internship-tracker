@@ -1,13 +1,14 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Search,
-  SlidersHorizontal,
   Plus,
   Briefcase,
   Sparkles,
   X,
-  Filter,
+  CheckCircle2,
 } from "lucide-react";
+
+const ACCEPTED_TIP_DISMISSED_KEY = "application_list_accepted_tip_dismissed";
 import SEO from "@/components/SEO";
 import { useAppStore } from "@/store/applicationStore";
 import Card from "@/components/Application/Card";
@@ -82,16 +83,20 @@ export default function ApplicationList() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortByType>("date_desc");
-  const [showFilters, setShowFilters] = useState<boolean>(false);
   const [open, setOpen] = useState(false);
 
   const [selectedAppId, setSelectedAppId] = useState<number>();
   const [selectedAppName, setSelectedAppName] = useState<string>("");
   const [selectedAppAddress, setSelectedAppAddress] = useState<string>("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [markAllWithdrawnDialogOpen, setMarkAllWithdrawnDialogOpen] =
+    useState(false);
+  const [tipDismissed, setTipDismissed] = useState(() =>
+    Boolean(localStorage.getItem(ACCEPTED_TIP_DISMISSED_KEY)),
+  );
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isUpdating, setUpdating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const {
     applications,
@@ -104,6 +109,12 @@ export default function ApplicationList() {
   useEffect(() => {
     initSocket();
   }, []);
+
+  const hasAcceptedApplication = useMemo(
+    () =>
+      applications.some((app) => app.status.toLowerCase() === "accepted"),
+    [applications],
+  );
 
   const filteredAndSortedApps = useMemo(() => {
     let filtered = [...applications];
@@ -128,6 +139,12 @@ export default function ApplicationList() {
     }
 
     return filtered.sort((a: Application, b: Application) => {
+      if (statusFilter === "all") {
+        const aAccepted = a.status.toLowerCase() === "accepted";
+        const bAccepted = b.status.toLowerCase() === "accepted";
+        if (aAccepted && !bAccepted) return -1;
+        if (!aAccepted && bAccepted) return 1;
+      }
       switch (sortBy) {
         case "date_desc":
           return (
@@ -168,7 +185,7 @@ export default function ApplicationList() {
 
   const handleModal = () => {
     if (open) {
-      setUpdating(false);
+      setIsUpdating(false);
       setIsCreating(false);
       setSelectedAppId(undefined);
       setSelectedAppName("");
@@ -185,7 +202,7 @@ export default function ApplicationList() {
     setSelectedAppId(appId);
     setSelectedAppName(companyName);
     setSelectedAppAddress(companyAddress);
-    setUpdating(true);
+    setIsUpdating(true);
     setOpen(true);
   };
 
@@ -221,7 +238,7 @@ export default function ApplicationList() {
   };
 
   const handleStatusUpdate = async (appId: number, newStatus: string) => {
-    setUpdating(true);
+    setIsUpdating(true);
     try {
       await storeUpdateStatus(appId, newStatus);
 
@@ -238,8 +255,47 @@ export default function ApplicationList() {
         transition: Bounce,
       });
     } finally {
-      setUpdating(false);
+      setIsUpdating(false);
     }
+  };
+
+  const handleMarkAllWithdrawnClick = () => setMarkAllWithdrawnDialogOpen(true);
+
+  const handleMarkAllWithdrawnConfirm = async (confirmed: boolean) => {
+    setMarkAllWithdrawnDialogOpen(false);
+    if (!confirmed) return;
+    const toWithdraw = applications.filter(
+      (app) => app.status.toLowerCase() !== "accepted",
+    );
+    if (toWithdraw.length === 0) return;
+    setIsUpdating(true);
+    try {
+      await Promise.all(
+        toWithdraw.map((app) => storeUpdateStatus(app.id, "withdrawn")),
+      );
+      toast.success(
+        `${toWithdraw.length} application${toWithdraw.length === 1 ? "" : "s"} marked as Withdrawn`,
+        {
+          position: "top-right",
+          theme: "light",
+          transition: Bounce,
+        },
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update some applications", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const dismissTip = () => {
+    setTipDismissed(true);
+    localStorage.setItem(ACCEPTED_TIP_DISMISSED_KEY, "1");
   };
 
   const handleViewApplication = (appId: number) => {
@@ -248,15 +304,15 @@ export default function ApplicationList() {
 
   if (loading && !isDeleting && !isUpdating && !isCreating) {
     return (
-      <div className="min-h-screen bg-[#FAFAFF] flex items-center justify-center">
+      <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
               <Briefcase className="w-8 h-8 text-white animate-pulse" />
             </div>
-            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#38BDF8] animate-ping" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-soft-blue animate-ping" />
           </div>
-          <p className="text-[#1E1B4B]/60">Loading applications...</p>
+          <p className="text-text-muted">Loading applications...</p>
         </div>
       </div>
     );
@@ -268,132 +324,214 @@ export default function ApplicationList() {
         title="Applications"
         description="Track and manage all your internship applications. Filter by status, search companies, and stay organized."
       />
-      <div className="min-h-screen">
-        {/* Header */}
-        <div className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-[#DDD6FE]/30 z-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-[#7C3AED] animate-pulse" />
-                  <span className="text-xs font-medium text-[#7C3AED] uppercase tracking-wider">
-                    Applications
-                  </span>
-                </div>
-                <h1 className="text-2xl font-bold text-[#1E1B4B]">
-                  Track Your Applications
-                </h1>
-                <p className="text-[#1E1B4B]/60 mt-1">
-                  {applications.length} total applications •{" "}
-                  {filteredAndSortedApps.length} showing
-                </p>
+      <div className="flex min-h-screen bg-surface">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:border-r lg:border-border lg:bg-canvas lg:shrink-0">
+          <div className="sticky top-0 flex flex-col h-screen overflow-y-auto p-5">
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Briefcase className="w-5 h-5 text-primary" />
+                <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                  Applications
+                </span>
               </div>
-
-              <button
-                onClick={() => handleModal()}
-                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white text-sm font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                Add Application
-              </button>
+              <h1 className="text-lg font-bold text-text">
+                Track Your Applications
+              </h1>
             </div>
 
-            {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1E1B4B]/40" />
-                <input
-                  type="text"
-                  placeholder="Search by company, position, or location..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#DDD6FE]/50 flex items-center justify-center hover:bg-[#DDD6FE] transition-colors"
-                  >
-                    <X className="w-3 h-3 text-[#1E1B4B]/60" />
-                  </button>
-                )}
-              </div>
+            <button
+              onClick={() => handleModal()}
+              className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-medium transition-colors mb-4 ${
+                hasAcceptedApplication
+                  ? "border border-border text-primary hover:bg-accent/30"
+                  : "bg-primary text-white hover:bg-primary-hover"
+              }`}
+            >
+              <Plus className="w-4 h-4" />
+              Add Application
+            </button>
 
-              <div className="flex gap-2">
+            <div className="space-y-3 mb-6 pb-6 border-b border-border">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-muted">Total</span>
+                <span className="font-semibold text-text">
+                  {applications.length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-muted">Showing</span>
+                <span className="font-semibold text-text">
+                  {filteredAndSortedApps.length}
+                </span>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-3">
+                Filter by status
+              </p>
+              <div className="flex flex-col gap-1.5">
                 <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
-                    showFilters
-                      ? "bg-[#7C3AED] text-white border-[#7C3AED]"
-                      : "border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20"
+                  onClick={() => setStatusFilter("all")}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                    statusFilter === "all"
+                      ? "bg-primary text-white"
+                      : "text-text hover:bg-accent/30"
                   }`}
                 >
-                  <Filter className="w-4 h-4" />
-                  Filters
-                  {statusFilter !== "all" && (
-                    <span className="w-2 h-2 rounded-full bg-[#38BDF8]" />
-                  )}
+                  <span>All</span>
+                  <span className="text-xs opacity-80">{applications.length}</span>
                 </button>
+                {Object.entries(statusConfig).map(([status, config]) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                      statusFilter === status
+                        ? "bg-primary text-white"
+                        : "text-text hover:bg-accent/30"
+                    }`}
+                  >
+                    <span>{config.label}</span>
+                    <span className="text-xs opacity-80">
+                      {statusCounts[status] || 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
+            <div className="pt-6 border-t border-border">
+              <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
+                Sort by
+              </p>
+              <div className="w-full [&_button]:w-full [&_button]:justify-between">
                 <SortMenu sortBy={sortBy} onSortChange={setSortBy} />
               </div>
             </div>
-
-            {/* Filter Panel */}
-            {showFilters && (
-              <div className="mt-4 p-4 bg-[#FAFAFF] rounded-xl border border-[#DDD6FE]/30">
-                <div className="flex items-center gap-2 mb-3">
-                  <SlidersHorizontal className="w-4 h-4 text-[#7C3AED]" />
-                  <span className="text-sm font-medium text-[#1E1B4B]">
-                    Filter by Status
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setStatusFilter("all")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      statusFilter === "all"
-                        ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
-                        : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
-                    }`}
-                  >
-                    All ({applications.length})
-                  </button>
-                  {Object.entries(statusConfig).map(([status, config]) => (
-                    <button
-                      key={status}
-                      onClick={() => setStatusFilter(status)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                        statusFilter === status
-                          ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
-                          : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
-                      }`}
-                    >
-                      {config.label} ({statusCounts[status] || 0})
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-        </div>
+        </aside>
 
-        {/* Applications Grid */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {filteredAndSortedApps.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-12 text-center">
-              <div className="relative inline-block mb-6">
-                <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-[#DDD6FE]/50 to-[#FAFAFF] flex items-center justify-center">
-                  <Briefcase className="w-10 h-10 text-[#7C3AED]/40" />
-                </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-[#38BDF8]/10 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-[#38BDF8]" />
+        {/* Main content */}
+        <main className="flex-1 flex flex-col min-w-0">
+          <div className="sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-6 py-4 bg-canvas/95 backdrop-blur border-b border-border">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search by company, position, or location..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-surface text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-border flex items-center justify-center hover:bg-accent/30"
+                >
+                  <X className="w-3 h-3 text-text-muted" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile: Add Application + filters + sort (sidebar hidden) */}
+          <div className="lg:hidden px-4 sm:px-6 py-3 border-b border-border bg-canvas space-y-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleModal()}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium shrink-0 ${
+                  hasAcceptedApplication
+                    ? "border border-border text-primary hover:bg-accent/30"
+                    : "bg-primary text-white hover:bg-primary-hover"
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
+              <div className="flex-1 min-w-0">
+                <SortMenu sortBy={sortBy} onSortChange={setSortBy} />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium ${
+                  statusFilter === "all"
+                    ? "bg-primary text-white"
+                    : "bg-surface-alt text-text hover:bg-accent/30"
+                }`}
+              >
+                All
+              </button>
+              {Object.entries(statusConfig).map(([status, config]) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium ${
+                    statusFilter === status
+                      ? "bg-primary text-white"
+                      : "bg-surface-alt text-text hover:bg-accent/30"
+                  }`}
+                >
+                  {config.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {hasAcceptedApplication && !tipDismissed && (
+            <div className="mx-4 sm:mx-6 mt-4 rounded-xl border border-border bg-canvas p-4 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-text">
+                  You&apos;ve accepted an offer. Consider marking other
+                  applications as Withdrawn.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <button
+                    onClick={handleMarkAllWithdrawnClick}
+                    className="text-sm font-medium text-primary hover:text-primary-hover"
+                  >
+                    Mark all others as withdrawn
+                  </button>
+                  <span className="text-text-muted">·</span>
+                  <button
+                    onClick={dismissTip}
+                    className="text-sm text-text-muted hover:text-text"
+                  >
+                    Dismiss
+                  </button>
                 </div>
               </div>
-              <h3 className="text-xl font-semibold text-[#1E1B4B] mb-2">
+              <button
+                onClick={dismissTip}
+                aria-label="Dismiss tip"
+                className="p-1 rounded-lg text-text-muted hover:bg-accent/30 hover:text-text shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {filteredAndSortedApps.length === 0 ? (
+            <div className="bg-canvas rounded-2xl border border-border p-12 text-center">
+              <div className="relative inline-block mb-6">
+                <div className="w-20 h-20 rounded-2xl bg-surface-alt flex items-center justify-center">
+                  <Briefcase className="w-10 h-10 text-primary/40" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-soft-blue/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-soft-blue" />
+                </div>
+              </div>
+              <h3 className="text-xl font-semibold text-text mb-2">
                 No applications found
               </h3>
-              <p className="text-[#1E1B4B]/60 mb-6 max-w-md mx-auto">
+              <p className="text-text-muted mb-6 max-w-md mx-auto">
                 {searchQuery || statusFilter !== "all"
                   ? "Try adjusting your filters or search query to find what you're looking for"
                   : "Start tracking your internship journey by adding your first application"}
@@ -401,7 +539,7 @@ export default function ApplicationList() {
               {!searchQuery && statusFilter === "all" && (
                 <button
                   onClick={() => handleModal()}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover transition-all"
                 >
                   <Plus className="w-4 h-4" />
                   Add Your First Application
@@ -429,7 +567,8 @@ export default function ApplicationList() {
               ))}
             </div>
           )}
-        </div>
+          </div>
+        </main>
 
         <Modal
           open={open}
@@ -447,7 +586,19 @@ export default function ApplicationList() {
           itemName={selectedAppName}
         />
 
-        <LoadingOverlay open={isDeleting} message="Deleting application..." />
+        <ConfirmationDialog
+          open={markAllWithdrawnDialogOpen}
+          onClose={handleMarkAllWithdrawnConfirm}
+          title="Mark all others as withdrawn?"
+          description="All applications except your accepted offer will be set to Withdrawn. You can change them later."
+          confirmLabel="Mark all withdrawn"
+          variant="primary"
+        />
+
+        <LoadingOverlay
+          open={isDeleting || isUpdating}
+          message={isDeleting ? "Deleting application..." : "Updating..."}
+        />
       </div>
     </>
   );

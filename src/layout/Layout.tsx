@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Search,
   Menu,
   X,
   LogOut,
@@ -10,9 +9,15 @@ import {
 } from "lucide-react";
 import { signOut } from "@/functions/auth/signOut";
 import { useAuthStore } from "@/store/authStore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "@/store/applicationStore";
 import { useJournalStore } from "@/store/journalStore";
+
+const routeTitles: Record<string, string> = {
+  "/dashboard": "Dashboard",
+  "/applications": "Applications",
+  "/logs": "Logs",
+};
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,7 +26,17 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthStore();
+
+  const pageTitle = routeTitles[location.pathname] ?? "InternPal";
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  })();
+  const firstName = user?.user_metadata?.full_name?.split(" ")[0] ?? "there";
 
   const { fetchApplications, initSocket } = useAppStore();
 
@@ -77,33 +92,32 @@ const Layout = ({ children }: LayoutProps) => {
     }
   };
 
-  return (
-    <div className="h-screen flex overflow-hidden bg-[#FAFAFF]">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#7C3AED] text-white rounded-lg shadow-lg"
-      >
-        {isMobileSidebarOpen ? (
-          <X className="w-5 h-5" />
-        ) : (
-          <Menu className="w-5 h-5" />
-        )}
-      </button>
+  const handleNavClick = (path: string) => {
+    navigate(path);
+    setIsMobileSidebarOpen(false);
+  };
 
+  const handleLogoutAndClose = () => {
+    handleLogout();
+    setIsMobileSidebarOpen(false);
+  };
+
+  return (
+    <div className="h-screen flex overflow-hidden bg-surface">
       {/* Mobile Overlay */}
       {isMobileSidebarOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black/50 z-30"
           onClick={() => setIsMobileSidebarOpen(false)}
+          aria-hidden
         />
       )}
 
-      {/* Sidebar - Fixed and Full Height */}
+      {/* Sidebar - Drawer on mobile, static on desktop */}
       <aside
         className={`
         fixed lg:static inset-y-0 left-0 z-40
-        w-64 bg-[#1E1B4B] border-r border-[#2D2A5B] flex flex-col
+        w-64 bg-sidebar border-r border-sidebar-border flex flex-col
         transform transition-transform duration-300 ease-in-out
         ${
           isMobileSidebarOpen
@@ -113,39 +127,50 @@ const Layout = ({ children }: LayoutProps) => {
       `}
       >
         {/* Logo */}
-        <div className="p-4 border-b border-[#2D2A5B] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#7C3AED] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">IP</span>
-            </div>
-            <div>
-              <h1 className="font-semibold text-sm text-white">InternPal</h1>
-              <p className="text-xs text-[#DDD6FE]">
-                {user?.user_metadata.full_name}
-              </p>
-            </div>
+        <div className="p-4 border-b border-sidebar-border flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-sm">IP</span>
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-semibold text-sm text-white truncate">
+              InternPal
+            </h1>
+            <p className="text-xs text-sidebar-text truncate">
+              {user?.user_metadata?.full_name}
+            </p>
           </div>
         </div>
 
         {/* Main Menu Section - Scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto flex flex-col">
           <div className="p-3">
-            <button className="flex items-center gap-3 w-full text-[#DDD6FE]/60 hover:text-[#DDD6FE] text-xs font-medium mb-2">
+            <span className="flex items-center gap-3 w-full text-sidebar-text-muted text-xs font-medium mb-2">
               MAIN MENU
-            </button>
+            </span>
 
-            <nav className="space-y-1">
+            <nav className="space-y-0.5">
               {sidebar.map((item) => (
                 <button
                   key={item.key}
-                  onClick={() => navigate(`${item.path}`)}
-                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-[#DDD6FE] hover:bg-[#7C3AED]/20 rounded-lg transition-colors cursor-pointer"
+                  onClick={() => handleNavClick(item.path)}
+                  className="flex items-center gap-3 w-full px-3 py-2.5 min-h-[44px] text-left text-sm text-sidebar-text hover:bg-primary/20 rounded-lg transition-colors cursor-pointer touch-manipulation"
                 >
                   {item.icon}
                   <span>{item.title}</span>
                 </button>
               ))}
             </nav>
+          </div>
+
+          {/* Logout - inside menu on mobile only */}
+          <div className="mt-auto p-3 border-t border-sidebar-border lg:hidden">
+            <button
+              onClick={handleLogoutAndClose}
+              className="flex items-center gap-3 w-full px-3 py-2.5 min-h-[44px] text-left text-sm text-sidebar-text hover:bg-primary/20 rounded-lg transition-colors cursor-pointer touch-manipulation"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span>Logout</span>
+            </button>
           </div>
 
           {/* My Projects Section */}
@@ -192,31 +217,44 @@ const Layout = ({ children }: LayoutProps) => {
 
       {/* Main Content Area - Flex Column */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header - Fixed at Top */}
-        <header className="bg-white border-b border-[#DDD6FE]/30 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 justify-between shrink-0">
-          <div className="flex items-center gap-4 flex-1 w-full sm:max-w-2xl ml-0 lg:ml-0 pl-0 sm:pl-0 lg:pl-0">
-            <Search className="w-5 h-5 text-[#1E1B4B]/40 hidden sm:block" />
-            <input
-              type="text"
-              placeholder="What are you working on..."
-              className="flex-1 outline-none text-sm text-[#1E1B4B] placeholder-[#1E1B4B]/40 w-full pl-12 sm:pl-0 lg:pl-0 bg-transparent"
-            />
+        {/* Header - Menu (mobile) + title/greeting + Logout (desktop) */}
+        <header className="bg-canvas border-b border-border px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-4 justify-between shrink-0 min-h-[56px]">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <button
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              className="lg:hidden shrink-0 w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:bg-accent/30 hover:text-text transition-colors touch-manipulation"
+              aria-label={isMobileSidebarOpen ? "Close menu" : "Open menu"}
+            >
+              {isMobileSidebarOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
+            </button>
+            <div className="flex flex-col min-w-0 flex-1 py-0.5">
+              <h2 className="text-xs sm:text-sm font-medium text-text-muted truncate">
+                {pageTitle}
+              </h2>
+              <p className="text-sm sm:text-base font-semibold text-text truncate">
+                {greeting}, {firstName}
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-[#7C3AED] hover:bg-[#6D28D9] rounded-lg transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors cursor-pointer"
             >
-              <LogOut className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Logout</span>
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
             </button>
           </div>
         </header>
 
-        {/* Main Content Area - Scrollable Only */}
-        <main className="flex-1 overflow-y-auto bg-[#FAFAFF]">
-          <div className="p-4 sm:p-6">{children}</div>
+        {/* Main Content - Scrollable */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-surface">
+          <div className="p-4 sm:p-6 min-h-0">{children}</div>
         </main>
       </div>
     </div>

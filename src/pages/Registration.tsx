@@ -1,6 +1,7 @@
 import CustomButton from "@/components/Buttons";
 import CustomInput from "@/components/Input";
 import SEO from "@/components/SEO";
+import AppLogo from "@/components/AppLogo";
 import { signInWithGoogle } from "@/functions/auth/googleAuth";
 import { signUp } from "@/functions/auth/signUp";
 import { createOrUpdateProfile } from "@/functions/auth/updateProfile";
@@ -110,11 +111,11 @@ export default function Register() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen bg-linear-to-br from-[#DDD6FE]/30 to-[#FAFAFF] items-center justify-center p-8">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center border border-[#DDD6FE]/50">
-          <div className="w-16 h-16 bg-[#DDD6FE] rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="min-h-screen bg-surface flex items-center justify-center p-6">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-8 h-8 text-[#7C3AED]"
+              className="w-6 h-6 text-primary"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -127,17 +128,16 @@ export default function Register() {
               />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-[#1E1B4B] mb-2">
+          <h2 className="text-xl font-semibold text-text mb-2">
             Verify your email
           </h2>
-          <p className="text-[#1E1B4B]/70 mb-6">
-            We sent a confirmation link to <strong>{email}</strong>. Please
-            verify your email to activate your account.
+          <p className="text-sm text-text-muted mb-6">
+            We sent a confirmation link to <strong>{email}</strong>. Verify
+            your email to activate your account.
           </p>
-
           <Link
             to="/login"
-            className="text-[#7C3AED] hover:text-[#6D28D9] font-semibold"
+            className="text-primary hover:text-primary-hover font-medium text-sm"
           >
             Return to login
           </Link>
@@ -152,65 +152,36 @@ export default function Register() {
         title="Sign Up"
         description="Create your InternPal account to start tracking internship applications and enhance your career journey with AI."
       />
-      <div className="flex min-h-screen bg-[#FAFAFF]">
-        {/* Left Side - Branding */}
-        <div className="hidden lg:flex lg:w-1/3 bg-linear-to-br from-[#7C3AED] to-[#1E1B4B] p-12 items-center justify-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/10" />
-
-        <div className="relative z-10 text-white max-w-md">
-          <h1 className="text-5xl font-bold mb-6">InternPal</h1>
-
-          <p className="text-lg text-[#DDD6FE] mb-8">
-            Your AI-powered companion for managing internship applications,
-            interviews, and career outcomes.
-          </p>
-
-          <div className="space-y-5">
-            {[
-              "Centralized application tracking",
-              "Interview and status management",
-              "Private and secure by design",
-            ].map((text) => (
-              <div key={text} className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-[#38BDF8]" />
-                <span className="text-sm text-[#DDD6FE]">{text}</span>
-              </div>
-            ))}
+      <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-surface" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,var(--color-primary)/8%,transparent)]" aria-hidden />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[520px] h-[360px] rounded-full bg-primary/8 blur-3xl -translate-y-1/2" aria-hidden />
+        <div className="absolute bottom-0 right-0 w-[380px] h-[280px] rounded-full bg-accent/40 blur-3xl translate-x-1/3 translate-y-1/3" aria-hidden />
+        <div className="absolute top-1/2 left-0 w-[240px] h-[240px] rounded-full bg-soft-blue/10 blur-3xl -translate-y-1/2 -translate-x-1/2" aria-hidden />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-size-[24px_24px] mask-[radial-gradient(ellipse_70%_60%_at_50%_50%,black_20%,transparent_70%)]" aria-hidden />
+        <div className="relative w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-canvas/80 backdrop-blur-sm border border-border shadow-sm shadow-black/5 mb-5">
+              <AppLogo size={44} />
+            </div>
+            <h1 className="text-xl font-semibold text-text tracking-tight">
+              Create your account
+            </h1>
+            <p className="text-sm text-text-muted mt-1.5">
+              Sign up in a minute
+            </p>
+            <div className="mt-4 h-px w-12 mx-auto bg-linear-to-r from-transparent via-primary/30 to-transparent rounded-full" aria-hidden />
           </div>
-        </div>
-      </div>
 
-      {/* Right Side - Registration Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-xl border border-[#DDD6FE]/50 p-8 shadow-sm">
-            {/* Header */}
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-[#7C3AED] flex items-center justify-center text-white font-bold">
-                IP
-              </div>
-              <span className="text-xl font-semibold text-[#1E1B4B]">
-                InternPal
-              </span>
-            </div>
+          <div className="relative bg-canvas/95 backdrop-blur-sm rounded-2xl border border-border p-6 shadow-lg shadow-black/6 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-linear-to-r from-transparent via-primary/50 to-transparent rounded-t-2xl" aria-hidden />
 
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-[#1E1B4B] mb-2">
-                Create your account
-              </h2>
-              <p className="text-[#1E1B4B]/70">
-                Set up your workspace in less than a minute.
-              </p>
-            </div>
-
-            {/* Error Message */}
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-600 text-sm">{error}</p>
               </div>
             )}
 
-            {/* Form */}
             <div className="space-y-4">
               <div>
                 <CustomInput
@@ -240,8 +211,8 @@ export default function Register() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Must be at least 6 characters
+                <p className="mt-1 text-xs text-text-muted">
+                  At least 6 characters
                 </p>
               </div>
 
@@ -259,21 +230,20 @@ export default function Register() {
                 <input
                   type="checkbox"
                   required
-                  className="mt-1 w-4 h-4 rounded border-[#DDD6FE] 
-text-[#7C3AED] focus:ring-[#7C3AED]"
+                  className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-primary"
                 />
-                <span className="text-[#1E1B4B]/70">
+                <span className="text-text-muted">
                   I agree to the{" "}
                   <a
                     href="#"
-                    className="text-[#7C3AED] hover:text-[#6D28D9] underline"
+                    className="text-primary hover:text-primary-hover underline"
                   >
                     Terms of Service
                   </a>{" "}
                   and{" "}
                   <a
                     href="#"
-                    className="text-[#7C3AED] hover:text-[#6D28D9] underline"
+                    className="text-primary hover:text-primary-hover underline"
                   >
                     Privacy Policy
                   </a>
@@ -288,25 +258,23 @@ text-[#7C3AED] focus:ring-[#7C3AED]"
               />
             </div>
 
-            {/* Divider */}
-            <div className="relative my-6">
+            <div className="relative my-5">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
+                <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">
+                <span className="px-4 bg-canvas text-text-muted">
                   Or sign up with
                 </span>
               </div>
             </div>
 
-            {/* Google Sign Up */}
             <button
               onClick={handleGoogleSignUp}
               disabled={loading}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 
-border border-[#DDD6FE] rounded-lg 
-hover:bg-[#DDD6FE]/20 transition-colors
+border border-border rounded-lg 
+hover:bg-accent/30 transition-colors
 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -327,23 +295,21 @@ disabled:opacity-50 disabled:cursor-not-allowed"
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              <span className="text-[#1E1B4B] font-medium">
+              <span className="text-text font-medium">
                 Sign up with Google
               </span>
             </button>
 
-            {/* Sign In Link */}
-            <p className="mt-8 text-center text-sm text-[#1E1B4B]/70">
+            <p className="mt-6 text-center text-sm text-text-muted">
               Already have an account?{" "}
               <Link
                 to="/login"
-                className="text-[#7C3AED] hover:text-[#6D28D9] font-semibold"
+                className="text-primary hover:text-primary-hover font-semibold"
               >
                 Sign in
               </Link>
             </p>
           </div>
-        </div>
         </div>
       </div>
     </>

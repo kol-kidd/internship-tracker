@@ -7,7 +7,7 @@ import {
   Button,
   IconButton,
 } from "@mui/material";
-import { X, AlertTriangle } from "lucide-react";
+import { X, AlertTriangle, Info } from "lucide-react";
 
 interface DeleteConfirmationDialogProps {
   open: boolean;
@@ -15,6 +15,8 @@ interface DeleteConfirmationDialogProps {
   title?: string;
   description?: string;
   itemName?: string;
+  confirmLabel?: string;
+  variant?: "danger" | "primary";
 }
 
 export default function ConfirmationDialog({
@@ -23,7 +25,11 @@ export default function ConfirmationDialog({
   title = "Delete Application",
   description = "Are you sure you want to delete this application? This action cannot be undone.",
   itemName,
+  confirmLabel,
+  variant = "danger",
 }: DeleteConfirmationDialogProps) {
+  const isPrimary = variant === "primary";
+  const resolvedConfirmLabel = confirmLabel ?? (isPrimary ? "Confirm" : "Delete");
   const handleConfirm = () => {
     onClose(true);
   };
@@ -65,8 +71,16 @@ export default function ConfirmationDialog({
 
       {/* Icon */}
       <div className="flex justify-center pt-6 pb-4">
-        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-          <AlertTriangle size={32} className="text-red-600" />
+        <div
+          className={`w-16 h-16 rounded-full flex items-center justify-center ${
+            isPrimary ? "bg-primary/10" : "bg-red-100"
+          }`}
+        >
+          {isPrimary ? (
+            <Info size={32} className="text-primary" />
+          ) : (
+            <AlertTriangle size={32} className="text-red-600" />
+          )}
         </div>
       </div>
 
@@ -127,17 +141,29 @@ export default function ConfirmationDialog({
           onClick={handleConfirm}
           fullWidth
           variant="contained"
-          sx={{
-            textTransform: "none",
-            fontWeight: 500,
-            bgcolor: "red",
-            borderRadius: 2,
-            "&:hover": {
-              bgcolor: "#DC2626",
-            },
-          }}
+          sx={
+            isPrimary
+              ? {
+                  textTransform: "none",
+                  fontWeight: 500,
+                  bgcolor: "primary.main",
+                  borderRadius: 2,
+                  "&:hover": {
+                    bgcolor: "primary.dark",
+                  },
+                }
+              : {
+                  textTransform: "none",
+                  fontWeight: 500,
+                  bgcolor: "red",
+                  borderRadius: 2,
+                  "&:hover": {
+                    bgcolor: "#DC2626",
+                  },
+                }
+          }
         >
-          Delete
+          {resolvedConfirmLabel}
         </Button>
       </DialogActions>
     </Dialog>

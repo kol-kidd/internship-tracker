@@ -48,19 +48,19 @@ export default function Card(props: CardProps) {
     const normalizedStatus = status.toLowerCase();
     switch (normalizedStatus) {
       case "applied":
-        return { bg: "#EFF6FF", text: "#1E40AF", border: "#BFDBFE" };
+        return { bg: "#d0e0e6", text: "#4a6a75", border: "#b8d0d8" };
       case "interviewing":
-        return { bg: "#F3E8FF", text: "#6B21A8", border: "#D8B4FE" };
+        return { bg: "#e6e0f0", text: "#5a5070", border: "#d0c8e0" };
       case "offer":
-        return { bg: "#D1FAE5", text: "#065F46", border: "#A7F3D0" };
+        return { bg: "#d4edda", text: "#2d5a36", border: "#b8ddc4" };
       case "rejected":
-        return { bg: "#FEE2E2", text: "#991B1B", border: "#FECACA" };
+        return { bg: "#f4d8d8", text: "#8b4a4a", border: "#e8c4c4" };
       case "accepted":
-        return { bg: "#D1FAE5", text: "#065F46", border: "#6EE7B7" };
+        return { bg: "#d4edda", text: "#2d5a36", border: "#a7d4b4" };
       case "withdrawn":
-        return { bg: "#F3F4F6", text: "#374151", border: "#D1D5DB" };
+        return { bg: "#e8e4df", text: "#4a4540", border: "#d0cbc4" };
       default:
-        return { bg: "#EFF6FF", text: "#1E40AF", border: "#BFDBFE" };
+        return { bg: "#d0e0e6", text: "#4a6a75", border: "#b8d0d8" };
     }
   };
 
@@ -69,19 +69,19 @@ export default function Card(props: CardProps) {
   return (
     <div
       key={props.id}
-      className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+      className="bg-canvas rounded-xl border border-border p-6 hover:shadow-sm transition-shadow"
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Building2 className="w-5 h-5 text-gray-400 flex-shrink-0" />
-            <h3 className="text-lg font-semibold text-gray-900 truncate">
+            <Building2 className="w-5 h-5 text-text-muted flex-shrink-0" />
+            <h3 className="text-lg font-semibold text-text truncate">
               {props.company_name}
             </h3>
           </div>
           {props.position && (
-            <p className="text-sm text-gray-600 mb-2 truncate">
+            <p className="text-sm text-text-muted mb-2 truncate">
               {props.position}
             </p>
           )}
@@ -98,12 +98,12 @@ export default function Card(props: CardProps) {
 
       {/* Details */}
       <div className="space-y-2 mb-4">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-text-muted">
+          <MapPin className="w-4 h-4 text-text-muted flex-shrink-0" />
           <span className="truncate">{props.company_address}</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-text-muted">
+          <Calendar className="w-4 h-4 text-text-muted flex-shrink-0" />
           <span>Applied {formatDate(props.date_applied)}</span>
         </div>
       </div>
@@ -141,15 +141,15 @@ export default function Card(props: CardProps) {
                 props.company_address,
               )
             }
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-surface-alt rounded-lg transition-colors"
           >
-            <Edit2 className="w-4 h-4 text-gray-600" />
+            <Edit2 className="w-4 h-4 text-text-muted" />
           </button>
           <button
             onClick={() =>
               props.deleteApplication(props.id, props.company_name)
             }
-            className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-pastel-pink rounded-lg transition-colors"
           >
             <Trash2 className="w-4 h-4 text-red-600" />
           </button>
@@ -158,8 +158,8 @@ export default function Card(props: CardProps) {
 
       {/* Notes Preview */}
       {props.notes && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="text-xs text-gray-500 line-clamp-2">{props.notes}</p>
+        <div className="mt-3 pt-3 border-t border-border">
+          <p className="text-xs text-text-muted line-clamp-2">{props.notes}</p>
         </div>
       )}
     </div>

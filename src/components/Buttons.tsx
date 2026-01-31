@@ -20,12 +20,12 @@ export default function CustomButton({
       disabled={disabled}
       onClick={onClick}
       sx={{
-        bgcolor: variant === "contained" ? "#7C3AED" : undefined,
-        color: variant === "contained" ? "white" : "#7C3AED",
-        borderColor: variant === "outlined" ? "#7C3AED" : undefined,
+        bgcolor: variant === "contained" ? "#c4946e" : undefined,
+        color: variant === "contained" ? "white" : "#c4946e",
+        borderColor: variant === "outlined" ? "#c4946e" : undefined,
         "&:hover": {
-          bgcolor: variant === "contained" ? "#6D28D9" : "#DDD6FE",
-          borderColor: variant === "outlined" ? "#6D28D9" : undefined,
+          bgcolor: variant === "contained" ? "#b8855e" : "#e8d4c4",
+          borderColor: variant === "outlined" ? "#b8855e" : undefined,
         },
         textTransform: "none",
         fontWeight: 500,

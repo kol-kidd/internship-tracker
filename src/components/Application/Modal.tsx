@@ -28,12 +28,40 @@ const Transition = React.forwardRef(function Transition(
   return <Slide direction="down" ref={ref} {...props} />;
 });
 
+const themeColors = {
+  canvas: "#ffffff",
+  text: "#222222",
+  textMuted: "#666666",
+  border: "#e6e6e6",
+  primary: "#c4946e",
+  primaryHover: "#b8855e",
+  accent: "#e8d4c4",
+};
+
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
+  "& .MuiDialog-paper": {
+    backgroundColor: themeColors.canvas,
+    border: `1px solid ${themeColors.border}`,
+    borderRadius: 16,
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
+  },
+  "& .MuiDialogTitle-root": {
+    color: themeColors.text,
+    fontWeight: 600,
+    fontSize: "1.125rem",
+    padding: theme.spacing(2, 3),
+    borderBottom: `1px solid ${themeColors.border}`,
+  },
   "& .MuiDialogContent-root": {
-    padding: theme.spacing(2),
+    padding: theme.spacing(2, 3),
+    "&.MuiDialogContent-dividers": {
+      borderTop: "none",
+    },
   },
   "& .MuiDialogActions-root": {
-    padding: theme.spacing(1),
+    padding: theme.spacing(2, 3),
+    borderTop: `1px solid ${themeColors.border}`,
+    gap: theme.spacing(1.5),
   },
 }));
 
@@ -196,20 +224,24 @@ export default function Modal(props: ModalProps) {
       fullWidth={fullWidth}
       maxWidth={maxWidth}
     >
-      <DialogTitle sx={{ m: 0, p: 2 }} id="customized-dialog-title">
+      <DialogTitle sx={{ m: 0, p: 2, pr: 6 }} id="customized-dialog-title">
         {props.isUpdate ? "Edit Application" : "Add New Application"}
       </DialogTitle>
       <IconButton
         aria-label="close"
         onClick={handleClose}
-        sx={(theme) => ({
+        sx={{
           position: "absolute",
-          right: 8,
-          top: 8,
-          color: theme.palette.grey[500],
-        })}
+          right: 12,
+          top: 12,
+          color: themeColors.textMuted,
+          "&:hover": {
+            backgroundColor: "rgba(232, 212, 196, 0.35)",
+            color: themeColors.text,
+          },
+        }}
       >
-        <CircleX />
+        <CircleX className="w-5 h-5" />
       </IconButton>
       <DialogContent dividers className="flex flex-col gap-3">
         {!props.isUpdate && (
@@ -246,9 +278,12 @@ export default function Modal(props: ModalProps) {
         <Button
           onClick={handleClose}
           sx={{
-            color: "grey.600",
+            color: themeColors.textMuted,
+            textTransform: "none",
+            fontWeight: 500,
             "&:hover": {
-              bgcolor: "grey.100",
+              backgroundColor: "rgba(232, 212, 196, 0.35)",
+              color: themeColors.text,
             },
           }}
         >
@@ -259,7 +294,13 @@ export default function Modal(props: ModalProps) {
           onClick={handleSaveApplication}
           disabled={loadingCreate}
           sx={{
-            bgcolor: "black",
+            bgcolor: themeColors.primary,
+            color: "#fff",
+            textTransform: "none",
+            fontWeight: 500,
+            "&:hover": {
+              bgcolor: themeColors.primaryHover,
+            },
           }}
         >
           {loadingCreate

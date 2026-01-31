@@ -102,10 +102,10 @@ export default function ResetPassword() {
 
   if (validSession === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FAFAFF]">
+      <div className="flex min-h-screen items-center justify-center bg-surface">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7C3AED] mx-auto mb-4"></div>
-          <p className="text-[#1E1B4B]/70">Verifying reset link...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-text-muted">Verifying reset link...</p>
         </div>
       </div>
     );
@@ -113,21 +113,21 @@ export default function ResetPassword() {
 
   if (!validSession) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FAFAFF] p-4">
-        <div className="bg-white rounded-xl border border-[#DDD6FE]/50 p-8 max-w-md w-full text-center shadow-sm">
+      <div className="flex min-h-screen items-center justify-center bg-surface p-4">
+        <div className="bg-canvas rounded-xl border border-border p-8 max-w-md w-full text-center shadow-sm">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-red-600" />
           </div>
-          <h2 className="text-2xl font-semibold text-[#1E1B4B] mb-2">
+          <h2 className="text-2xl font-semibold text-text mb-2">
             Invalid or Expired Link
           </h2>
-          <p className="text-sm text-[#1E1B4B]/60 mb-6">
+          <p className="text-sm text-text/60 mb-6">
             This password reset link is invalid or has expired. Please request a
             new one.
           </p>
           <Link
             to="/forgot-password"
-            className="inline-flex items-center justify-center w-full px-4 py-3 bg-[#7C3AED] text-white rounded-lg hover:bg-[#6D28D9] transition-colors font-medium"
+            className="inline-flex items-center justify-center w-full px-4 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium"
           >
             Request New Link
           </Link>
@@ -142,16 +142,16 @@ export default function ResetPassword() {
         title="Reset Password"
         description="Create a new password for your InternPal account."
       />
-      <div className="flex min-h-screen bg-[#FAFAFF]">
+      <div className="flex min-h-screen bg-surface">
         {/* Left Side - Branding */}
-        <div className="hidden lg:flex lg:w-1/3 bg-linear-to-br from-[#7C3AED] to-[#1E1B4B] p-12 items-center justify-center relative overflow-hidden">
+        <div className="hidden lg:flex lg:w-1/3 bg-primary p-12 items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="relative z-10 text-white max-w-md">
             <h1 className="text-5xl font-semibold tracking-tight mb-6">
               InternPal
             </h1>
 
-            <p className="text-[#DDD6FE] text-lg leading-relaxed mb-10">
+            <p className="text-sidebar-text text-lg leading-relaxed mb-10">
               Your AI-powered companion for tracking internship applications,
               organizing opportunities, and achieving your career goals.
             </p>
@@ -163,8 +163,8 @@ export default function ResetPassword() {
                 "Designed for students and early careers",
               ].map((text) => (
                 <div key={text} className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[#38BDF8]" />
-                  <span className="text-sm text-[#DDD6FE]">{text}</span>
+                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  <span className="text-sm text-sidebar-text">{text}</span>
                 </div>
               ))}
             </div>
@@ -174,11 +174,11 @@ export default function ResetPassword() {
         {/* Right Side - Form */}
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="w-full max-w-md">
-            <div className="bg-white rounded-xl border border-[#DDD6FE]/50 p-8 shadow-sm">
+            <div className="bg-canvas rounded-xl border border-border p-8 shadow-sm">
               {/* Back Link */}
               <Link
                 to="/login"
-                className="inline-flex items-center gap-2 text-sm text-[#1E1B4B]/60 hover:text-[#1E1B4B] mb-6 transition-colors"
+                className="inline-flex items-center gap-2 text-sm text-text/60 hover:text-text mb-6 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to login
@@ -186,7 +186,7 @@ export default function ResetPassword() {
 
               {/* Header */}
               <div className="flex justify-center mb-6">
-                <div className="w-12 h-12 rounded-xl bg-[#7C3AED] flex items-center justify-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-sm">
                   <span className="text-white font-semibold text-lg">IP</span>
                 </div>
               </div>
@@ -197,16 +197,16 @@ export default function ResetPassword() {
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="w-8 h-8 text-green-600" />
                   </div>
-                  <h2 className="text-2xl font-semibold text-[#1E1B4B] mb-2">
+                  <h2 className="text-2xl font-semibold text-text mb-2">
                     Password updated!
                   </h2>
-                  <p className="text-sm text-[#1E1B4B]/60 mb-6">
+                  <p className="text-sm text-text/60 mb-6">
                     Your password has been successfully reset. You'll be
                     redirected to login shortly.
                   </p>
                   <Link
                     to="/login"
-                    className="inline-flex items-center justify-center w-full px-4 py-3 bg-[#7C3AED] text-white rounded-lg hover:bg-[#6D28D9] transition-colors font-medium"
+                    className="inline-flex items-center justify-center w-full px-4 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium"
                   >
                     Go to login
                   </Link>
@@ -215,13 +215,13 @@ export default function ResetPassword() {
                 // Form State
                 <>
                   <div className="text-center mb-8">
-                    <div className="w-12 h-12 bg-[#DDD6FE] rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Lock className="w-6 h-6 text-[#7C3AED]" />
+                    <div className="w-12 h-12 bg-border rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Lock className="w-6 h-6 text-primary" />
                     </div>
-                    <h2 className="text-2xl font-semibold text-[#1E1B4B] mb-2">
+                    <h2 className="text-2xl font-semibold text-text mb-2">
                       Set new password
                     </h2>
-                    <p className="text-sm text-[#1E1B4B]/60">
+                    <p className="text-sm text-text/60">
                       Your new password must be at least 6 characters long.
                     </p>
                   </div>

@@ -10,14 +10,9 @@ import {
   Save,
   Clock,
   Download,
-  Filter,
   Sparkles,
-  TrendingUp,
-  Target,
-  FileText,
   Wand2,
   ChevronDown,
-  ChevronUp,
   RefreshCw,
   Tag,
   Zap,
@@ -64,7 +59,6 @@ const LogsPage = () => {
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMood, setFilterMood] = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
@@ -108,7 +102,7 @@ const LogsPage = () => {
   const [reportDate, setReportDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
-  const [weeklyReportDrawerOpen, setWeeklyReportDrawerOpen] = useState(true);
+  const [mainView, setMainView] = useState<"entries" | "weekly">("entries");
 
   const handleRequiredHoursChange = (value: string) => {
     const hours = Number(value) || 0;
@@ -481,28 +475,28 @@ const LogsPage = () => {
   > = {
     great: {
       label: "Great",
-      color: "bg-emerald-100 text-emerald-700 border-emerald-200",
-      gradient: "from-emerald-500 to-emerald-600",
+      color: "bg-pastel-green text-[#2d5a36] border-pastel-green",
+      gradient: "soft-green",
     },
     good: {
       label: "Good",
-      color: "bg-blue-100 text-blue-700 border-blue-200",
-      gradient: "from-blue-500 to-blue-600",
+      color: "bg-pastel-blue text-[#4a6a75] border-pastel-blue",
+      gradient: "soft-blue",
     },
     neutral: {
       label: "Neutral",
-      color: "bg-gray-100 text-gray-700 border-gray-200",
-      gradient: "from-gray-500 to-gray-600",
+      color: "bg-pastel-peach text-[#6a5a40] border-pastel-peach",
+      gradient: "pastel-peach",
     },
     challenging: {
       label: "Challenging",
-      color: "bg-amber-100 text-amber-700 border-amber-200",
-      gradient: "from-amber-500 to-amber-600",
+      color: "bg-pastel-peach text-[#6a5a40] border-pastel-peach",
+      gradient: "pastel-peach",
     },
     stressful: {
       label: "Stressful",
-      color: "bg-red-100 text-red-700 border-red-200",
-      gradient: "from-red-500 to-red-600",
+      color: "bg-pastel-pink text-[#8b4a4a] border-pastel-pink",
+      gradient: "soft-pink",
     },
   };
 
@@ -919,15 +913,15 @@ const LogsPage = () => {
 
   if (loading && entries.length === 0) {
     return (
-      <div className="min-h-screen bg-[#FAFAFF] flex items-center justify-center">
+      <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
               <BookOpen className="w-8 h-8 text-white animate-pulse" />
             </div>
-            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#38BDF8] animate-ping" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-soft-blue animate-ping" />
           </div>
-          <p className="text-[#1E1B4B]/60">Loading journal entries...</p>
+          <p className="text-text/60">Loading journal entries...</p>
         </div>
       </div>
     );
@@ -939,239 +933,251 @@ const LogsPage = () => {
         title="Journal"
         description="Document your internship journey with AI-enhanced journal entries. Track hours, reflect on experiences, and grow professionally."
       />
-      <div className="min-h-screen">
-        {/* Header */}
-        <div className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-[#DDD6FE]/30 z-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-[#38BDF8] animate-pulse" />
-                  <span className="text-xs font-medium text-[#38BDF8] uppercase tracking-wider">
-                    Journal
-                  </span>
-                </div>
-                <h1 className="text-2xl font-bold text-[#1E1B4B]">
-                  Internship Journal
-                </h1>
-                <p className="text-[#1E1B4B]/60 mt-1">
-                  Document your journey, reflections, and daily experiences
-                </p>
+      <div className="flex min-h-screen bg-surface">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:border-r lg:border-border lg:bg-canvas lg:shrink-0">
+          <div className="sticky top-0 flex flex-col h-screen overflow-y-auto p-5">
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-1">
+                <BookOpen className="w-5 h-5 text-primary" />
+                <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                  Journal
+                </span>
               </div>
+              <h1 className="text-lg font-bold text-text">Internship Journal</h1>
+            </div>
 
-              <div className="flex gap-3">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors mb-4"
+            >
+              <Plus className="w-4 h-4" />
+              New Entry
+            </button>
+
+            <div className="mb-6 pb-6 border-b border-border">
+              <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
+                View
+              </p>
+              <div className="flex rounded-lg border border-border p-0.5">
                 <button
-                  onClick={exportToPDF}
-                  disabled={filteredEntries.length === 0}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] text-sm font-medium hover:bg-[#DDD6FE]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setMainView("entries")}
+                  className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    mainView === "entries"
+                      ? "bg-primary text-white"
+                      : "text-text-muted hover:text-text"
+                  }`}
                 >
-                  <Download className="w-4 h-4" />
-                  Export PDF
+                  Entries
                 </button>
                 <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white text-sm font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
+                  onClick={() => setMainView("weekly")}
+                  className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    mainView === "weekly"
+                      ? "bg-primary text-white"
+                      : "text-text-muted hover:text-text"
+                  }`}
                 >
-                  <Plus className="w-4 h-4" />
-                  New Entry
+                  Weekly Report
                 </button>
               </div>
             </div>
 
-            {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1E1B4B]/40" />
+            <div className="space-y-3 mb-6 pb-6 border-b border-border">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-muted">Entries</span>
+                <span className="font-semibold text-text">{entries.length}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-muted">Hours logged</span>
+                <span className="font-semibold text-text">
+                  {totalHoursLogged.toFixed(1)}h
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-muted">Remaining</span>
+                <span
+                  className={`font-semibold ${
+                    hoursRemaining > 0 ? "text-soft-pink" : "text-soft-green"
+                  }`}
+                >
+                  {hoursRemaining.toFixed(1)}h
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm gap-2">
+                <span className="text-text-muted">Of (hrs)</span>
                 <input
-                  type="text"
-                  placeholder="Search entries..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                  type="number"
+                  value={requiredHours}
+                  onChange={(e) =>
+                    handleRequiredHoursChange(e.target.value)
+                  }
+                  className="w-14 px-1.5 py-0.5 border border-border rounded text-center text-sm text-text focus:outline-none focus:border-primary"
+                  min="0"
                 />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#DDD6FE]/50 flex items-center justify-center hover:bg-[#DDD6FE] transition-colors"
-                  >
-                    <X className="w-3 h-3 text-[#1E1B4B]/60" />
-                  </button>
-                )}
               </div>
-
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
-                  showFilters
-                    ? "bg-[#7C3AED] text-white border-[#7C3AED]"
-                    : "border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20"
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                Filter
-                {filterMood !== "all" && (
-                  <span className="w-2 h-2 rounded-full bg-[#38BDF8]" />
-                )}
-              </button>
-            </div>
-
-            {/* Filter Panel */}
-            {showFilters && (
-              <div className="mt-4 p-4 bg-[#FAFAFF] rounded-xl border border-[#DDD6FE]/30">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="w-4 h-4 text-[#7C3AED]" />
-                  <span className="text-sm font-medium text-[#1E1B4B]">
-                    Filter by Mood
-                  </span>
+              <div className="pt-1">
+                <div className="flex justify-between text-xs text-text-muted mb-1">
+                  <span>Progress</span>
+                  <span>{progressPercent.toFixed(0)}%</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setFilterMood("all")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      filterMood === "all"
-                        ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
-                        : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
-                    }`}
-                  >
-                    All ({entries.length})
-                  </button>
-                  {Object.entries(moodConfig).map(([mood, config]) => (
-                    <button
-                      key={mood}
-                      onClick={() => setFilterMood(mood)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                        filterMood === mood
-                          ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
-                          : "bg-white border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED]"
-                      }`}
-                    >
-                      <span>{moodEmojis[mood]}</span>
-                      {config.label} ({moodCounts[mood] || 0})
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-sm text-[#1E1B4B]/60">Total Entries</span>
-              </div>
-              <p className="text-3xl font-bold text-[#1E1B4B]">
-                {entries.length}
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#38BDF8] to-[#7DD3FC] flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-sm text-[#1E1B4B]/60">Hours Logged</span>
-              </div>
-              <p className="text-3xl font-bold text-[#1E1B4B]">
-                {totalHoursLogged.toFixed(1)}h
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#F472B6] to-[#FB7185] flex items-center justify-center">
-                  <Target className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[#1E1B4B]/60">Remaining</span>
-                    <div className="flex items-center gap-1 text-xs text-[#1E1B4B]/40">
-                      <span>of</span>
-                      <input
-                        type="number"
-                        value={requiredHours}
-                        onChange={(e) =>
-                          handleRequiredHoursChange(e.target.value)
-                        }
-                        className="w-14 px-1.5 py-0.5 border border-[#DDD6FE]/50 rounded text-center text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED]"
-                        min="0"
-                      />
-                      <span>hrs</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p
-                className={`text-3xl font-bold ${
-                  hoursRemaining > 0 ? "text-[#F472B6]" : "text-emerald-500"
-                }`}
-              >
-                {hoursRemaining.toFixed(1)}h
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#34D399] to-[#6EE7B7] flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-sm text-[#1E1B4B]/60">Progress</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <p className="text-3xl font-bold text-[#1E1B4B]">
-                  {progressPercent.toFixed(0)}%
-                </p>
-                <div className="flex-1 h-2 bg-[#DDD6FE]/30 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-border rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-linear-to-r from-[#7C3AED] to-[#38BDF8] rounded-full transition-all duration-500"
+                    className="h-full bg-primary rounded-full transition-all duration-500"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
               </div>
             </div>
+
+            <div className="mb-4">
+              <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-3">
+                Filter by mood
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => setFilterMood("all")}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                    filterMood === "all"
+                      ? "bg-primary text-white"
+                      : "text-text hover:bg-accent/30"
+                  }`}
+                >
+                  <span>All</span>
+                  <span className="text-xs opacity-80">{entries.length}</span>
+                </button>
+                {Object.entries(moodConfig).map(([mood, config]) => (
+                  <button
+                    key={mood}
+                    onClick={() => setFilterMood(mood)}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                      filterMood === mood
+                        ? "bg-primary text-white"
+                        : "text-text hover:bg-accent/30"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>{moodEmojis[mood]}</span>
+                      {config.label}
+                    </span>
+                    <span className="text-xs opacity-80">
+                      {moodCounts[mood] || 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <main className="flex-1 flex flex-col min-w-0">
+          {/* Top bar: search + export (entries view) or title (weekly view) */}
+          <div className="sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-6 py-4 bg-canvas/95 backdrop-blur border-b border-border">
+            {mainView === "entries" ? (
+              <>
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                  <input
+                    type="text"
+                    placeholder="Search entries..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-surface text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-border flex items-center justify-center hover:bg-accent/30"
+                    >
+                      <X className="w-3 h-3 text-text-muted" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={exportToPDF}
+                  disabled={filteredEntries.length === 0}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                >
+                  <Download className="w-4 h-4" />
+                  Export PDF
+                </button>
+              </>
+            ) : (
+              <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
+                Weekly Report
+              </h2>
+            )}
           </div>
 
-          {/* Weekly Report - drawer */}
-          <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 mb-8 text-[#1E1B4B] overflow-hidden shadow-lg shadow-[#7C3AED]/5">
-            <button
-              type="button"
-              onClick={() => setWeeklyReportDrawerOpen((prev) => !prev)}
-              className="w-full flex items-center justify-between gap-4 px-6 py-4 text-left hover:bg-[#DDD6FE]/20 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:ring-inset rounded-t-2xl"
-              aria-expanded={weeklyReportDrawerOpen}
-              aria-controls="weekly-report-content"
-              id="weekly-report-drawer-label"
-            >
-              <h2 className="text-xl font-bold">
-                <span className="text-[#7C3AED]">Weekly</span>{" "}
-                <span className="text-[#1E1B4B]">Report</span>
-              </h2>
-              <span className="shrink-0 p-1 rounded-lg text-[#1E1B4B] hover:bg-[#DDD6FE]/30 transition-colors">
-                {weeklyReportDrawerOpen ? (
-                  <ChevronUp className="w-5 h-5" aria-hidden />
-                ) : (
-                  <ChevronDown className="w-5 h-5" aria-hidden />
-                )}
-              </span>
-            </button>
+          {/* Mobile: view toggle + New Entry + filters (sidebar is hidden) */}
+          <div className="lg:hidden px-4 sm:px-6 py-3 border-b border-border bg-canvas space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-lg border border-border p-0.5 flex-1">
+                <button
+                  onClick={() => setMainView("entries")}
+                  className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    mainView === "entries"
+                      ? "bg-primary text-white"
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  Entries
+                </button>
+                <button
+                  onClick={() => setMainView("weekly")}
+                  className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    mainView === "weekly"
+                      ? "bg-primary text-white"
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  Weekly Report
+                </button>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                New
+              </button>
+            </div>
+            {mainView === "entries" && (
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setFilterMood("all")}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium ${
+                    filterMood === "all"
+                      ? "bg-primary text-white"
+                      : "bg-surface-alt text-text hover:bg-accent/30"
+                  }`}
+                >
+                  All
+                </button>
+                {Object.entries(moodConfig).map(([mood, config]) => (
+                  <button
+                    key={mood}
+                    onClick={() => setFilterMood(mood)}
+                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium ${
+                      filterMood === mood
+                        ? "bg-primary text-white"
+                        : "bg-surface-alt text-text hover:bg-accent/30"
+                    }`}
+                  >
+                    {moodEmojis[mood]} {config.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-            <div
-              id="weekly-report-content"
-              role="region"
-              aria-labelledby="weekly-report-drawer-label"
-              className={`transition-all duration-200 ease-out ${
-                weeklyReportDrawerOpen ? "visible" : "hidden"
-              }`}
-            >
-              <div className="px-6 pb-6 pt-0 border-t border-[#DDD6FE]/30">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pt-6">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+            {mainView === "weekly" && (
+            <div className="max-w-4xl w-full min-w-0 mx-auto space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 pt-2 sm:pt-6">
                   <div>
-                    <label className="block bg-[#7C3AED] text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-t w-fit mb-0">
+                    <label className="block bg-primary text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-t w-fit mb-0">
                       NAME
                     </label>
                     <input
@@ -1179,49 +1185,51 @@ const LogsPage = () => {
                       value={reportName}
                       onChange={(e) => setReportName(e.target.value)}
                       placeholder="Your name"
-                      className="w-full px-4 py-2.5 rounded-b rounded-tr border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                      className="w-full px-4 py-2.5 rounded-b rounded-tr border border-border bg-white text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
                   <div>
-                    <label className="block bg-[#7C3AED] text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-t w-fit mb-0">
+                    <label className="block bg-primary text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-t w-fit mb-0">
                       DATE
                     </label>
                     <input
                       type="date"
                       value={reportDate}
                       onChange={(e) => setReportDate(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-b rounded-tr border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                      className="w-full px-4 py-2.5 rounded-b rounded-tr border border-border bg-white text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
                 </div>
 
-                <div className="flex gap-2 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setWeeklyReportMode("view")}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      weeklyReportMode === "view"
-                        ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
-                        : "border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20"
-                    }`}
-                  >
-                    <CalendarRange className="w-4 h-4" />
-                    View week
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setWeeklyReportMode("new")}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      weeklyReportMode === "new"
-                        ? "bg-[#7C3AED] text-white shadow-md shadow-[#7C3AED]/25"
-                        : "border border-[#DDD6FE]/50 text-[#1E1B4B] hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20"
-                    }`}
-                  >
-                    <ClipboardList className="w-4 h-4" />
-                    New weekly log
-                  </button>
-                  <div className="flex-1 flex items-center justify-end gap-2">
-                    <label className="text-sm text-[#1E1B4B]/60">Week</label>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2 mb-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWeeklyReportMode("view")}
+                      className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium transition-all touch-manipulation ${
+                        weeklyReportMode === "view"
+                          ? "bg-primary text-white"
+                          : "border border-border text-text hover:border-primary hover:bg-accent/30"
+                      }`}
+                    >
+                      <CalendarRange className="w-4 h-4 shrink-0" />
+                      <span>View week</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWeeklyReportMode("new")}
+                      className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium transition-all touch-manipulation ${
+                        weeklyReportMode === "new"
+                          ? "bg-primary text-white"
+                          : "border border-border text-text hover:border-primary hover:bg-accent/30"
+                      }`}
+                    >
+                      <ClipboardList className="w-4 h-4 shrink-0" />
+                      <span>New weekly log</span>
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 min-w-0 sm:flex-1 sm:justify-end">
+                    <label className="text-sm text-text-muted shrink-0">Week</label>
                     <input
                       type="date"
                       value={
@@ -1230,43 +1238,43 @@ const LogsPage = () => {
                           : selectedWeekDate
                       }
                       onChange={(e) => setSelectedWeekDate(e.target.value)}
-                      className="px-3 py-2 rounded-xl border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] text-sm focus:outline-none focus:border-[#7C3AED]"
+                      className="min-w-0 flex-1 sm:flex-none sm:w-auto min-h-[44px] px-3 py-2 rounded-xl border border-border bg-canvas text-text text-sm focus:outline-none focus:border-primary touch-manipulation"
                     />
-                    <span className="text-sm text-[#1E1B4B]/60">
+                    <span className="text-sm text-text-muted whitespace-nowrap shrink-0">
                       {weekBounds.start} → {weekBounds.end}
                     </span>
                   </div>
                 </div>
 
                 {/* PROJECT PROGRESS REPORT */}
-                <h3 className="text-lg font-bold text-[#1E1B4B] mb-2 mt-6">
+                <h3 className="text-base sm:text-lg font-bold text-text mb-2 mt-4 sm:mt-6">
                   PROJECT PROGRESS REPORT
                 </h3>
-                <div className="overflow-x-auto rounded-xl border border-[#DDD6FE]/50 mb-6">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto -mx-4 sm:mx-0 rounded-xl border border-border mb-6 min-w-0">
+                  <table className="w-full text-xs sm:text-sm min-w-[600px]">
                     <thead>
-                      <tr className="bg-[#7C3AED] text-white">
-                        <th className="px-3 py-2.5 text-left font-semibold">
+                      <tr className="bg-primary text-white">
+                        <th className="px-2 py-1.5 sm:px-3 sm:py-2.5 text-left font-semibold whitespace-nowrap">
                           Day
                         </th>
-                        <th className="px-3 py-2.5 text-left font-semibold">
+                        <th className="px-2 py-1.5 sm:px-3 sm:py-2.5 text-left font-semibold whitespace-nowrap">
                           Project Phase
                         </th>
-                        <th className="px-3 py-2.5 text-left font-semibold">
+                        <th className="px-2 py-1.5 sm:px-3 sm:py-2.5 text-left font-semibold whitespace-nowrap">
                           Assigned To
                         </th>
-                        <th className="px-3 py-2.5 text-left font-semibold">
-                          Start Time
+                        <th className="px-2 py-1.5 sm:px-3 sm:py-2.5 text-left font-semibold whitespace-nowrap">
+                          Start
                         </th>
-                        <th className="px-3 py-2.5 text-left font-semibold">
-                          End Time
+                        <th className="px-2 py-1.5 sm:px-3 sm:py-2.5 text-left font-semibold whitespace-nowrap">
+                          End
                         </th>
-                        <th className="px-3 py-2.5 text-left font-semibold">
+                        <th className="px-2 py-1.5 sm:px-3 sm:py-2.5 text-left font-semibold">
                           Task
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-[#FAFAFF]">
+                    <tbody className="bg-surface">
                       {weeklyReportMode === "view" &&
                       entriesForSelectedWeek.length > 0 ? (
                         [...entriesForSelectedWeek]
@@ -1278,25 +1286,25 @@ const LogsPage = () => {
                           .map((e) => (
                             <tr
                               key={e.id}
-                              className="border-t border-[#DDD6FE]/30 hover:bg-[#DDD6FE]/20 cursor-pointer transition-colors"
+                              className="border-t border-border hover:bg-accent/30 cursor-pointer transition-colors"
                               onClick={() => setViewingEntry(e)}
                             >
-                              <td className="px-3 py-2 text-[#1E1B4B] whitespace-nowrap">
+                              <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-text whitespace-nowrap">
                                 {formatReportDay(e.date)}
                               </td>
-                              <td className="px-3 py-2 text-[#1E1B4B]">
+                              <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-text max-w-[120px] sm:max-w-none truncate">
                                 {e.tags?.[0] ?? "Daily log"}
                               </td>
-                              <td className="px-3 py-2 text-[#1E1B4B]">
+                              <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-text max-w-[80px] sm:max-w-none truncate">
                                 {reportName || "—"}
                               </td>
-                              <td className="px-3 py-2 text-[#1E1B4B] whitespace-nowrap">
+                              <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-text whitespace-nowrap">
                                 {formatTimeForTable(e.time_in)}
                               </td>
-                              <td className="px-3 py-2 text-[#1E1B4B] whitespace-nowrap">
+                              <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-text whitespace-nowrap">
                                 {formatTimeForTable(e.time_out)}
                               </td>
-                              <td className="px-3 py-2 text-[#1E1B4B]">
+                              <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-text min-w-[100px] max-w-[180px] sm:max-w-none truncate">
                                 {e.title}
                               </td>
                             </tr>
@@ -1305,7 +1313,7 @@ const LogsPage = () => {
                         <tr>
                           <td
                             colSpan={6}
-                            className="px-3 py-8 text-center text-[#1E1B4B]/60"
+                            className="px-2 sm:px-3 py-6 sm:py-8 text-center text-text-muted text-xs sm:text-sm"
                           >
                             {weeklyReportMode === "new"
                               ? "Save a weekly log or switch to View week to see entries."
@@ -1318,18 +1326,18 @@ const LogsPage = () => {
                 </div>
 
                 {/* CONCLUSION */}
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <h3 className="text-lg font-bold text-[#1E1B4B]">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <h3 className="text-base sm:text-lg font-bold text-text">
                     CONCLUSION
                   </h3>
                   {weeklySummary && (
                     <button
                       type="button"
                       onClick={() => setWeeklySummary(null)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[#1E1B4B]/70 hover:text-[#1E1B4B] hover:bg-[#DDD6FE]/30 border border-[#DDD6FE]/50 transition-all"
+                      className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-accent/30 border border-border transition-all touch-manipulation shrink-0"
                       aria-label="Clear conclusion"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4 shrink-0" />
                       Clear
                     </button>
                   )}
@@ -1340,7 +1348,7 @@ const LogsPage = () => {
                     rows={5}
                     value={weeklySummary ?? ""}
                     placeholder="Generate an AI summary from this week's entries to see the conclusion here."
-                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 bg-[#FAFAFF] text-[#1E1B4B] placeholder-[#1E1B4B]/40 resize-none focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-text placeholder-text-muted resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
 
@@ -1350,17 +1358,17 @@ const LogsPage = () => {
                       type="button"
                       onClick={handleGenerateWeeklySummary}
                       disabled={weeklySummaryLoading}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#7C3AED] text-white text-sm font-medium hover:bg-[#6D28D9] hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                     >
                       {weeklySummaryLoading ? (
                         <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          Generating...
+                          <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />
+                          <span>Generating...</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-4 h-4" />
-                          Generate AI summary
+                          <Sparkles className="w-4 h-4 shrink-0" />
+                          <span>Generate AI summary</span>
                         </>
                       )}
                     </button>
@@ -1369,17 +1377,17 @@ const LogsPage = () => {
                     <button
                       type="button"
                       onClick={exportWeeklyReportToPDF}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#DDD6FE]/50 bg-white text-[#1E1B4B] text-sm font-medium hover:border-[#7C3AED] hover:bg-[#DDD6FE]/20 transition-all"
+                      className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl border border-border bg-canvas text-text text-sm font-medium hover:border-primary hover:bg-accent/30 transition-all touch-manipulation"
                     >
-                      <Download className="w-4 h-4" />
-                      Export PDF
+                      <Download className="w-4 h-4 shrink-0" />
+                      <span>Export PDF</span>
                     </button>
                   )}
                 </div>
 
                 {weeklyReportMode === "new" && (
-                  <div className="mt-6 pt-6 border-t border-[#DDD6FE]/30">
-                    <label className="block text-sm font-semibold text-[#1E1B4B] mb-2">
+                  <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-border">
+                    <label className="block text-sm font-semibold text-text mb-2">
                       Weekly log (one entry for the whole week)
                     </label>
                     <textarea
@@ -1387,38 +1395,38 @@ const LogsPage = () => {
                       value={weeklyLogContent}
                       onChange={(e) => setWeeklyLogContent(e.target.value)}
                       placeholder="Summarize your week: tasks, learnings, challenges, hours or highlights..."
-                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 bg-[#FAFAFF] text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 resize-none"
+                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-border bg-surface text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none text-sm"
                     />
                     <button
                       type="button"
                       onClick={handleSaveWeeklyLog}
                       disabled={!weeklyLogContent.trim() || weeklyLogSaving}
-                      className="mt-3 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#7C3AED] text-white text-sm font-medium hover:bg-[#6D28D9] hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="mt-3 flex items-center gap-2 px-5 py-2.5 min-h-[44px] rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                     >
-                      <Save className="w-4 h-4" />
-                      {weeklyLogSaving ? "Saving..." : "Save weekly log"}
+                      <Save className="w-4 h-4 shrink-0" />
+                      <span>{weeklyLogSaving ? "Saving..." : "Save weekly log"}</span>
                     </button>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Entries Grid */}
+            {mainView === "entries" && (
+            <>
           {filteredEntries.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[#DDD6FE]/50 p-12 text-center">
+            <div className="bg-canvas rounded-2xl border border-border p-12 text-center">
               <div className="relative inline-block mb-6">
-                <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-[#DDD6FE]/50 to-[#FAFAFF] flex items-center justify-center">
-                  <BookOpen className="w-10 h-10 text-[#7C3AED]/40" />
+                <div className="w-20 h-20 rounded-2xl bg-surface-alt flex items-center justify-center">
+                  <BookOpen className="w-10 h-10 text-primary/40" />
                 </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-[#38BDF8]/10 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-[#38BDF8]" />
+                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-soft-blue/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-soft-blue" />
                 </div>
               </div>
-              <h3 className="text-xl font-semibold text-[#1E1B4B] mb-2">
+              <h3 className="text-xl font-semibold text-text mb-2">
                 No journal entries found
               </h3>
-              <p className="text-[#1E1B4B]/60 mb-6 max-w-md mx-auto">
+              <p className="text-text/60 mb-6 max-w-md mx-auto">
                 {searchQuery || filterMood !== "all"
                   ? "Try adjusting your filters or search query"
                   : "Start documenting your internship journey today!"}
@@ -1426,7 +1434,7 @@ const LogsPage = () => {
               {!searchQuery && filterMood === "all" && (
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover transition-all"
                 >
                   <Plus className="w-4 h-4" />
                   Create Your First Entry
@@ -1439,24 +1447,24 @@ const LogsPage = () => {
                 <div
                   key={entry.id}
                   onClick={() => setViewingEntry(entry)}
-                  className="group bg-white rounded-2xl border border-[#DDD6FE]/50 p-5 hover:border-[#7C3AED]/30 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all cursor-pointer"
+                  className="group bg-canvas rounded-2xl border border-border p-5 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-[#1E1B4B] truncate group-hover:text-[#7C3AED] transition-colors">
+                      <h3 className="font-semibold text-text truncate group-hover:text-primary transition-colors">
                         {entry.title}
                       </h3>
                     </div>
                     <span
                       className={`shrink-0 ml-2 px-2 py-1 rounded-lg text-xs font-medium ${
-                        moodConfig[entry.mood]?.color || "bg-gray-100"
+                        moodConfig[entry.mood]?.color || "bg-pastel-peach"
                       }`}
                     >
                       {moodEmojis[entry.mood]}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs text-[#1E1B4B]/50 mb-3">
+                  <div className="flex items-center gap-3 text-xs text-text/50 mb-3">
                     <div className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       <span>
@@ -1481,22 +1489,22 @@ const LogsPage = () => {
                     )}
                   </div>
 
-                  <p className="text-sm text-[#1E1B4B]/60 line-clamp-2 mb-3">
+                  <p className="text-sm text-text/60 line-clamp-2 mb-3">
                     {entry.content}
                   </p>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-[#DDD6FE]/30">
+                  <div className="flex items-center justify-between pt-3 border-t border-border">
                     <div className="flex gap-1 overflow-hidden">
                       {entry.tags.slice(0, 2).map((tag, index) => (
                         <span
                           key={index}
-                          className="px-2 py-0.5 bg-[#FAFAFF] text-[#1E1B4B]/60 rounded text-xs truncate max-w-[70px]"
+                          className="px-2 py-0.5 bg-surface text-text/60 rounded text-xs truncate max-w-[70px]"
                         >
                           #{tag}
                         </span>
                       ))}
                       {entry.tags.length > 2 && (
-                        <span className="text-xs text-[#1E1B4B]/40">
+                        <span className="text-xs text-text/40">
                           +{entry.tags.length - 2}
                         </span>
                       )}
@@ -1507,7 +1515,7 @@ const LogsPage = () => {
                           e.stopPropagation();
                           handleEdit(entry);
                         }}
-                        className="p-1.5 text-[#1E1B4B]/50 hover:text-[#7C3AED] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                        className="p-1.5 text-text/50 hover:text-primary hover:bg-accent/30 rounded-lg transition-colors"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -1516,7 +1524,7 @@ const LogsPage = () => {
                           e.stopPropagation();
                           handleDeleteClick(entry.id, entry.title);
                         }}
-                        className="p-1.5 text-[#1E1B4B]/50 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1.5 text-text/50 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1526,27 +1534,29 @@ const LogsPage = () => {
               ))}
             </div>
           )}
-        </div>
+            </>
+            )}
+          </div>
 
         {/* Create/Edit Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-[#1E1B4B]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-              <div className="p-6 border-b border-[#DDD6FE]/30 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-[#1E1B4B]">
+          <div className="fixed inset-0 bg-text/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-canvas rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <h2 className="text-xl font-bold text-text">
                   {editingEntry ? "Edit Entry" : "New Journal Entry"}
                 </h2>
                 <button
                   onClick={resetForm}
-                  className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
+                  className="p-2 hover:bg-accent/30 rounded-xl transition-colors"
                 >
-                  <X className="w-5 h-5 text-[#1E1B4B]/60" />
+                  <X className="w-5 h-5 text-text/60" />
                 </button>
               </div>
 
               <div className="p-6 space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                  <label className="block text-sm font-medium text-text mb-2">
                     Title *
                   </label>
                   <input
@@ -1556,13 +1566,13 @@ const LogsPage = () => {
                       setFormData({ ...formData, title: e.target.value })
                     }
                     placeholder="What happened today?"
-                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                    className="w-full px-4 py-3 rounded-xl border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                    <label className="block text-sm font-medium text-text mb-2">
                       Date *
                     </label>
                     <input
@@ -1571,11 +1581,11 @@ const LogsPage = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, date: e.target.value })
                       }
-                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                      className="w-full px-4 py-3 rounded-xl border border-border text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                    <label className="block text-sm font-medium text-text mb-2">
                       Mood *
                     </label>
                     <select
@@ -1583,7 +1593,7 @@ const LogsPage = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, mood: e.target.value })
                       }
-                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                      className="w-full px-4 py-3 rounded-xl border border-border text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     >
                       <option value="great">😊 Great</option>
                       <option value="good">🙂 Good</option>
@@ -1596,7 +1606,7 @@ const LogsPage = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                    <label className="block text-sm font-medium text-text mb-2">
                       Time In
                     </label>
                     <input
@@ -1605,11 +1615,11 @@ const LogsPage = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, time_in: e.target.value })
                       }
-                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                      className="w-full px-4 py-3 rounded-xl border border-border text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                    <label className="block text-sm font-medium text-text mb-2">
                       Time Out
                     </label>
                     <input
@@ -1618,11 +1628,11 @@ const LogsPage = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, time_out: e.target.value })
                       }
-                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                      className="w-full px-4 py-3 rounded-xl border border-border text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#1E1B4B] mb-2">
+                    <label className="block text-sm font-medium text-text mb-2">
                       Break (mins)
                     </label>
                     <input
@@ -1633,14 +1643,14 @@ const LogsPage = () => {
                       }
                       placeholder="60"
                       min="0"
-                      className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                      className="w-full px-4 py-3 rounded-xl border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-[#1E1B4B]">
+                    <label className="block text-sm font-medium text-text">
                       Entry *
                     </label>
                     <div className="relative">
@@ -1648,7 +1658,7 @@ const LogsPage = () => {
                         type="button"
                         onClick={() => setShowAIMenu(!showAIMenu)}
                         disabled={isEnhancing || !formData.content.trim()}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-linear-to-r from-[#38BDF8] to-[#7DD3FC] text-white text-xs font-medium hover:shadow-md hover:shadow-[#38BDF8]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-soft-blue text-white text-xs font-medium hover:bg-soft-blue/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isEnhancing ? (
                           <>
@@ -1665,24 +1675,24 @@ const LogsPage = () => {
                       </button>
 
                       {showAIMenu && (
-                        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-[#DDD6FE]/50 shadow-lg shadow-[#7C3AED]/10 z-10 overflow-hidden">
+                        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-border shadow-sm border border-border z-10 overflow-hidden">
                           <div className="p-2">
-                            <div className="text-xs font-medium text-[#1E1B4B]/40 px-3 py-1.5 uppercase tracking-wide">
+                            <div className="text-xs font-medium text-text/40 px-3 py-1.5 uppercase tracking-wide">
                               AI Actions
                             </div>
                             <button
                               type="button"
                               onClick={() => handleAIEnhance("improve")}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                             >
-                              <div className="w-7 h-7 rounded-lg bg-[#7C3AED]/10 flex items-center justify-center">
-                                <Zap className="w-3.5 h-3.5 text-[#7C3AED]" />
+                              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Zap className="w-3.5 h-3.5 text-primary" />
                               </div>
                               <div>
                                 <div className="font-medium">
                                   Improve Writing
                                 </div>
-                                <div className="text-xs text-[#1E1B4B]/50">
+                                <div className="text-xs text-text/50">
                                   Fix grammar & clarity
                                 </div>
                               </div>
@@ -1690,16 +1700,16 @@ const LogsPage = () => {
                             <button
                               type="button"
                               onClick={() => handleAIEnhance("expand")}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                             >
-                              <div className="w-7 h-7 rounded-lg bg-[#38BDF8]/10 flex items-center justify-center">
-                                <FileEdit className="w-3.5 h-3.5 text-[#38BDF8]" />
+                              <div className="w-7 h-7 rounded-lg bg-soft-blue/10 flex items-center justify-center">
+                                <FileEdit className="w-3.5 h-3.5 text-soft-blue" />
                               </div>
                               <div>
                                 <div className="font-medium">
                                   Expand Content
                                 </div>
-                                <div className="text-xs text-[#1E1B4B]/50">
+                                <div className="text-xs text-text/50">
                                   Add more detail & depth
                                 </div>
                               </div>
@@ -1707,16 +1717,16 @@ const LogsPage = () => {
                             <button
                               type="button"
                               onClick={() => handleAIEnhance("professional")}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                             >
-                              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
-                                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                              <div className="w-7 h-7 rounded-lg bg-pastel-green flex items-center justify-center">
+                                <Sparkles className="w-3.5 h-3.5 text-soft-green" />
                               </div>
                               <div>
                                 <div className="font-medium">
                                   Make Professional
                                 </div>
-                                <div className="text-xs text-[#1E1B4B]/50">
+                                <div className="text-xs text-text/50">
                                   Portfolio-ready style
                                 </div>
                               </div>
@@ -1724,14 +1734,14 @@ const LogsPage = () => {
                             <button
                               type="button"
                               onClick={() => handleAIEnhance("summarize")}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-[#1E1B4B] hover:bg-[#DDD6FE]/30 rounded-lg transition-colors"
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                             >
                               <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
                                 <AlignLeft className="w-3.5 h-3.5 text-amber-600" />
                               </div>
                               <div>
                                 <div className="font-medium">Summarize</div>
-                                <div className="text-xs text-[#1E1B4B]/50">
+                                <div className="text-xs text-text/50">
                                   Brief key points
                                 </div>
                               </div>
@@ -1749,14 +1759,14 @@ const LogsPage = () => {
                       setFormData({ ...formData, content: e.target.value })
                     }
                     placeholder="Write about your day, what you learned, challenges faced..."
-                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all resize-none"
+                    className="w-full px-4 py-3 rounded-xl border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
                   />
 
                   {originalContent && (
                     <button
                       type="button"
                       onClick={handleRevertContent}
-                      className="mt-2 flex items-center gap-1.5 text-xs text-[#7C3AED] hover:text-[#6D28D9] transition-colors"
+                      className="mt-2 flex items-center gap-1.5 text-xs text-primary hover:text-primary-hover transition-colors"
                     >
                       <RefreshCw className="w-3 h-3" />
                       Revert to original
@@ -1766,14 +1776,14 @@ const LogsPage = () => {
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-[#1E1B4B]">
+                    <label className="block text-sm font-medium text-text">
                       Tags (comma-separated)
                     </label>
                     <button
                       type="button"
                       onClick={handleAISuggestTags}
                       disabled={isEnhancing || !formData.content.trim()}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-[#38BDF8] hover:bg-[#38BDF8]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-soft-blue hover:bg-soft-blue/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Tag className="w-3 h-3" />
                       AI Suggest
@@ -1786,7 +1796,7 @@ const LogsPage = () => {
                       setFormData({ ...formData, tags: e.target.value })
                     }
                     placeholder="learning, meeting, project, milestone"
-                    className="w-full px-4 py-3 rounded-xl border border-[#DDD6FE]/50 text-[#1E1B4B] placeholder-[#1E1B4B]/40 focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 transition-all"
+                    className="w-full px-4 py-3 rounded-xl border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                   />
                 </div>
 
@@ -1794,14 +1804,14 @@ const LogsPage = () => {
                   <button
                     onClick={handleSubmit}
                     disabled={saving}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-[#7C3AED] to-[#A78BFA] text-white font-medium hover:shadow-lg hover:shadow-[#7C3AED]/25 transition-all disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover transition-all disabled:opacity-50"
                   >
                     <Save className="w-4 h-4" />
                     {editingEntry ? "Update Entry" : "Save Entry"}
                   </button>
                   <button
                     onClick={resetForm}
-                    className="px-6 py-3 rounded-xl border border-[#DDD6FE] text-[#1E1B4B] font-medium hover:bg-[#DDD6FE]/30 transition-all"
+                    className="px-6 py-3 rounded-xl border border-border text-text font-medium hover:bg-accent/30 transition-all"
                   >
                     Cancel
                   </button>
@@ -1813,10 +1823,10 @@ const LogsPage = () => {
 
         {/* View Entry Modal */}
         {viewingEntry && (
-          <div className="fixed inset-0 bg-[#1E1B4B]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-              <div className="p-6 border-b border-[#DDD6FE]/30 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-[#1E1B4B] truncate pr-4">
+          <div className="fixed inset-0 bg-text/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-canvas rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <h2 className="text-xl font-bold text-text truncate pr-4">
                   {viewingEntry.title}
                 </h2>
                 <div className="flex items-center gap-2 shrink-0">
@@ -1825,22 +1835,22 @@ const LogsPage = () => {
                       handleEdit(viewingEntry);
                       setViewingEntry(null);
                     }}
-                    className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
+                    className="p-2 hover:bg-accent/30 rounded-xl transition-colors"
                   >
-                    <Edit2 className="w-5 h-5 text-[#7C3AED]" />
+                    <Edit2 className="w-5 h-5 text-primary" />
                   </button>
                   <button
                     onClick={() => setViewingEntry(null)}
-                    className="p-2 hover:bg-[#DDD6FE]/30 rounded-xl transition-colors"
+                    className="p-2 hover:bg-accent/30 rounded-xl transition-colors"
                   >
-                    <X className="w-5 h-5 text-[#1E1B4B]/60" />
+                    <X className="w-5 h-5 text-text/60" />
                   </button>
                 </div>
               </div>
 
               <div className="p-6">
                 <div className="flex flex-wrap items-center gap-4 mb-6">
-                  <div className="flex items-center gap-2 text-[#1E1B4B]/60">
+                  <div className="flex items-center gap-2 text-text/60">
                     <Calendar className="w-4 h-4" />
                     <span>
                       {new Date(viewingEntry.date).toLocaleDateString("en-US", {
@@ -1852,7 +1862,7 @@ const LogsPage = () => {
                     </span>
                   </div>
                   {viewingEntry.time_in && viewingEntry.time_out && (
-                    <div className="flex items-center gap-2 text-[#1E1B4B]/60">
+                    <div className="flex items-center gap-2 text-text/60">
                       <Clock className="w-4 h-4" />
                       <span>
                         {formatTime(viewingEntry.time_in)} -{" "}
@@ -1872,15 +1882,15 @@ const LogsPage = () => {
                   )}
                   <span
                     className={`px-3 py-1 rounded-lg text-sm font-medium ${
-                      moodConfig[viewingEntry.mood]?.color || "bg-gray-100"
+                      moodConfig[viewingEntry.mood]?.color || "bg-pastel-peach"
                     }`}
                   >
                     {moodEmojis[viewingEntry.mood]} {viewingEntry.mood}
                   </span>
                 </div>
 
-                <div className="bg-[#FAFAFF] rounded-xl p-5 mb-6">
-                  <p className="text-[#1E1B4B] whitespace-pre-wrap leading-relaxed">
+                <div className="bg-surface rounded-xl p-5 mb-6">
+                  <p className="text-text whitespace-pre-wrap leading-relaxed">
                     {viewingEntry.content}
                   </p>
                 </div>
@@ -1890,7 +1900,7 @@ const LogsPage = () => {
                     {viewingEntry.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="px-3 py-1 bg-[#DDD6FE]/30 text-[#7C3AED] rounded-lg text-sm"
+                        className="px-3 py-1 bg-border text-primary rounded-lg text-sm"
                       >
                         #{tag}
                       </span>
@@ -1901,6 +1911,7 @@ const LogsPage = () => {
             </div>
           </div>
         )}
+        </main>
 
         <ConfirmationDialog
           open={deleteDialogOpen}
