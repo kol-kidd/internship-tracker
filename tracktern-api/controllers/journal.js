@@ -207,69 +207,65 @@ export const enhanceEntry = async (req, res) => {
         prompt = `You are an internship journal writing assistant. Improve the following journal entry by:
 - Fixing grammar and spelling errors
 - Making the writing more professional and clear
-- Keeping the original meaning and personal voice
-- Maintaining a first-person perspective
-- Keep the response concise and natural
+- Keeping the original meaning and personal voice—do not add or invent events, details, or stories
+- Maintaining a first-person perspective. Keep the response concise and natural
 
 Original entry title: "${title || 'Untitled'}"
 Original content:
 ${content}
 
-Please provide only the improved content without any explanations or prefixes. Do not include the title.`;
+Provide only the improved content. No explanations, no title. Do not fabricate any content.`;
         break;
         
       case 'expand':
         prompt = `You are an internship journal writing assistant. Expand the following journal entry by:
-- Adding more detail and depth to the experiences described
-- Including potential reflections on what was learned
-- Suggesting connections to career goals or skills gained
-- Maintaining a first-person perspective and personal voice
-- Keep it authentic and not overly formal
+- Elaborating only on what the user actually wrote; add detail and clarity to their existing points
+- Do NOT invent events, experiences, anecdotes, or stories that are not in the original text
+- Do NOT add fictional details, examples, or hypotheticals—only expand on facts and ideas already present
+- You may rephrase for flow and add brief, grounded reflections that directly follow from what they wrote
+- Maintain first-person perspective and the user's voice. Keep it authentic and not overly formal
 
 Original entry title: "${title || 'Untitled'}"
 Original content:
 ${content}
 
-Please provide only the expanded content without any explanations or prefixes. Do not include the title.`;
+Provide only the expanded content. No explanations, no title. Stay strictly faithful to the original; do not make up anything.`;
         break;
         
       case 'professional':
         prompt = `You are an internship journal writing assistant. Rewrite the following journal entry to be more professional and suitable for a portfolio or performance review:
 - Use professional language while maintaining authenticity
-- Highlight achievements, skills gained, and contributions
-- Structure the content clearly
-- Keep the first-person perspective
-- Quantify accomplishments where possible
+- Highlight only achievements, skills, and contributions that are stated or clearly implied in the original—do not invent events or accomplishments
+- Structure the content clearly. Keep the first-person perspective
+- Quantify only where the original gives numbers or clear basis; do not make up figures or examples
 
 Original entry title: "${title || 'Untitled'}"
 Original content:
 ${content}
 
-Please provide only the professional version without any explanations or prefixes. Do not include the title.`;
+Provide only the professional version. No explanations, no title. Do not add fictional or invented content.`;
         break;
         
       case 'summarize':
         prompt = `You are an internship journal writing assistant. Summarize the following journal entry into a brief, impactful summary:
-- Capture the key points and main takeaways
-- Keep it to 2-3 sentences
-- Maintain the first-person perspective
-- Focus on accomplishments and learnings
+- Capture only the key points and takeaways that are actually in the entry—do not add or invent events, learnings, or accomplishments
+- Keep it to 2-3 sentences. Maintain the first-person perspective
 
 Original entry title: "${title || 'Untitled'}"
 Original content:
 ${content}
 
-Please provide only the summary without any explanations or prefixes.`;
+Provide only the summary. No explanations or prefixes. Do not fabricate any content.`;
         break;
         
       default:
-        prompt = `You are an internship journal writing assistant. Improve the following journal entry by fixing grammar, improving clarity, and making it more engaging while keeping the original voice and meaning:
+        prompt = `You are an internship journal writing assistant. Improve the following journal entry by fixing grammar, improving clarity, and making it more engaging while keeping the original voice and meaning. Do not add or invent events, details, or stories.
 
 Original entry title: "${title || 'Untitled'}"
 Original content:
 ${content}
 
-Please provide only the improved content without any explanations or prefixes. Do not include the title.`;
+Provide only the improved content. No explanations, no title. Do not fabricate any content.`;
     }
 
     const result = await geminiModel.generateContent(prompt);
@@ -391,8 +387,9 @@ export const summarizeWeek = async (req, res) => {
     const prompt = `You are an internship journal assistant. Summarize the following week's journal entries into one concise weekly report.
 
 Guidelines:
-- Write in first person, as the intern.
-- Highlight main activities, learnings, challenges, and accomplishments across the week.
+- Write in first person, as the intern. Use only information that appears in the entries below.
+- Do NOT invent events, activities, learnings, challenges, or accomplishments—only summarize what is actually written.
+- Highlight main activities, learnings, challenges, and accomplishments that are stated in the entries.
 - Keep the summary to 1–2 short paragraphs suitable for a weekly report or supervisor update.
 - Do not add headers or labels; output only the summary text.
 
@@ -400,7 +397,7 @@ Journal entries for the week:
 
 ${entriesText}
 
-Provide only the summary text, no preamble.`;
+Provide only the summary text, no preamble. Stay strictly faithful to the entries; do not make up stories or details.`;
 
     const result = await geminiModel.generateContent(prompt);
     const response = await result.response;
