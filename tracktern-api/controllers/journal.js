@@ -420,3 +420,74 @@ Provide only the summary text, no preamble. Stay strictly faithful to the entrie
     });
   }
 };
+
+export const journeySummary = async (req, res) => {
+  try {
+    const { applications } = req.body;
+
+    if (!applications || !Array.isArray(applications)) {
+      return res.status(400).json({
+        error: 'Applications array is required',
+      });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        error: 'AI service not configured',
+        details: 'GEMINI_API_KEY is not set',
+      });
+    }
+
+    const sorted = [...applications].sort(
+      (a, b) => new Date(a.date_applied || 0) - new Date(b.date_applied || 0)
+    );
+    const eventsText = sorted
+      .map((app, i) => {
+        const dateStr = app.date_applied
+          ? new Date(app.date_applied).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : 'Unknown date';
+        const role = app.position ? ` (${app.position})` : '';
+        return `[${i + 1}] ${dateStr} — Applied to ${app.company_name}${role}. Current status: ${app.status || 'applied'}.`;
+      })
+      .join('\n');
+
+    const prompt = `You are a supportive career coach. The user has been tracking their internship applications. Below is their application journey as a short timeline of events (company, role, date applied, current status).
+
+Your task: Write a brief, encouraging narrative (2–4 sentences) that summarizes their journey in second person ("You applied...", "You're interviewing with..."). 
+- Use only the facts from the timeline. Do not invent companies, dates, or outcomes.
+- If they have an accepted offer, celebrate that and acknowledge the path they took.
+- If they're still in progress, acknowledge their effort and the variety of applications.
+- Keep the tone warm and professional. No bullet points or headers—output only the narrative paragraph.`;
+
+    const fullPrompt = `${prompt}
+
+Timeline of applications (chronological, oldest first):
+${eventsText}
+
+Provide only the narrative paragraph.`;
+
+    const result = await geminiModel.generateContent(fullPrompt);
+    const response = await result.response;
+    const narrative = response.text().trim();
+
+    res.json({ narrative });
+  } catch (error) {
+    console.error('Journey Summary Error:', error);
+
+    if (error.message?.includes('API key')) {
+      return res.status(500).json({
+        error: 'AI service configuration error',
+        details: 'Invalid or missing API key',
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to generate journey summary',
+      details: error.message,
+    });
+  }
+};

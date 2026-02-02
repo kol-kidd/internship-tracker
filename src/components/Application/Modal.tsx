@@ -23,7 +23,7 @@ const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
     children: React.ReactElement<any, any>;
   },
-  ref: React.Ref<unknown>,
+  ref: React.Ref<unknown>
 ) {
   return <Slide direction="down" ref={ref} {...props} />;
 });
@@ -43,7 +43,8 @@ const BootstrapDialog = styled(Dialog)(({ theme }) => ({
     backgroundColor: themeColors.canvas,
     border: `1px solid ${themeColors.border}`,
     borderRadius: 16,
-    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
+    boxShadow:
+      "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
   },
   "& .MuiDialogTitle-root": {
     color: themeColors.text,
@@ -72,6 +73,8 @@ type ModalProps = {
   appId?: number;
   companyName?: string;
   companyAddress?: string;
+  position?: string;
+  stipend?: "paid" | "unpaid";
   open: boolean;
 };
 
@@ -88,29 +91,40 @@ export default function Modal(props: ModalProps) {
 
   const [companyName, setCompanyName] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
+  const [position, setPosition] = useState("");
+  const [stipend, setStipend] = useState<"paid" | "unpaid" | "">("");
   const [dateApplied, setDateApplied] = useState<Dayjs | null>(dayjs());
   const [loadingCreate, setLoadingCreate] = useState(false);
 
-  // Reset form when modal opens/closes or when switching between add/edit
   useEffect(() => {
     if (props.open) {
       if (props.isUpdate && props.companyName && props.companyAddress) {
-        // Edit mode - populate with existing data
         setCompanyName(props.companyName);
         setCompanyAddress(props.companyAddress);
+        setPosition(props.position ?? "");
+        setStipend(props.stipend ?? "");
       } else {
-        // Add mode - reset to defaults
         setCompanyName("");
         setCompanyAddress("");
+        setPosition("");
+        setStipend("");
         setDateApplied(dayjs());
       }
     }
-  }, [props.open, props.isUpdate, props.companyName, props.companyAddress]);
+  }, [
+    props.open,
+    props.isUpdate,
+    props.companyName,
+    props.companyAddress,
+    props.position,
+    props.stipend,
+  ]);
 
   const handleClose = () => {
-    // Reset form on close
     setCompanyName("");
     setCompanyAddress("");
+    setPosition("");
+    setStipend("");
     setDateApplied(dayjs());
     setLoadingCreate(false);
     props.handleModal();
@@ -156,10 +170,11 @@ export default function Modal(props: ModalProps) {
       }
 
       if (props.isUpdate && props.appId) {
-        // Update existing application
         await storeUpdateApplication(props.appId, {
           companyName: companyName,
           companyAddress: companyAddress,
+          position: position.trim() || "",
+          stipend: stipend === "paid" || stipend === "unpaid" ? stipend : "",
         });
 
         toast.info("Application updated successfully", {
@@ -177,6 +192,8 @@ export default function Modal(props: ModalProps) {
         await storeAddApplication({
           companyName,
           companyAddress,
+          position: position.trim() || "",
+          stipend: stipend === "paid" || stipend === "unpaid" ? stipend : "",
           dateApplied: dateApplied.toISOString(),
           status: "applied",
         });
@@ -206,7 +223,7 @@ export default function Modal(props: ModalProps) {
           progress: undefined,
           theme: "light",
           transition: Bounce,
-        },
+        }
       );
     } finally {
       setLoadingCreate(false);
@@ -267,12 +284,35 @@ export default function Modal(props: ModalProps) {
         <CustomInput
           type="text"
           variant="outlined"
+          label="Role / Position"
+          value={position}
+          onChange={(e) => {
+            setPosition(e.target.value);
+          }}
+        />
+        <CustomInput
+          type="text"
+          variant="outlined"
           label="Company Address"
           value={companyAddress}
           onChange={(e) => {
             setCompanyAddress(e.target.value);
           }}
         />
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-[#222222]">Stipend</label>
+          <select
+            value={stipend}
+            onChange={(e) =>
+              setStipend((e.target.value || "") as "" | "paid" | "unpaid")
+            }
+            className="w-full rounded-lg border border-[#e6e6e6] bg-white px-3 py-2.5 text-sm text-[#222222] focus:outline-none focus:border-primary"
+          >
+            <option value="">Not specified</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+        </div>
       </DialogContent>
       <DialogActions>
         <Button
@@ -308,8 +348,8 @@ export default function Modal(props: ModalProps) {
               ? "Updating..."
               : "Saving..."
             : props.isUpdate
-              ? "Update Application"
-              : "Add Application"}
+            ? "Update Application"
+            : "Add Application"}
         </Button>
       </DialogActions>
     </BootstrapDialog>

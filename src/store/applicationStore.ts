@@ -13,12 +13,16 @@ export interface Application {
   created_at: string;
   position?: string;
   notes?: string;
+  stipend?: "paid" | "unpaid";
+  start_date?: string;
 }
 
 // Separate interface for API updates (camelCase)
 interface UpdateApplicationData {
   companyName?: string;
   companyAddress?: string;
+  position?: string;
+  stipend?: "paid" | "unpaid" | "";
 }
 
 interface AppState {
@@ -33,6 +37,8 @@ interface AppState {
   addApplication: (data: {
     companyName: string;
     companyAddress: string;
+    position?: string;
+    stipend?: "paid" | "unpaid" | "";
     status?: string;
     dateApplied?: string;
   }) => Promise<void>;

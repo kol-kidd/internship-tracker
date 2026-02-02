@@ -6,6 +6,12 @@ import {
   Sparkles,
   X,
   CheckCircle2,
+  LayoutGrid,
+  List,
+  Download,
+  Archive,
+  History,
+  Trophy,
 } from "lucide-react";
 
 const ACCEPTED_TIP_DISMISSED_KEY = "application_list_accepted_tip_dismissed";
@@ -14,9 +20,17 @@ import { useAppStore } from "@/store/applicationStore";
 import Card from "@/components/Application/Card";
 import SortMenu from "@/components/Dropdown";
 import Modal from "@/components/Application/Modal";
+import KanbanBoard from "@/components/Application/KanbanBoard";
+import JourneyTimeline from "@/components/Application/JourneyTimeline";
+import OnboardingChecklist from "@/components/Application/OnboardingChecklist";
+import JourneyStatCard from "@/components/Application/JourneyStatCard";
 import { Bounce, toast } from "react-toastify";
 import ConfirmationDialog from "@/components/Application/ConfirmationDialog";
 import LoadingOverlay from "@/components/Loading";
+import { triggerConfetti } from "@/lib/confetti";
+import { downloadJourneyCsv, downloadJourneyPdf } from "@/lib/exportJourney";
+import { getJourneySummary } from "@/functions/ai/journalAI";
+import { useAuthStore } from "@/store/authStore";
 
 interface Application {
   id: number;
@@ -28,6 +42,7 @@ interface Application {
   created_at: string;
   position?: string;
   notes?: string;
+  stipend?: "paid" | "unpaid";
 }
 
 type StatusType =
@@ -88,16 +103,26 @@ export default function ApplicationList() {
   const [selectedAppId, setSelectedAppId] = useState<number>();
   const [selectedAppName, setSelectedAppName] = useState<string>("");
   const [selectedAppAddress, setSelectedAppAddress] = useState<string>("");
+  const [selectedAppPosition, setSelectedAppPosition] = useState<string>("");
+  const [selectedAppStipend, setSelectedAppStipend] = useState<
+    "paid" | "unpaid" | undefined
+  >(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [markAllWithdrawnDialogOpen, setMarkAllWithdrawnDialogOpen] =
     useState(false);
   const [tipDismissed, setTipDismissed] = useState(() =>
-    Boolean(localStorage.getItem(ACCEPTED_TIP_DISMISSED_KEY)),
+    Boolean(localStorage.getItem(ACCEPTED_TIP_DISMISSED_KEY))
   );
+  const [viewMode, setViewMode] = useState<"board" | "list" | "journey">(
+    "board"
+  );
+  const [activeTab, setActiveTab] = useState<"board" | "archive">("board");
+  const [heroExpanded, setHeroExpanded] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const { session } = useAuthStore();
   const {
     applications,
     loading,
@@ -111,9 +136,8 @@ export default function ApplicationList() {
   }, []);
 
   const hasAcceptedApplication = useMemo(
-    () =>
-      applications.some((app) => app.status.toLowerCase() === "accepted"),
-    [applications],
+    () => applications.some((app) => app.status.toLowerCase() === "accepted"),
+    [applications]
   );
 
   const filteredAndSortedApps = useMemo(() => {
@@ -127,14 +151,14 @@ export default function ApplicationList() {
             .toLowerCase()
             .includes(searchQuery.toLowerCase()) ||
           (app.position?.toLowerCase().includes(searchQuery.toLowerCase()) ??
-            false),
+            false)
       );
     }
 
     if (statusFilter !== "all") {
       filtered = filtered.filter(
         (app: Application) =>
-          app.status.toLowerCase() === statusFilter.toLowerCase(),
+          app.status.toLowerCase() === statusFilter.toLowerCase()
       );
     }
 
@@ -173,8 +197,52 @@ export default function ApplicationList() {
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       },
-      {},
+      {}
     );
+  }, [applications]);
+
+  const acceptedApplication = useMemo(
+    () => applications.find((app) => app.status.toLowerCase() === "accepted"),
+    [applications]
+  );
+
+  const pastApplications = useMemo(
+    () =>
+      applications.filter(
+        (app) =>
+          app.status.toLowerCase() === "rejected" ||
+          app.status.toLowerCase() === "withdrawn"
+      ),
+    [applications]
+  );
+
+  const journeyStats = useMemo(() => {
+    const total = applications.length;
+    const interviewed = applications.filter((app) =>
+      ["interviewing", "offer", "accepted"].includes(app.status.toLowerCase())
+    ).length;
+    const accepted = applications.find(
+      (a) => a.status.toLowerCase() === "accepted"
+    );
+    if (!accepted)
+      return {
+        totalApplied: total,
+        totalInterviewing: interviewed,
+        daysToAccept: 0,
+      };
+    const firstDate = applications.reduce(
+      (min, a) =>
+        new Date(a.date_applied) < min ? new Date(a.date_applied) : min,
+      new Date(accepted.date_applied)
+    );
+    const diff =
+      new Date(accepted.date_applied).getTime() - firstDate.getTime();
+    const daysToAccept = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    return {
+      totalApplied: total,
+      totalInterviewing: interviewed,
+      daysToAccept,
+    };
   }, [applications]);
 
   const getStatusConfig = (status: string): StatusConfig => {
@@ -190,6 +258,8 @@ export default function ApplicationList() {
       setSelectedAppId(undefined);
       setSelectedAppName("");
       setSelectedAppAddress("");
+      setSelectedAppPosition("");
+      setSelectedAppStipend(undefined);
     }
     setOpen(!open);
   };
@@ -198,11 +268,14 @@ export default function ApplicationList() {
     appId: number,
     companyName: string,
     companyAddress: string,
+    position?: string,
+    stipend?: "paid" | "unpaid"
   ) => {
     setSelectedAppId(appId);
     setSelectedAppName(companyName);
     setSelectedAppAddress(companyAddress);
-    setIsUpdating(true);
+    setSelectedAppPosition(position ?? "");
+    setSelectedAppStipend(stipend);
     setOpen(true);
   };
 
@@ -241,7 +314,7 @@ export default function ApplicationList() {
     setIsUpdating(true);
     try {
       await storeUpdateStatus(appId, newStatus);
-
+      if (newStatus.toLowerCase() === "accepted") triggerConfetti();
       toast.info("Application status updated", {
         position: "top-right",
         theme: "light",
@@ -259,27 +332,34 @@ export default function ApplicationList() {
     }
   };
 
+  const toWithdraw = useMemo(
+    () => applications.filter((app) => app.status.toLowerCase() !== "accepted"),
+    [applications]
+  );
+  const toWithdrawNames = useMemo(
+    () => toWithdraw.map((a) => a.company_name),
+    [toWithdraw]
+  );
   const handleMarkAllWithdrawnClick = () => setMarkAllWithdrawnDialogOpen(true);
 
   const handleMarkAllWithdrawnConfirm = async (confirmed: boolean) => {
     setMarkAllWithdrawnDialogOpen(false);
     if (!confirmed) return;
-    const toWithdraw = applications.filter(
-      (app) => app.status.toLowerCase() !== "accepted",
-    );
     if (toWithdraw.length === 0) return;
     setIsUpdating(true);
     try {
       await Promise.all(
-        toWithdraw.map((app) => storeUpdateStatus(app.id, "withdrawn")),
+        toWithdraw.map((app) => storeUpdateStatus(app.id, "withdrawn"))
       );
       toast.success(
-        `${toWithdraw.length} application${toWithdraw.length === 1 ? "" : "s"} marked as Withdrawn`,
+        `${toWithdraw.length} application${
+          toWithdraw.length === 1 ? "" : "s"
+        } marked as Withdrawn`,
         {
           position: "top-right",
           theme: "light",
           transition: Bounce,
-        },
+        }
       );
     } catch (error) {
       console.error(error);
@@ -296,6 +376,44 @@ export default function ApplicationList() {
   const dismissTip = () => {
     setTipDismissed(true);
     localStorage.setItem(ACCEPTED_TIP_DISMISSED_KEY, "1");
+  };
+
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      let narrative: string | null = null;
+      if (session?.access_token && applications.length > 0) {
+        try {
+          narrative = await getJourneySummary(
+            applications.map((a) => ({
+              date_applied: a.date_applied,
+              company_name: a.company_name,
+              position: a.position,
+              status: a.status,
+            })),
+            session.access_token
+          );
+        } catch {
+          // proceed without narrative
+        }
+      }
+      downloadJourneyPdf(applications, narrative);
+      toast.success("Journey report downloaded", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to download PDF", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const handleViewApplication = (appId: number) => {
@@ -381,7 +499,9 @@ export default function ApplicationList() {
                   }`}
                 >
                   <span>All</span>
-                  <span className="text-xs opacity-80">{applications.length}</span>
+                  <span className="text-xs opacity-80">
+                    {applications.length}
+                  </span>
                 </button>
                 {Object.entries(statusConfig).map(([status, config]) => (
                   <button
@@ -415,29 +535,128 @@ export default function ApplicationList() {
 
         {/* Main content */}
         <main className="flex-1 flex flex-col min-w-0">
-          <div className="sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-6 py-4 bg-canvas/95 backdrop-blur border-b border-border">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Search by company, position, or location..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-surface text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary"
-              />
-              {searchQuery && (
+          <div className="sticky top-0 z-10 bg-canvas/95 backdrop-blur border-b border-border px-4 sm:px-6 py-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search by company, position, or location..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-surface text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-border flex items-center justify-center hover:bg-accent/30"
+                  >
+                    <X className="w-3 h-3 text-text-muted" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs font-medium text-text-muted uppercase tracking-wider mr-1">
+                  View
+                </span>
+                <div className="flex rounded-lg border border-border overflow-hidden">
+                  <button
+                    onClick={() => setViewMode("board")}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                      viewMode === "board"
+                        ? "bg-primary text-white"
+                        : "bg-canvas text-text hover:bg-accent/30"
+                    }`}
+                    aria-label="Board view"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    Board
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-l border-border ${
+                      viewMode === "list"
+                        ? "bg-primary text-white"
+                        : "bg-canvas text-text hover:bg-accent/30"
+                    }`}
+                    aria-label="List view"
+                  >
+                    <List className="w-4 h-4" />
+                    List
+                  </button>
+                  <button
+                    onClick={() => setViewMode("journey")}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-l border-border ${
+                      viewMode === "journey"
+                        ? "bg-primary text-white"
+                        : "bg-canvas text-text hover:bg-accent/30"
+                    }`}
+                    aria-label="Journey timeline"
+                  >
+                    <History className="w-4 h-4" />
+                    Journey
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-medium text-text-muted uppercase tracking-wider mr-1">
+                  Filter
+                </span>
                 <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-border flex items-center justify-center hover:bg-accent/30"
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    statusFilter === "all"
+                      ? "bg-primary text-white"
+                      : "bg-surface-alt text-text hover:bg-accent/30"
+                  }`}
                 >
-                  <X className="w-3 h-3 text-text-muted" />
+                  All
                 </button>
-              )}
+                {Object.entries(statusConfig).map(([status, config]) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      statusFilter === status
+                        ? "bg-primary text-white"
+                        : "bg-surface-alt text-text hover:bg-accent/30"
+                    }`}
+                  >
+                    {config.label}
+                  </button>
+                ))}
+              </div>
+              <div className="ml-auto flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={pdfLoading || applications.length === 0}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                  aria-label="Download journey as PDF"
+                >
+                  {pdfLoading ? (
+                    <span className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  PDF
+                </button>
+                <button
+                  onClick={() => downloadJourneyCsv(applications)}
+                  disabled={applications.length === 0}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                  aria-label="Download journey as CSV"
+                >
+                  <Download className="w-4 h-4" />
+                  CSV
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Mobile: Add Application + filters + sort (sidebar hidden) */}
-          <div className="lg:hidden px-4 sm:px-6 py-3 border-b border-border bg-canvas space-y-3">
+          {/* Mobile: Add Application + sort (view/filters are in header above) */}
+          <div className="lg:hidden px-4 sm:px-6 py-3 border-b border-border bg-canvas">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleModal()}
@@ -454,32 +673,34 @@ export default function ApplicationList() {
                 <SortMenu sortBy={sortBy} onSortChange={setSortBy} />
               </div>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setStatusFilter("all")}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-medium ${
-                  statusFilter === "all"
-                    ? "bg-primary text-white"
-                    : "bg-surface-alt text-text hover:bg-accent/30"
-                }`}
-              >
-                All
-              </button>
-              {Object.entries(statusConfig).map(([status, config]) => (
+          </div>
+
+          {hasAcceptedApplication && (
+            <div className="px-4 sm:px-6 border-b border-border bg-canvas/50">
+              <div className="flex gap-1">
                 <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium ${
-                    statusFilter === status
-                      ? "bg-primary text-white"
-                      : "bg-surface-alt text-text hover:bg-accent/30"
+                  onClick={() => setActiveTab("board")}
+                  className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors ${
+                    activeTab === "board"
+                      ? "bg-canvas border border-border border-b-0 -mb-px text-text shadow-sm"
+                      : "text-text-muted hover:text-text hover:bg-canvas/70"
                   }`}
                 >
-                  {config.label}
+                  Board
                 </button>
-              ))}
+                <button
+                  onClick={() => setActiveTab("archive")}
+                  className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors ${
+                    activeTab === "archive"
+                      ? "bg-canvas border border-border border-b-0 -mb-px text-text shadow-sm"
+                      : "text-text-muted hover:text-text hover:bg-canvas/70"
+                  }`}
+                >
+                  Past Applications ({pastApplications.length})
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {hasAcceptedApplication && !tipDismissed && (
             <div className="mx-4 sm:mx-6 mt-4 rounded-xl border border-border bg-canvas p-4 flex items-start gap-3">
@@ -517,67 +738,156 @@ export default function ApplicationList() {
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {filteredAndSortedApps.length === 0 ? (
-            <div className="bg-canvas rounded-2xl border border-border p-12 text-center">
-              <div className="relative inline-block mb-6">
-                <div className="w-20 h-20 rounded-2xl bg-surface-alt flex items-center justify-center">
-                  <Briefcase className="w-10 h-10 text-primary/40" />
+          {hasAcceptedApplication && acceptedApplication && (
+            <div className="mx-4 sm:mx-6 mt-4">
+              <button
+                type="button"
+                onClick={() => setHeroExpanded(!heroExpanded)}
+                className="w-full rounded-xl border-2 border-amber-200 bg-amber-50/80 hover:bg-amber-50 p-4 flex items-center justify-between gap-3 text-left transition-colors"
+                aria-expanded={heroExpanded}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-amber-400 flex items-center justify-center shrink-0">
+                    <Trophy className="w-5 h-5 text-white" strokeWidth={2} />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-semibold text-amber-700">
+                      Goal Achieved
+                    </span>
+                    <p className="font-semibold text-text truncate">
+                      {acceptedApplication.company_name}
+                      {acceptedApplication.position
+                        ? ` · ${acceptedApplication.position}`
+                        : ""}
+                    </p>
+                  </div>
                 </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-soft-blue/10 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-soft-blue" />
+                <span className="text-sm font-medium text-amber-700 shrink-0">
+                  {heroExpanded ? "Collapse" : "Expand"}
+                </span>
+              </button>
+              {heroExpanded && (
+                <div className="mt-3 space-y-3 rounded-xl border border-border bg-canvas p-4">
+                  <OnboardingChecklist applicationId={acceptedApplication.id} />
+                  <JourneyStatCard
+                    totalApplied={journeyStats.totalApplied}
+                    totalInterviewing={journeyStats.totalInterviewing}
+                    daysToAccept={journeyStats.daysToAccept}
+                  />
                 </div>
-              </div>
-              <h3 className="text-xl font-semibold text-text mb-2">
-                No applications found
-              </h3>
-              <p className="text-text-muted mb-6 max-w-md mx-auto">
-                {searchQuery || statusFilter !== "all"
-                  ? "Try adjusting your filters or search query to find what you're looking for"
-                  : "Start tracking your internship journey by adding your first application"}
-              </p>
-              {!searchQuery && statusFilter === "all" && (
-                <button
-                  onClick={() => handleModal()}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Your First Application
-                </button>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {filteredAndSortedApps.map((app: Application) => (
-                <Card
-                  key={app.id}
-                  id={app.id}
-                  company_name={app.company_name}
-                  company_address={app.company_address}
-                  position={app.position}
-                  date_applied={app.date_applied}
-                  status={app.status}
-                  notes={app.notes}
-                  viewApplication={handleViewApplication}
-                  editApplication={handleEditApplication}
-                  updateStatus={handleStatusUpdate}
-                  deleteApplication={handleDeleteClick}
-                  getStatusConfig={getStatusConfig}
-                />
-              ))}
-            </div>
           )}
+
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            {hasAcceptedApplication && activeTab === "archive" ? (
+              <div className="space-y-4">
+                {pastApplications.length === 0 ? (
+                  <div className="bg-canvas rounded-2xl border border-border p-12 text-center">
+                    <Archive className="w-12 h-12 text-text-muted mx-auto mb-3" />
+                    <p className="text-text-muted font-medium">
+                      No past applications
+                    </p>
+                    <p className="text-sm text-text-muted mt-1">
+                      Rejected and withdrawn applications appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {pastApplications.map((app: Application) => (
+                      <Card
+                        key={app.id}
+                        id={app.id}
+                        company_name={app.company_name}
+                        company_address={app.company_address}
+                        position={app.position}
+                        date_applied={app.date_applied}
+                        status={app.status}
+                        notes={app.notes}
+                        stipend={app.stipend}
+                        viewApplication={handleViewApplication}
+                        editApplication={handleEditApplication}
+                        updateStatus={handleStatusUpdate}
+                        deleteApplication={handleDeleteClick}
+                        getStatusConfig={getStatusConfig}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : filteredAndSortedApps.length === 0 ? (
+              <div className="bg-canvas rounded-2xl border border-border p-12 text-center">
+                <div className="relative inline-block mb-6">
+                  <div className="w-20 h-20 rounded-2xl bg-surface-alt flex items-center justify-center">
+                    <Briefcase className="w-10 h-10 text-primary/40" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-soft-blue/10 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-soft-blue" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-semibold text-text mb-2">
+                  No applications found
+                </h3>
+                <p className="text-text-muted mb-6 max-w-md mx-auto">
+                  {searchQuery || statusFilter !== "all"
+                    ? "Try adjusting your filters or search query to find what you're looking for"
+                    : "Start tracking your internship journey by adding your first application"}
+                </p>
+                {!searchQuery && statusFilter === "all" && (
+                  <button
+                    onClick={() => handleModal()}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Your First Application
+                  </button>
+                )}
+              </div>
+            ) : viewMode === "journey" ? (
+              <JourneyTimeline applications={filteredAndSortedApps} />
+            ) : viewMode === "board" ? (
+              <KanbanBoard
+                applications={filteredAndSortedApps}
+                onStatusChange={handleStatusUpdate}
+                onEdit={handleEditApplication}
+                onDelete={handleDeleteClick}
+                onboardingMode={hasAcceptedApplication}
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {filteredAndSortedApps.map((app: Application) => (
+                  <Card
+                    key={app.id}
+                    id={app.id}
+                    company_name={app.company_name}
+                    company_address={app.company_address}
+                    position={app.position}
+                    date_applied={app.date_applied}
+                    status={app.status}
+                    notes={app.notes}
+                    stipend={app.stipend}
+                    viewApplication={handleViewApplication}
+                    editApplication={handleEditApplication}
+                    updateStatus={handleStatusUpdate}
+                    deleteApplication={handleDeleteClick}
+                    getStatusConfig={getStatusConfig}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </main>
 
         <Modal
           open={open}
           handleModal={handleModal}
-          isUpdate={isUpdating}
+          isUpdate={!!selectedAppId}
           setIsCreating={setIsCreating}
           appId={selectedAppId}
           companyName={selectedAppName}
           companyAddress={selectedAppAddress}
+          position={selectedAppPosition}
+          stipend={selectedAppStipend}
         />
 
         <ConfirmationDialog
@@ -590,7 +900,8 @@ export default function ApplicationList() {
           open={markAllWithdrawnDialogOpen}
           onClose={handleMarkAllWithdrawnConfirm}
           title="Mark all others as withdrawn?"
-          description="All applications except your accepted offer will be set to Withdrawn. You can change them later."
+          description="The following applications will be set to Withdrawn. You can change them later."
+          itemNames={toWithdrawNames}
           confirmLabel="Mark all withdrawn"
           variant="primary"
         />

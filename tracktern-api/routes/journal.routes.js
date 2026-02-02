@@ -61,10 +61,22 @@ const validateWeeklySummaryRequest = [
   handleValidationErrors,
 ];
 
+const validateJourneySummaryRequest = [
+  body('applications')
+    .isArray()
+    .withMessage('Applications array is required'),
+  body('applications.*.date_applied').optional().trim(),
+  body('applications.*.company_name').optional().trim(),
+  body('applications.*.position').optional().trim(),
+  body('applications.*.status').optional().trim(),
+  handleValidationErrors,
+];
+
 // AI enhancement routes (must be before /:id routes)
 router.post('/ai/enhance', validateEnhanceRequest, journalController.enhanceEntry);
 router.post('/ai/suggest-tags', journalController.suggestTags);
 router.post('/ai/weekly-summary', validateWeeklySummaryRequest, journalController.summarizeWeek);
+router.post('/ai/journey-summary', validateJourneySummaryRequest, journalController.journeySummary);
 
 // CRUD routes
 router.get('/', journalController.getEntries);
