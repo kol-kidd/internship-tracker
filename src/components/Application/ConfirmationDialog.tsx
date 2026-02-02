@@ -15,6 +15,7 @@ interface DeleteConfirmationDialogProps {
   title?: string;
   description?: string;
   itemName?: string;
+  itemNames?: string[];
   confirmLabel?: string;
   variant?: "danger" | "primary";
 }
@@ -25,11 +26,14 @@ export default function ConfirmationDialog({
   title = "Delete Application",
   description = "Are you sure you want to delete this application? This action cannot be undone.",
   itemName,
+  itemNames,
   confirmLabel,
   variant = "danger",
 }: DeleteConfirmationDialogProps) {
   const isPrimary = variant === "primary";
-  const resolvedConfirmLabel = confirmLabel ?? (isPrimary ? "Confirm" : "Delete");
+  const resolvedConfirmLabel =
+    confirmLabel ?? (isPrimary ? "Confirm" : "Delete");
+  const hasList = itemNames && itemNames.length > 0;
   const handleConfirm = () => {
     onClose(true);
   };
@@ -92,14 +96,14 @@ export default function ConfirmationDialog({
       </DialogTitle>
 
       {/* Content */}
-      <DialogContent sx={{ textAlign: "center", pb: 2 }}>
+      <DialogContent sx={{ textAlign: hasList ? "left" : "center", pb: 2 }}>
         <Typography
           variant="body2"
-          sx={{ color: "grey.600", mb: itemName ? 1 : 0 }}
+          sx={{ color: "grey.600", mb: itemName || hasList ? 1 : 0 }}
         >
           {description}
         </Typography>
-        {itemName && (
+        {itemName && !hasList && (
           <Typography
             variant="body2"
             sx={{
@@ -113,6 +117,30 @@ export default function ConfirmationDialog({
             }}
           >
             {itemName}
+          </Typography>
+        )}
+        {hasList && (
+          <Typography
+            variant="body2"
+            component="ul"
+            sx={{
+              color: "grey.900",
+              bgcolor: "grey.50",
+              py: 1.5,
+              px: 2,
+              borderRadius: 2,
+              mt: 2,
+              maxHeight: 200,
+              overflowY: "auto",
+              listStyle: "disc",
+              pl: 3,
+            }}
+          >
+            {itemNames!.map((name) => (
+              <li key={name} style={{ marginBottom: 4 }}>
+                {name}
+              </li>
+            ))}
           </Typography>
         )}
       </DialogContent>

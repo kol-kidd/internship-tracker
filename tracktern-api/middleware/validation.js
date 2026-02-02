@@ -29,6 +29,13 @@ export const validateEmail = [
 export const validateAddApplication = [
   body('companyName').trim().notEmpty().withMessage('Company name is required'),
   body('companyAddress').trim().notEmpty().withMessage('Company address is required'),
+  body('position').optional().trim(),
+  body('stipend')
+    .optional()
+    .trim()
+    .toLowerCase()
+    .isIn(['', 'paid', 'unpaid'])
+    .withMessage('Stipend must be paid, unpaid, or empty'),
   body('status')
     .optional()
     .trim()
@@ -43,6 +50,13 @@ export const validateUpdateApplication = [
   param('id').isInt().withMessage('Invalid application ID'),
   body('companyName').optional().trim().notEmpty().withMessage('Company name cannot be empty'),
   body('companyAddress').optional().trim().notEmpty().withMessage('Company address cannot be empty'),
+  body('position').optional().trim(),
+  body('stipend')
+    .optional()
+    .trim()
+    .toLowerCase()
+    .isIn(['', 'paid', 'unpaid'])
+    .withMessage('Stipend must be paid, unpaid, or empty'),
   handleValidationErrors
 ];
 
