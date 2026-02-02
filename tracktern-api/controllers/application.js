@@ -3,10 +3,9 @@ import { io } from "../index.js";
 
 export const addApplication = async (req, res) => {
   try {
-    const { companyName, companyAddress, status, dateApplied } = req.body;
-    const userId = req.user.id; // From auth middleware
+    const body = req.body || {};
+    const userId = req.user.id;
 
-    // Check if user exists
     const { data: existingUser, error: checkError } = await supabase
       .from('profiles')
       .select('id')
@@ -26,16 +25,25 @@ export const addApplication = async (req, res) => {
       });
     }
 
+    const insertData = {
+      user_id: userId,
+      date_applied: body.dateApplied || new Date().toISOString(),
+      company_name: body.companyName,
+      company_address: body.companyAddress,
+      status: body.status || 'applied',
+      position: (body.position != null && body.position !== '') ? String(body.position).trim() : null,
+      stipend: (body.stipend === 'paid' || body.stipend === 'unpaid') ? body.stipend : null
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[applications] POST body received:', JSON.stringify({ companyName: body.companyName, companyAddress: body.companyAddress, position: body.position, stipend: body.stipend }));
+      console.log('[applications] Insert payload to DB:', JSON.stringify(insertData));
+    }
+
     // Create application
     const { data: appData, error: appError } = await supabase
       .from('applications')
-      .insert({
-        user_id: userId,
-        date_applied: dateApplied || new Date().toISOString(),
-        company_name: companyName,
-        company_address: companyAddress,
-        status: status || 'applied'
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -138,11 +146,14 @@ export const getApplicationById = async (req, res) => {
 
 export const updateApplication = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { companyName, companyAddress } = req.body;
+    const id = req.params.id;
+    const idNum = parseInt(id, 10);
+    if (Number.isNaN(idNum)) {
+      return res.status(400).json({ error: 'Invalid application ID' });
+    }
     const userId = req.user.id;
+    const body = req.body || {};
 
-    // Check if user exists
     const { data: existingUser, error: checkError } = await supabase
       .from('profiles')
       .select('id')
@@ -162,15 +173,23 @@ export const updateApplication = async (req, res) => {
       });
     }
 
-    // Update application
+    const updateData = {
+      updated_at: new Date().toISOString(),
+      company_name: body.companyName,
+      company_address: body.companyAddress,
+      position: (body.position != null && body.position !== '') ? String(body.position).trim() : null,
+      stipend: (body.stipend === 'paid' || body.stipend === 'unpaid') ? body.stipend : null
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[applications] PUT body received:', JSON.stringify({ companyName: body.companyName, companyAddress: body.companyAddress, position: body.position, stipend: body.stipend }));
+      console.log('[applications] Update payload to DB:', JSON.stringify(updateData));
+    }
+
     const { data: appData, error: appError } = await supabase
       .from('applications')
-      .update({
-        company_name: companyName,
-        company_address: companyAddress,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
+      .update(updateData)
+      .eq('id', idNum)
       .eq('user_id', userId)
       .select()
       .single();
@@ -179,7 +198,7 @@ export const updateApplication = async (req, res) => {
       if (appError.code === 'PGRST116') {
         return res.status(404).json({ error: 'Application not found or unauthorized' });
       }
-      console.error('Application update error:', appError.message);
+      console.error('Application update error:', appError.message, appError.details);
       return res.status(500).json({
         error: 'Failed to update application',
         details: appError.message

@@ -15,11 +15,14 @@ type CardProps = {
   date_applied: string;
   status: string;
   notes: string | undefined;
+  stipend?: "paid" | "unpaid";
   viewApplication: (appId: number) => void;
   editApplication: (
     appId: number,
     companyName: string,
     companyAddress: string,
+    position?: string,
+    stipend?: "paid" | "unpaid"
   ) => void;
   updateStatus: (appId: number, newStatus: string) => void;
   deleteApplication: (appId: number, companyName: string) => void;
@@ -139,6 +142,8 @@ export default function Card(props: CardProps) {
                 props.id,
                 props.company_name,
                 props.company_address,
+                props.position,
+                props.stipend
               )
             }
             className="p-1.5 hover:bg-surface-alt rounded-lg transition-colors"

@@ -65,3 +65,26 @@ export async function summarizeWeek(
   );
   return response.data.summary;
 }
+
+export interface JourneyApplicationInput {
+  date_applied: string;
+  company_name: string;
+  position?: string;
+  status: string;
+}
+
+interface JourneySummaryResponse {
+  narrative: string;
+}
+
+export async function getJourneySummary(
+  applications: JourneyApplicationInput[],
+  token: string
+): Promise<string> {
+  const response = await api.post<JourneySummaryResponse>(
+    "/journal/ai/journey-summary",
+    { applications },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return response.data.narrative;
+}
