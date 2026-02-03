@@ -66,18 +66,16 @@ export async function uploadGalleryImage(
   const ext = file.name.split(".").pop() || "jpg";
   const name = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-  const {
-    data: { path },
-    error,
-  } = await supabase.storage.from(BUCKET).upload(name, file, {
+  const { data, error } = await supabase.storage.from(BUCKET).upload(name, file, {
     cacheControl: "3600",
     upsert: false,
   });
 
   if (error) throw error;
+  if (!data?.path) throw new Error("Upload failed: no path returned");
   const {
     data: { publicUrl },
-  } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
   return publicUrl;
 }
 
