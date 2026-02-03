@@ -2,9 +2,33 @@ import { supabase } from '../config/supabase.js';
 import { io } from "../index.js";
 import { geminiModel } from '../config/gemini.js'; 
 
+function parseLastModified(header) {
+  if (!header) return null;
+  const d = new Date(header);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export const getEntries = async (req, res) => {
   try {
     const userId = req.user.id;
+    const ifModifiedSince = parseLastModified(req.get('if-modified-since'));
+
+    if (ifModifiedSince) {
+      const { data: latest, error: latestError } = await supabase
+        .from('journal_entries')
+        .select('updated_at')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!latestError && latest?.updated_at) {
+        const serverDate = new Date(latest.updated_at).getTime();
+        if (serverDate <= ifModifiedSince.getTime() + 1000) {
+          return res.status(304).end();
+        }
+      }
+    }
 
     const { data, error } = await supabase
       .from('journal_entries')
@@ -20,6 +44,13 @@ export const getEntries = async (req, res) => {
       });
     }
 
+    const maxUpdated = data?.length
+      ? data.reduce((max, e) => (e.updated_at > max ? e.updated_at : max), data[0].updated_at)
+      : null;
+    if (maxUpdated) {
+      res.setHeader('Last-Modified', new Date(maxUpdated).toUTCString());
+      res.setHeader('Cache-Control', 'private, max-age=0');
+    }
     res.json({ entries: data });
 
   } catch (error) {

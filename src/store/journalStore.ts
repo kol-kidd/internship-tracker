@@ -23,6 +23,7 @@ interface JournalState {
   loading: boolean;
   error: string | null;
   socket: Socket | null;
+  lastModified?: string;
 
   initSocket: () => void;
   fetchEntries: () => Promise<void>;
@@ -57,6 +58,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
   loading: false,
   error: null,
   socket: null,
+  lastModified: undefined,
 
   initSocket: async () => {
     if (get().socket) return;
@@ -103,10 +105,27 @@ export const useJournalStore = create<JournalState>((set, get) => ({
   fetchEntries: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await api.get("/journal");
-      set({ entries: res.data.entries, loading: false });
-    } catch (err: any) {
-      set({ error: err.response?.data?.error || err.message, loading: false });
+      const lastMod = get().lastModified ?? null;
+      const res = await api.get("/journal", {
+        headers: lastMod ? { "If-Modified-Since": lastMod } : {},
+        validateStatus: (status) => (status >= 200 && status < 300) || status === 304,
+      });
+      if (res.status === 304) {
+        set({ loading: false });
+        return;
+      }
+      const newLastMod = res.headers["last-modified"];
+      set({
+        entries: res.data.entries,
+        loading: false,
+        lastModified: newLastMod ?? undefined,
+      });
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { error?: string }; status?: number } };
+      set({
+        error: errObj.response?.data?.error ?? "Failed to fetch entries",
+        loading: false,
+      });
       throw err;
     }
   },
@@ -156,6 +175,12 @@ export const useJournalStore = create<JournalState>((set, get) => ({
   },
 
   clearEntries: () => {
-    set({ entries: [], loading: false, error: null, socket: null });
+    set({
+      entries: [],
+      loading: false,
+      error: null,
+      socket: null,
+      lastModified: undefined,
+    });
   },
 }));

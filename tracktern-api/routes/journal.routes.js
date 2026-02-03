@@ -1,5 +1,7 @@
 import express from 'express';
 import * as journalController from '../controllers/journal.js';
+import * as journalNotesController from '../controllers/journalNotes.js';
+import * as journalGalleryController from '../controllers/journalGallery.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { body, param, validationResult } from 'express-validator';
 
@@ -71,6 +73,86 @@ const validateJourneySummaryRequest = [
   body('applications.*.status').optional().trim(),
   handleValidationErrors,
 ];
+
+const validateAddNote = [
+  body('content').trim().notEmpty().withMessage('Content is required'),
+  body('date').optional().isISO8601().withMessage('Invalid date format'),
+  body('time').optional().trim(),
+  handleValidationErrors,
+];
+
+const validateUpdateNote = [
+  param('id').isInt().withMessage('Invalid note ID'),
+  body('content').optional().trim().notEmpty(),
+  body('date').optional().isISO8601(),
+  body('time').optional().trim(),
+  handleValidationErrors,
+];
+
+const validateNoteId = [
+  param('id').isInt().withMessage('Invalid note ID'),
+  handleValidationErrors,
+];
+
+const validateMergeNotes = [
+  body('noteIds')
+    .isArray({ min: 1 })
+    .withMessage('noteIds array with at least one id is required'),
+  body('noteIds.*')
+    .custom((v) => Number.isInteger(Number(v)))
+    .withMessage('Each noteId must be an integer'),
+  body('title').optional().trim(),
+  body('date').optional().isISO8601(),
+  body('deleteNotesAfterMerge').optional().isBoolean(),
+  handleValidationErrors,
+];
+
+const validateAddGalleryImage = [
+  body('image_url')
+    .exists()
+    .withMessage('image_url is required')
+    .bail()
+    .isString()
+    .withMessage('image_url must be a string')
+    .bail()
+    .trim()
+    .notEmpty()
+    .withMessage('image_url cannot be empty'),
+  body('caption')
+    .exists()
+    .withMessage('caption is required')
+    .bail()
+    .isString()
+    .withMessage('caption must be a string')
+    .bail()
+    .trim()
+    .notEmpty()
+    .withMessage('caption cannot be empty'),
+  body('journal_entry_id')
+    .exists()
+    .withMessage('journal_entry_id is required')
+    .bail()
+    .custom((val) => Number.isInteger(Number(val)) && Number(val) > 0)
+    .withMessage('journal_entry_id must be a positive integer'),
+  handleValidationErrors,
+];
+
+const validateGalleryImageId = [
+  param('id').isInt().withMessage('Invalid image ID'),
+  handleValidationErrors,
+];
+
+// Notes routes (must be before /:id)
+router.get('/notes', journalNotesController.getNotes);
+router.post('/notes', validateAddNote, journalNotesController.addNote);
+router.post('/notes/merge', validateMergeNotes, journalNotesController.mergeNotes);
+router.put('/notes/:id', validateUpdateNote, journalNotesController.updateNote);
+router.delete('/notes/:id', validateNoteId, journalNotesController.deleteNote);
+
+// Gallery routes (must be before /:id)
+router.get('/gallery', journalGalleryController.getGallery);
+router.post('/gallery', validateAddGalleryImage, journalGalleryController.addGalleryImage);
+router.delete('/gallery/:id', validateGalleryImageId, journalGalleryController.deleteGalleryImage);
 
 // AI enhancement routes (must be before /:id routes)
 router.post('/ai/enhance', validateEnhanceRequest, journalController.enhanceEntry);
