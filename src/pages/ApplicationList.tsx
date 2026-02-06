@@ -12,6 +12,9 @@ import {
   Archive,
   History,
   Trophy,
+  ChevronDown,
+  Filter,
+  ArrowUpDown,
 } from "lucide-react";
 
 const ACCEPTED_TIP_DISMISSED_KEY = "application_list_accepted_tip_dismissed";
@@ -444,8 +447,8 @@ export default function ApplicationList() {
       />
       <div className="flex min-h-screen bg-surface">
         {/* Sidebar */}
-        <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:border-r lg:border-border lg:bg-canvas lg:shrink-0">
-          <div className="sticky top-0 flex flex-col h-screen overflow-y-auto p-5">
+        <aside className="hidden lg:block lg:w-72 lg:border-r lg:border-border lg:bg-canvas lg:shrink-0">
+          <div className="sticky top-0 flex flex-col max-h-screen overflow-y-auto p-5">
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <Briefcase className="w-5 h-5 text-primary" />
@@ -522,14 +525,6 @@ export default function ApplicationList() {
               </div>
             </div>
 
-            <div className="pt-6 border-t border-border">
-              <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
-                Sort by
-              </p>
-              <div className="w-full [&_button]:w-full [&_button]:justify-between">
-                <SortMenu sortBy={sortBy} onSortChange={setSortBy} />
-              </div>
-            </div>
           </div>
         </aside>
 
@@ -600,33 +595,28 @@ export default function ApplicationList() {
                   </button>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-medium text-text-muted uppercase tracking-wider mr-1">
-                  Filter
-                </span>
-                <button
-                  onClick={() => setStatusFilter("all")}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    statusFilter === "all"
-                      ? "bg-primary text-white"
-                      : "bg-surface-alt text-text hover:bg-accent/30"
-                  }`}
-                >
-                  All
-                </button>
-                {Object.entries(statusConfig).map(([status, config]) => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                      statusFilter === status
-                        ? "bg-primary text-white"
-                        : "bg-surface-alt text-text hover:bg-accent/30"
-                    }`}
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-text-muted" />
+                <div className="relative">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="appearance-none bg-surface border border-border rounded-lg px-3 py-1.5 pr-8 text-sm font-medium text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
                   >
-                    {config.label}
-                  </button>
-                ))}
+                    <option value="all">All Status ({applications.length})</option>
+                    {Object.entries(statusConfig).map(([status, config]) => (
+                      <option key={status} value={status}>
+                        {config.label} ({statusCounts[status] || 0})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                </div>
+              </div>
+              {/* Sort dropdown */}
+              <div className="hidden lg:flex items-center gap-2">
+                <ArrowUpDown className="w-4 h-4 text-text-muted" />
+                <SortMenu sortBy={sortBy} onSortChange={setSortBy} />
               </div>
               <div className="ml-auto flex items-center gap-2 shrink-0">
                 <button
@@ -656,7 +646,7 @@ export default function ApplicationList() {
           </div>
 
           {/* Mobile: Add Application + sort (view/filters are in header above) */}
-          <div className="lg:hidden px-4 sm:px-6 py-3 border-b border-border bg-canvas">
+          <div className="lg:hidden px-4 sm:px-6 py-3 border-b border-border bg-canvas space-y-2">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleModal()}
@@ -672,6 +662,16 @@ export default function ApplicationList() {
               <div className="flex-1 min-w-0">
                 <SortMenu sortBy={sortBy} onSortChange={setSortBy} />
               </div>
+            </div>
+            {/* Mobile stats row */}
+            <div className="flex items-center gap-4 text-xs text-text-muted bg-surface-alt/50 rounded-lg px-3 py-2">
+              <span>
+                <span className="font-semibold text-text">{applications.length}</span> total
+              </span>
+              <span className="text-border">|</span>
+              <span>
+                <span className="font-semibold text-text">{filteredAndSortedApps.length}</span> showing
+              </span>
             </div>
           </div>
 

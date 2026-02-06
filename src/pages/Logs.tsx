@@ -24,6 +24,7 @@ import {
   ImagePlus,
   Merge,
   Upload,
+  Filter,
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import { jsPDF } from "jspdf";
@@ -46,24 +47,31 @@ import {
 } from "@/functions/ai/journalAI";
 import { getWeekBounds, isDateInWeekBounds } from "@/lib/weekUtils";
 
-const PDF_THUMB_MAX_PX = 120;
-const PDF_THUMB_WIDTH_MM = 28;
-const PDF_THUMB_GAP_MM = 3;
+const PDF_LANDSCAPE_MAX_PX = 320;
+const PDF_PORTRAIT_MAX_PX = 180;
+const PDF_LANDSCAPE_WIDTH_MM = 80;
+const PDF_PORTRAIT_WIDTH_MM = 45;
+const PDF_THUMB_GAP_MM = 4;
 
 function loadImageAsResizedDataUrl(
-  url: string,
-  maxWidthPx: number
-): Promise<{ dataUrl: string; wMm: number; hMm: number } | null> {
+  url: string
+): Promise<{ dataUrl: string; wMm: number; hMm: number; isLandscape: boolean } | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
-        let w = img.naturalWidth;
-        let h = img.naturalHeight;
-        if (w > maxWidthPx) {
-          h = (h * maxWidthPx) / w;
-          w = maxWidthPx;
+        const naturalW = img.naturalWidth;
+        const naturalH = img.naturalHeight;
+        const isLandscape = naturalW > naturalH;
+        const maxPx = isLandscape ? PDF_LANDSCAPE_MAX_PX : PDF_PORTRAIT_MAX_PX;
+        const targetWidthMm = isLandscape ? PDF_LANDSCAPE_WIDTH_MM : PDF_PORTRAIT_WIDTH_MM;
+
+        let w = naturalW;
+        let h = naturalH;
+        if (w > maxPx) {
+          h = (h * maxPx) / w;
+          w = maxPx;
         }
         const canvas = document.createElement("canvas");
         canvas.width = w;
@@ -75,9 +83,10 @@ function loadImageAsResizedDataUrl(
         }
         ctx.drawImage(img, 0, 0, w, h);
         const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        const wMm = (w * 25.4) / 96;
-        const hMm = (h * 25.4) / 96;
-        resolve({ dataUrl, wMm, hMm });
+        const aspectRatio = h / w;
+        const wMm = targetWidthMm;
+        const hMm = targetWidthMm * aspectRatio;
+        resolve({ dataUrl, wMm, hMm, isLandscape });
       } catch {
         resolve(null);
       }
@@ -972,13 +981,14 @@ const LogsPage = () => {
     }
   };
 
-  const exportWeeklyReportToPDF = () => {
-    const hasEntries = entriesForSelectedWeek.length > 0;
+  const [weeklyExportLoading, setWeeklyExportLoading] = useState(false);
+
+  const exportWeeklyReportToPDF = async () => {
     const hasSummary = Boolean(weeklySummary?.trim());
 
-    if (!hasEntries && !hasSummary) {
+    if (!hasSummary) {
       toast.error(
-        "Nothing to export. Add entries or generate an AI summary first.",
+        "Please generate an AI summary first before exporting.",
         {
           position: "top-right",
           theme: "light",
@@ -988,168 +998,313 @@ const LogsPage = () => {
       return;
     }
 
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
-    const contentWidth = pageWidth - margin * 2;
+    setWeeklyExportLoading(true);
 
-    let y = margin;
+    try {
+      const hasEntries = entriesForSelectedWeek.length > 0;
 
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(124, 58, 237);
-    doc.text("Weekly", margin, y);
-    doc.setTextColor(30, 27, 75);
-    doc.text(" Report", margin + doc.getTextWidth("Weekly"), y);
-    y += 14;
+      // Load images for all entries
+      const sortedEntries = [...entriesForSelectedWeek].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(107, 114, 128);
-    doc.text(`NAME: ${reportName || "—"}`, margin, y);
-    y += 6;
-    doc.text(`DATE: ${reportDate}`, margin, y);
-    y += 14;
+      const imagesByEntry = new Map<number, PdfThumb[]>();
+      await Promise.all(
+        sortedEntries.map(async (entry) => {
+          const images = await getGalleryForEntry(entry.id);
+          const loaded = await Promise.all(
+            images.map((img) => loadImageAsResizedDataUrl(img.image_url))
+          );
+          const valid = loaded.filter((x): x is PdfThumb => x != null);
+          imagesByEntry.set(entry.id, valid);
+        })
+      );
 
-    doc.setFontSize(12);
-    doc.setTextColor(30, 27, 75);
-    doc.setFont("helvetica", "bold");
-    doc.text("PROJECT PROGRESS REPORT", margin, y);
-    y += 10;
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentWidth = pageWidth - margin * 2;
 
-    const colWidths = [38, 26, 26, 20, 20, contentWidth - 130];
-    const headers = [
-      "Day",
-      "Project Phase",
-      "Assigned To",
-      "Start Time",
-      "End Time",
-      "Task",
-    ];
-    const rowHeight = 8;
-    const headerBg = [124, 58, 237];
+      // Brand colors (matching web app theme)
+      const primaryColor: [number, number, number] = [196, 148, 110]; // #c4946e
+      const darkText: [number, number, number] = [34, 34, 34]; // #222222
+      const mutedText: [number, number, number] = [102, 102, 102]; // #666666
+      const lightAccent: [number, number, number] = [232, 212, 196]; // #e8d4c4
+      const rowAltBg: [number, number, number] = [249, 246, 242]; // #f9f6f2
 
-    let x = margin;
-    doc.setFillColor(headerBg[0], headerBg[1], headerBg[2]);
-    doc.rect(margin, y - 5, contentWidth, rowHeight + 2, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    headers.forEach((h, i) => {
-      doc.text(h, x + 2, y + 2);
-      x += colWidths[i];
-    });
-    y += rowHeight + 4;
+      let y = margin;
 
-    const sortedEntries = [...entriesForSelectedWeek].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+      // Header: InternPal branding
+      doc.setFontSize(10);
+      doc.setTextColor(...primaryColor);
+      doc.setFont("helvetica", "bold");
+      doc.text("InternPal", margin, y);
+      y += 10;
 
-    const formatDayPDF = (dateStr: string) =>
-      new Date(dateStr).toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    const formatTimePDF = (time: string | null) => {
-      if (!time) return "—";
-      const parts = time.split(":").map(Number);
-      const hour = parts[0] ?? 0;
-      const min = parts[1] ?? 0;
-      const period = hour >= 12 ? "PM" : "AM";
-      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-      return `${displayHour}:${String(min).padStart(2, "0")} ${period}`;
-    };
+      // Title
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...primaryColor);
+      doc.text("Weekly", margin, y);
+      doc.setTextColor(...darkText);
+      doc.text(" Report", margin + doc.getTextWidth("Weekly"), y);
+      y += 10;
 
-    sortedEntries.forEach((entry) => {
-      if (y + rowHeight > pageHeight - 40) {
-        doc.addPage();
-        y = margin;
-      }
-      doc.setDrawColor(221, 214, 254);
-      doc.setFillColor(250, 250, 255);
-      doc.rect(margin, y - 4, contentWidth, rowHeight + 2, "FD");
-      doc.setTextColor(30, 27, 75);
+      // Divider
+      doc.setDrawColor(...lightAccent);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 8;
+
+      // Name and Date
+      doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
+      doc.setTextColor(...mutedText);
+      doc.text(`NAME: `, margin, y);
+      doc.setTextColor(...darkText);
+      doc.text(reportName || "—", margin + doc.getTextWidth("NAME: "), y);
+      y += 6;
+      doc.setTextColor(...mutedText);
+      doc.text(`DATE: `, margin, y);
+      doc.setTextColor(...darkText);
+      doc.text(reportDate, margin + doc.getTextWidth("DATE: "), y);
+      y += 14;
+
+      // Section header
+      doc.setFontSize(11);
+      doc.setTextColor(...darkText);
+      doc.setFont("helvetica", "bold");
+      doc.text("PROJECT PROGRESS REPORT", margin, y);
+      y += 8;
+
+      // Table
+      const colWidths = [36, 28, 26, 20, 20, contentWidth - 130];
+      const headers = ["Day", "Phase", "Assigned To", "Start", "End", "Task"];
+      const rowHeight = 8;
+
+      // Table header
+      let x = margin;
+      doc.setFillColor(...primaryColor);
+      doc.rect(margin, y - 5, contentWidth, rowHeight + 2, "F");
+      doc.setTextColor(255, 255, 255);
       doc.setFontSize(8);
-      let rowX = margin;
-      const dayStr = formatDayPDF(entry.date);
-      const cells = [
-        dayStr.length > 22 ? dayStr.slice(0, 21) + "…" : dayStr,
-        entry.tags?.[0] ?? "Daily log",
-        reportName || "—",
-        formatTimePDF(entry.time_in),
-        formatTimePDF(entry.time_out),
-        entry.title.length > 28 ? entry.title.slice(0, 27) + "…" : entry.title,
-      ];
-      cells.forEach((cell, i) => {
-        const w = colWidths[i];
-        const text = doc.splitTextToSize(cell, w - 4);
-        doc.text(text[0] ?? "", rowX + 2, y + 2);
-        rowX += w;
+      doc.setFont("helvetica", "bold");
+      headers.forEach((h, i) => {
+        doc.text(h, x + 2, y + 1);
+        x += colWidths[i];
       });
-      y += rowHeight + 4;
-    });
+      y += rowHeight + 2;
 
-    if (!hasEntries) {
-      doc.setDrawColor(221, 214, 254);
-      doc.setFillColor(250, 250, 255);
-      doc.rect(margin, y - 4, contentWidth, rowHeight + 2, "FD");
-      doc.setTextColor(107, 114, 128);
-      doc.setFontSize(9);
-      doc.text("No entries for this week.", margin + 4, y + 2);
-      y += rowHeight + 8;
-    }
+      const formatDayPDF = (dateStr: string) =>
+        new Date(dateStr).toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
+      const formatTimePDF = (time: string | null) => {
+        if (!time) return "—";
+        const parts = time.split(":").map(Number);
+        const hour = parts[0] ?? 0;
+        const min = parts[1] ?? 0;
+        const period = hour >= 12 ? "PM" : "AM";
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        return `${displayHour}:${String(min).padStart(2, "0")}${period}`;
+      };
 
-    y += 8;
-    if (y + 20 > pageHeight - 30) {
-      doc.addPage();
-      y = margin;
-    }
+      // Table rows with alternating colors
+      sortedEntries.forEach((entry, idx) => {
+        if (y + rowHeight > pageHeight - 40) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.setDrawColor(...lightAccent);
+        if (idx % 2 === 0) {
+          doc.setFillColor(...rowAltBg);
+        } else {
+          doc.setFillColor(255, 255, 255);
+        }
+        doc.rect(margin, y - 4, contentWidth, rowHeight + 1, "FD");
+        doc.setTextColor(...darkText);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        let rowX = margin;
+        const dayStr = formatDayPDF(entry.date);
+        const cells = [
+          dayStr.length > 20 ? dayStr.slice(0, 19) + "…" : dayStr,
+          entry.tags?.[0]?.slice(0, 12) ?? "Daily log",
+          (reportName || "—").slice(0, 12),
+          formatTimePDF(entry.time_in),
+          formatTimePDF(entry.time_out),
+          entry.title.length > 26 ? entry.title.slice(0, 25) + "…" : entry.title,
+        ];
+        cells.forEach((cell, i) => {
+          const w = colWidths[i];
+          doc.text(cell, rowX + 2, y + 1);
+          rowX += w;
+        });
+        y += rowHeight + 1;
+      });
 
-    doc.setFontSize(12);
-    doc.setTextColor(30, 27, 75);
-    doc.setFont("helvetica", "bold");
-    doc.text("CONCLUSION", margin, y);
-    y += 8;
+      if (!hasEntries) {
+        doc.setDrawColor(...lightAccent);
+        doc.setFillColor(...rowAltBg);
+        doc.rect(margin, y - 4, contentWidth, rowHeight + 2, "FD");
+        doc.setTextColor(...mutedText);
+        doc.setFontSize(8);
+        doc.text("No entries for this week.", margin + 4, y + 1);
+        y += rowHeight + 6;
+      }
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(30, 27, 75);
-    const conclusionText = hasSummary
-      ? weeklySummary ?? ""
-      : "No summary generated for this week. Generate an AI summary from this week's entries to populate the conclusion.";
-    const conclusionLines = doc.splitTextToSize(conclusionText, contentWidth);
-    const lineHeight = 5.5;
-    conclusionLines.forEach((line: string) => {
-      if (y + lineHeight > pageHeight - 25) {
+      // Conclusion section
+      y += 12;
+      if (y + 20 > pageHeight - 30) {
         doc.addPage();
         y = margin;
       }
-      doc.text(line, margin, y);
-      y += lineHeight;
-    });
 
-    const totalPages = doc.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.setFontSize(9);
-      doc.setTextColor(180);
-      doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, {
-        align: "center",
+      doc.setFontSize(11);
+      doc.setTextColor(...darkText);
+      doc.setFont("helvetica", "bold");
+      doc.text("CONCLUSION", margin, y);
+      const headerW = doc.getTextWidth("CONCLUSION");
+      doc.setDrawColor(...lightAccent);
+      doc.setLineWidth(0.3);
+      doc.line(margin + headerW + 4, y - 2, pageWidth - margin, y - 2);
+      y += 8;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(...darkText);
+      const conclusionText = hasSummary
+        ? weeklySummary ?? ""
+        : "No summary generated for this week.";
+      const conclusionLines = doc.splitTextToSize(conclusionText, contentWidth);
+      const lineHeight = 5;
+      conclusionLines.forEach((line: string) => {
+        if (y + lineHeight > pageHeight - 25) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += lineHeight;
       });
+
+      // Proof of Work section with images
+      const hasAnyImages = sortedEntries.some((e) => (imagesByEntry.get(e.id)?.length ?? 0) > 0);
+      if (hasAnyImages) {
+        y += 12;
+        if (y + 30 > pageHeight - 30) {
+          doc.addPage();
+          y = margin;
+        }
+
+        doc.setFontSize(11);
+        doc.setTextColor(...darkText);
+        doc.setFont("helvetica", "bold");
+        doc.text("PROOF OF WORK", margin, y);
+        const powHeaderW = doc.getTextWidth("PROOF OF WORK");
+        doc.setDrawColor(...lightAccent);
+        doc.setLineWidth(0.3);
+        doc.line(margin + powHeaderW + 4, y - 2, pageWidth - margin, y - 2);
+        y += 10;
+
+        for (const entry of sortedEntries) {
+          const thumbs = imagesByEntry.get(entry.id) ?? [];
+          if (thumbs.length === 0) continue;
+
+          if (y + 20 > pageHeight - 30) {
+            doc.addPage();
+            y = margin;
+          }
+
+          // Entry date label
+          const entryDateLabel = new Date(entry.date).toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          });
+          doc.setFontSize(9);
+          doc.setTextColor(...mutedText);
+          doc.setFont("helvetica", "bold");
+          doc.text(entryDateLabel, margin, y);
+          y += 6;
+
+          const gap = PDF_THUMB_GAP_MM;
+          let xOffset = margin;
+          let rowMaxH = 0;
+
+          for (const thumb of thumbs) {
+            const w = thumb.wMm;
+            const h = thumb.hMm;
+
+            if (thumb.isLandscape && xOffset > margin) {
+              xOffset = margin;
+              y += rowMaxH + gap;
+              rowMaxH = 0;
+            }
+
+            if (xOffset + w > pageWidth - margin) {
+              xOffset = margin;
+              y += rowMaxH + gap;
+              rowMaxH = 0;
+            }
+            if (y + h > pageHeight - 25) {
+              doc.addPage();
+              y = margin;
+              xOffset = margin;
+              rowMaxH = 0;
+            }
+            try {
+              doc.setDrawColor(230, 230, 230);
+              doc.setLineWidth(0.2);
+              doc.rect(xOffset - 0.5, y - 0.5, w + 1, h + 1);
+              doc.addImage(thumb.dataUrl, "JPEG", xOffset, y, w, h);
+            } catch {
+              // skip
+            }
+            rowMaxH = Math.max(rowMaxH, h);
+            xOffset += w + gap;
+
+            if (thumb.isLandscape) {
+              xOffset = margin;
+              y += rowMaxH + gap;
+              rowMaxH = 0;
+            }
+          }
+          if (rowMaxH > 0) y += rowMaxH + 6;
+        }
+      }
+
+      // Add footers to all pages
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(...mutedText);
+        doc.text(`InternPal  |  Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, {
+          align: "center",
+        });
+      }
+
+      const fileName = `internpal-weekly-${weekBounds.start}-to-${weekBounds.end}.pdf`;
+      doc.save(fileName);
+
+      toast.success("Weekly report exported to PDF", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } catch (err) {
+      console.error("Weekly export error:", err);
+      toast.error("Failed to export weekly report", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setWeeklyExportLoading(false);
     }
-
-    const fileName = `weekly-report-${weekBounds.start}-to-${weekBounds.end}.pdf`;
-    doc.save(fileName);
-
-    toast.success("Weekly report exported to PDF", {
-      position: "top-right",
-      theme: "light",
-      transition: Bounce,
-    });
   };
 
   const openExportPdfModal = () => {
@@ -1174,7 +1329,7 @@ const LogsPage = () => {
     setExportPdfSelectedIds(new Set());
   };
 
-  type PdfThumb = { dataUrl: string; wMm: number; hMm: number };
+  type PdfThumb = { dataUrl: string; wMm: number; hMm: number; isLandscape: boolean };
 
   const exportToPDF = (
     entriesToExport: JournalEntry[],
@@ -1195,35 +1350,65 @@ const LogsPage = () => {
     const margin = 20;
     const contentWidth = pageWidth - margin * 2;
 
+    // Brand colors (matching web app theme)
+    const primaryColor: [number, number, number] = [196, 148, 110]; // #c4946e
+    const darkText: [number, number, number] = [34, 34, 34]; // #222222
+    const mutedText: [number, number, number] = [102, 102, 102]; // #666666
+    const lightAccent: [number, number, number] = [232, 212, 196]; // #e8d4c4
+
     const sortedEntries = [...entriesToExport].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
+
+    const addPageFooter = (pageNum: number, totalPages: number) => {
+      doc.setFontSize(8);
+      doc.setTextColor(...mutedText);
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `InternPal  |  Page ${pageNum} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: "center" }
+      );
+    };
 
     sortedEntries.forEach((entry, index) => {
       if (index > 0) doc.addPage();
 
       let yPosition = margin;
 
-      doc.setFontSize(12);
-      doc.setTextColor(150);
-      doc.text(
-        `Day ${index + 1} of ${sortedEntries.length}`,
-        margin,
-        yPosition
-      );
-      yPosition += 10;
+      // Header: InternPal branding
+      doc.setFontSize(10);
+      doc.setTextColor(...primaryColor);
+      doc.setFont("helvetica", "bold");
+      doc.text("InternPal", margin, yPosition);
+      doc.setTextColor(...mutedText);
+      doc.setFont("helvetica", "normal");
+      doc.text(" - Journal Entry", margin + doc.getTextWidth("InternPal"), yPosition);
+      yPosition += 12;
 
-      doc.setFontSize(20);
-      doc.setTextColor(0);
+      // Day badge with background
+      const dayText = `Day ${index + 1} of ${sortedEntries.length}`;
+      doc.setFillColor(...lightAccent);
+      doc.roundedRect(margin, yPosition - 5, doc.getTextWidth(dayText) + 10, 8, 2, 2, "F");
+      doc.setFontSize(9);
+      doc.setTextColor(...primaryColor);
+      doc.setFont("helvetica", "bold");
+      doc.text(dayText, margin + 5, yPosition);
+      yPosition += 12;
+
+      // Title
+      doc.setFontSize(18);
+      doc.setTextColor(...darkText);
       doc.setFont("helvetica", "bold");
       const titleLines = doc.splitTextToSize(entry.title, contentWidth);
       doc.text(titleLines, margin, yPosition);
-      yPosition += titleLines.length * 8 + 5;
+      yPosition += titleLines.length * 7 + 4;
 
-      doc.setFontSize(11);
+      // Date
+      doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(100);
-
+      doc.setTextColor(...mutedText);
       const dateStr = new Date(entry.date).toLocaleDateString("en-US", {
         weekday: "long",
         month: "long",
@@ -1231,113 +1416,140 @@ const LogsPage = () => {
         year: "numeric",
       });
       doc.text(dateStr, margin, yPosition);
-      yPosition += 6;
+      yPosition += 5;
 
+      // Time info
       if (entry.time_in && entry.time_out) {
         const hours = calculateHours(
           entry.time_in,
           entry.time_out,
           entry.break_time
         );
-        let timeStr = `${formatTime(entry.time_in)} - ${formatTime(
-          entry.time_out
-        )}`;
-        if (entry.break_time) timeStr += ` | ${entry.break_time} min break`;
-        timeStr += ` | ${hours.toFixed(1)} hours`;
+        let timeStr = `${formatTime(entry.time_in)} - ${formatTime(entry.time_out)}`;
+        if (entry.break_time) timeStr += `  •  ${entry.break_time} min break`;
+        timeStr += `  •  ${hours.toFixed(1)} hours`;
         doc.text(timeStr, margin, yPosition);
-        yPosition += 6;
+        yPosition += 5;
       }
 
+      // Divider line
       yPosition += 6;
-      doc.setDrawColor(220);
+      doc.setDrawColor(...lightAccent);
+      doc.setLineWidth(0.5);
       doc.line(margin, yPosition, pageWidth - margin, yPosition);
       yPosition += 10;
 
-      doc.setFontSize(11);
-      doc.setTextColor(50);
+      // Content
+      doc.setFontSize(10);
+      doc.setTextColor(...darkText);
       doc.setFont("helvetica", "normal");
-
       const contentLines = doc.splitTextToSize(entry.content, contentWidth);
-      const lineHeight = 5.5;
+      const lineHeight = 5;
 
       contentLines.forEach((line: string) => {
-        if (yPosition + lineHeight < pageHeight - 40) {
-          doc.text(line, margin, yPosition);
-          yPosition += lineHeight;
-        }
-      });
-
-      if (entry.tags.length > 0) {
-        yPosition += 10;
-        doc.setFontSize(9);
-        doc.setTextColor(120);
-        const tagsStr = entry.tags.map((tag) => `#${tag}`).join("  ");
-        const tagLines = doc.splitTextToSize(tagsStr, contentWidth);
-        doc.text(tagLines.slice(0, 2), margin, yPosition);
-        yPosition += tagLines.slice(0, 2).length * 4 + 8;
-      }
-
-      const entryThumbs = imagesByEntryId?.get(entry.id) ?? [];
-      if (entryThumbs.length > 0) {
-        if (yPosition > pageHeight - 50) {
+        if (yPosition + lineHeight > pageHeight - 40) {
+          addPageFooter(index + 1, sortedEntries.length);
           doc.addPage();
           yPosition = margin;
         }
-        yPosition += 4;
+        doc.text(line, margin, yPosition);
+        yPosition += lineHeight;
+      });
+
+      // Tags with styled pills
+      if (entry.tags.length > 0) {
+        yPosition += 10;
+        let xPos = margin;
+        doc.setFontSize(8);
+        entry.tags.forEach((tag) => {
+          const tagText = `#${tag}`;
+          const tagWidth = doc.getTextWidth(tagText) + 6;
+          if (xPos + tagWidth > pageWidth - margin) {
+            xPos = margin;
+            yPosition += 7;
+          }
+          doc.setFillColor(...lightAccent);
+          doc.roundedRect(xPos, yPosition - 4, tagWidth, 6, 1.5, 1.5, "F");
+          doc.setTextColor(...primaryColor);
+          doc.text(tagText, xPos + 3, yPosition);
+          xPos += tagWidth + 3;
+        });
+        yPosition += 10;
+      }
+
+      // Images section
+      const entryThumbs = imagesByEntryId?.get(entry.id) ?? [];
+      if (entryThumbs.length > 0) {
+        if (yPosition > pageHeight - 60) {
+          addPageFooter(index + 1, sortedEntries.length);
+          doc.addPage();
+          yPosition = margin;
+        }
+        yPosition += 6;
+
+        // Section header with line
         doc.setFontSize(10);
-        doc.setTextColor(80);
+        doc.setTextColor(...darkText);
         doc.setFont("helvetica", "bold");
-        doc.text("Proof of work", margin, yPosition);
+        doc.text("Proof of Work", margin, yPosition);
+        const headerWidth = doc.getTextWidth("Proof of Work");
+        doc.setDrawColor(...lightAccent);
+        doc.setLineWidth(0.3);
+        doc.line(margin + headerWidth + 4, yPosition - 2, pageWidth - margin, yPosition - 2);
         yPosition += 8;
 
-        const thumbMaxW = PDF_THUMB_WIDTH_MM;
         const gap = PDF_THUMB_GAP_MM;
         let xOffset = margin;
         let rowMaxH = 0;
 
         for (let i = 0; i < entryThumbs.length; i++) {
           const thumb = entryThumbs[i];
-          let w = thumb.wMm;
-          let h = thumb.hMm;
-          if (w > thumbMaxW) {
-            h = (h * thumbMaxW) / w;
-            w = thumbMaxW;
+          const w = thumb.wMm;
+          const h = thumb.hMm;
+
+          if (thumb.isLandscape && xOffset > margin) {
+            xOffset = margin;
+            yPosition += rowMaxH + gap;
+            rowMaxH = 0;
           }
+
           if (xOffset + w > pageWidth - margin) {
             xOffset = margin;
             yPosition += rowMaxH + gap;
             rowMaxH = 0;
           }
           if (yPosition + h > pageHeight - 25) {
+            addPageFooter(index + 1, sortedEntries.length);
             doc.addPage();
             yPosition = margin;
             xOffset = margin;
             rowMaxH = 0;
           }
           try {
+            // Add subtle border around image
+            doc.setDrawColor(230, 230, 230);
+            doc.setLineWidth(0.2);
+            doc.rect(xOffset - 0.5, yPosition - 0.5, w + 1, h + 1);
             doc.addImage(thumb.dataUrl, "JPEG", xOffset, yPosition, w, h);
           } catch {
             // skip image if addImage fails
           }
           rowMaxH = Math.max(rowMaxH, h);
           xOffset += w + gap;
+
+          if (thumb.isLandscape) {
+            xOffset = margin;
+            yPosition += rowMaxH + gap;
+            rowMaxH = 0;
+          }
         }
-        yPosition += rowMaxH + 8;
+        if (rowMaxH > 0) yPosition += rowMaxH + 8;
       }
 
-      doc.setFontSize(9);
-      doc.setTextColor(180);
-      doc.text(
-        `Page ${index + 1} of ${sortedEntries.length}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: "center" }
-      );
+      addPageFooter(index + 1, sortedEntries.length);
     });
 
-    const fileName = `internship-journal-${
-      new Date().toISOString().split("T")[0]
-    }.pdf`;
+    const fileName = `internpal-journal-${new Date().toISOString().split("T")[0]}.pdf`;
     doc.save(fileName);
 
     toast.success(`Exported ${sortedEntries.length} entries to PDF`, {
@@ -1363,9 +1575,7 @@ const LogsPage = () => {
         selected.map(async (e, i) => {
           const imgs = imageLists[i] ?? [];
           const loaded = await Promise.all(
-            imgs.map((img) =>
-              loadImageAsResizedDataUrl(img.image_url, PDF_THUMB_MAX_PX)
-            )
+            imgs.map((img) => loadImageAsResizedDataUrl(img.image_url))
           );
           const valid = loaded.filter((x): x is PdfThumb => x != null);
           thumbMap.set(e.id, valid);
@@ -1411,8 +1621,8 @@ const LogsPage = () => {
       />
       <div className="flex min-h-screen bg-surface">
         {/* Sidebar */}
-        <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:border-r lg:border-border lg:bg-canvas lg:shrink-0">
-          <div className="sticky top-0 flex flex-col h-screen overflow-y-auto p-5">
+        <aside className="hidden lg:block lg:w-72 lg:border-r lg:border-border lg:bg-canvas lg:shrink-0">
+          <div className="sticky top-0 flex flex-col max-h-screen overflow-y-auto p-5">
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <BookOpen className="w-5 h-5 text-primary" />
@@ -1530,43 +1740,6 @@ const LogsPage = () => {
               </div>
             </div>
 
-            <div className="mb-4">
-              <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-3">
-                Filter by mood
-              </p>
-              <div className="flex flex-col gap-1.5">
-                <button
-                  onClick={() => setFilterMood("all")}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm text-left transition-colors ${
-                    filterMood === "all"
-                      ? "bg-primary text-white"
-                      : "text-text hover:bg-accent/30"
-                  }`}
-                >
-                  <span>All</span>
-                  <span className="text-xs opacity-80">{entries.length}</span>
-                </button>
-                {Object.entries(moodConfig).map(([mood, config]) => (
-                  <button
-                    key={mood}
-                    onClick={() => setFilterMood(mood)}
-                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm text-left transition-colors ${
-                      filterMood === mood
-                        ? "bg-primary text-white"
-                        : "text-text hover:bg-accent/30"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span>{moodEmojis[mood]}</span>
-                      {config.label}
-                    </span>
-                    <span className="text-xs opacity-80">
-                      {moodCounts[mood] || 0}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </aside>
 
@@ -1593,6 +1766,25 @@ const LogsPage = () => {
                       <X className="w-3 h-3 text-text-muted" />
                     </button>
                   )}
+                </div>
+                {/* Desktop filter dropdown */}
+                <div className="hidden lg:flex items-center gap-2 shrink-0">
+                  <Filter className="w-4 h-4 text-text-muted" />
+                  <div className="relative">
+                    <select
+                      value={filterMood}
+                      onChange={(e) => setFilterMood(e.target.value)}
+                      className="appearance-none bg-surface border border-border rounded-lg px-3 py-2.5 pr-8 text-sm font-medium text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                    >
+                      <option value="all">All Moods ({entries.length})</option>
+                      {Object.entries(moodConfig).map(([mood, config]) => (
+                        <option key={mood} value={mood}>
+                          {moodEmojis[mood]} {config.label} ({moodCounts[mood] || 0})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                  </div>
                 </div>
                 <button
                   onClick={openExportPdfModal}
@@ -1674,32 +1866,41 @@ const LogsPage = () => {
               </button>
             </div>
             {mainView === "entries" && (
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  onClick={() => setFilterMood("all")}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium ${
-                    filterMood === "all"
-                      ? "bg-primary text-white"
-                      : "bg-surface-alt text-text hover:bg-accent/30"
-                  }`}
-                >
-                  All
-                </button>
-                {Object.entries(moodConfig).map(([mood, config]) => (
-                  <button
-                    key={mood}
-                    onClick={() => setFilterMood(mood)}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium ${
-                      filterMood === mood
-                        ? "bg-primary text-white"
-                        : "bg-surface-alt text-text hover:bg-accent/30"
-                    }`}
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-text-muted shrink-0" />
+                <div className="relative flex-1">
+                  <select
+                    value={filterMood}
+                    onChange={(e) => setFilterMood(e.target.value)}
+                    className="w-full appearance-none bg-surface border border-border rounded-lg px-3 py-2 pr-9 text-sm font-medium text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
                   >
-                    {moodEmojis[mood]} {config.label}
-                  </button>
-                ))}
+                    <option value="all">All Moods ({entries.length})</option>
+                    {Object.entries(moodConfig).map(([mood, config]) => (
+                      <option key={mood} value={mood}>
+                        {moodEmojis[mood]} {config.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                </div>
               </div>
             )}
+            {/* Mobile stats row */}
+            <div className="flex items-center justify-between text-xs text-text-muted bg-surface-alt/50 rounded-lg px-3 py-2">
+              <span>
+                <span className="font-semibold text-text">{entries.length}</span> entries
+              </span>
+              <span className="text-border">|</span>
+              <span>
+                <span className="font-semibold text-text">{totalHoursLogged.toFixed(1)}h</span> logged
+              </span>
+              <span className="text-border">|</span>
+              <span>
+                <span className={`font-semibold ${hoursRemaining > 0 ? "text-soft-pink" : "text-soft-green"}`}>
+                  {hoursRemaining.toFixed(1)}h
+                </span> left
+              </span>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
@@ -1905,14 +2106,19 @@ const LogsPage = () => {
                       )}
                     </button>
                   )}
-                  {(entriesForSelectedWeek.length > 0 || weeklySummary) && (
+                  {weeklySummary && (
                     <button
                       type="button"
                       onClick={exportWeeklyReportToPDF}
-                      className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl border border-border bg-canvas text-text text-sm font-medium hover:border-primary hover:bg-accent/30 transition-all touch-manipulation"
+                      disabled={weeklyExportLoading}
+                      className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl border border-border bg-canvas text-text text-sm font-medium hover:border-primary hover:bg-accent/30 transition-all touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Download className="w-4 h-4 shrink-0" />
-                      <span>Export PDF</span>
+                      {weeklyExportLoading ? (
+                        <span className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4 shrink-0" />
+                      )}
+                      <span>{weeklyExportLoading ? "Exporting..." : "Export PDF"}</span>
                     </button>
                   )}
                 </div>
