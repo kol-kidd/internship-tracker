@@ -1,6 +1,18 @@
 import { supabase } from '../config/supabase.js';
 import { io } from "../index.js";
-import { geminiModel } from '../config/gemini.js'; 
+import { geminiModel } from '../config/gemini.js';
+import genAI from '../config/gemini.js';
+
+// Higher token limit model for compilation (monthly entries can be large)
+const geminiCompileModel = genAI.getGenerativeModel({
+  model: 'gemini-2.5-flash',
+  generationConfig: {
+    temperature: 0.4,
+    topK: 40,
+    topP: 0.95,
+    maxOutputTokens: 8192,
+  },
+});
 
 function parseLastModified(header) {
   if (!header) return null;
@@ -447,6 +459,119 @@ Provide only the summary text, no preamble. Stay strictly faithful to the entrie
 
     res.status(500).json({
       error: 'Failed to generate weekly summary',
+      details: error.message,
+    });
+  }
+};
+
+export const compileJournal = async (req, res) => {
+  try {
+    const { entries, traineeName, course, industryPartner, department, dateRange } = req.body;
+
+    if (!entries || !Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({
+        error: 'At least one entry is required to compile a journal',
+      });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        error: 'AI service not configured',
+        details: 'GEMINI_API_KEY is not set',
+      });
+    }
+
+    const entriesText = entries
+      .map((e, i) => {
+        const dateStr = e.date
+          ? new Date(e.date).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : 'Unknown date';
+        const hours =
+          e.time_in && e.time_out
+            ? (() => {
+                const [inH, inM] = e.time_in.split(':').map(Number);
+                const [outH, outM] = e.time_out.split(':').map(Number);
+                const breakM = e.break_time || 0;
+                const totalM = outH * 60 + outM - (inH * 60 + inM) - breakM;
+                return Math.max(0, totalM / 60).toFixed(1);
+              })()
+            : null;
+        return `[${i + 1}] Date: ${dateStr}\nTitle: ${e.title || 'Untitled'}\n${hours ? `Hours: ${hours}\n` : ''}Mood: ${e.mood || '—'}\nContent:\n${e.content || ''}\n${e.tags && e.tags.length ? `Tags: ${e.tags.join(', ')}\n` : ''}`;
+      })
+      .join('\n---\n');
+
+    const prompt = `You are an internship report assistant. Analyze the following journal entries and produce a structured JSON summary suitable for a CTU (Cebu Technological University) OJT Form 6 Monthly Report.
+
+STRICT RULES:
+- Extract ONLY what is explicitly mentioned. Do NOT invent anything.
+- "activities": concrete tasks done. "learnings": skills and insights gained.
+- EXACTLY 3 to 5 bullets per array. Never more than 5. Merge aggressively.
+- Each bullet = one short sentence, max 8 words.
+- Return ONLY a valid JSON object. No markdown, no code fences, no extra text.
+
+Expected format:
+{"activities":["bullet 1","bullet 2"],"learnings":["bullet 1","bullet 2"]}
+
+Journal entries (${entries.length} total):
+
+${entriesText}`;
+
+    const result = await geminiCompileModel.generateContent(prompt);
+    const response = await result.response;
+    const fullText = response.text().trim();
+
+    // Extract the first JSON object from the response regardless of surrounding text/fences
+    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('Compile Journal: no JSON object found in response:', fullText.slice(0, 300));
+      return res.status(500).json({
+        error: 'AI returned malformed JSON',
+        details: fullText.slice(0, 200),
+      });
+    }
+
+    // Strip trailing commas before ] or } — Gemini thinking model often produces these
+    const sanitized = jsonMatch[0].replace(/,(\s*[}\]])/g, '$1');
+
+    let parsed;
+    try {
+      parsed = JSON.parse(sanitized);
+    } catch {
+      console.error('Compile Journal: JSON.parse failed on:', sanitized.slice(0, 300));
+      return res.status(500).json({
+        error: 'AI returned malformed JSON',
+        details: sanitized.slice(0, 200),
+      });
+    }
+
+    const activities = Array.isArray(parsed.activities) ? parsed.activities.filter(Boolean) : [];
+    const learnings = Array.isArray(parsed.learnings) ? parsed.learnings.filter(Boolean) : [];
+
+    if (activities.length === 0 && learnings.length === 0) {
+      return res.status(500).json({
+        error: 'AI returned empty summary',
+        details: 'No activities or learnings could be extracted from the entries.',
+      });
+    }
+
+    res.json({ activities, learnings });
+  } catch (error) {
+    console.error('Compile Journal Error:', error);
+
+    if (error.message?.includes('API key')) {
+      return res.status(500).json({
+        error: 'AI service configuration error',
+        details: 'Invalid or missing API key',
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to compile journal summary',
       details: error.message,
     });
   }
