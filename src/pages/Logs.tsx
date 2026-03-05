@@ -25,6 +25,7 @@ import {
   Merge,
   Upload,
   Filter,
+  FileText,
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import { jsPDF } from "jspdf";
@@ -43,8 +44,10 @@ import {
   enhanceJournalEntry,
   suggestTags,
   summarizeWeek,
+  compileJournalSummary,
   type EnhanceType,
 } from "@/functions/ai/journalAI";
+import { generateCTUJournalPDF } from "@/lib/exportCTUJournal";
 import { getWeekBounds, isDateInWeekBounds } from "@/lib/weekUtils";
 
 const PDF_LANDSCAPE_MAX_PX = 320;
@@ -222,6 +225,18 @@ const LogsPage = () => {
     new Set()
   );
   const [exportPdfLoading, setExportPdfLoading] = useState(false);
+
+  // Compile Report (CTU OJT Form 6) state
+  const [compileModalOpen, setCompileModalOpen] = useState(false);
+  const [compileLoading, setCompileLoading] = useState(false);
+  const [compileForm, setCompileForm] = useState({
+    traineeName: "",
+    course: "",
+    industryPartner: "",
+    department: "",
+    startDate: "",
+    endDate: "",
+  });
 
   const handleRequiredHoursChange = (value: string) => {
     const hours = Number(value) || 0;
@@ -1597,6 +1612,60 @@ const LogsPage = () => {
     }
   };
 
+  const handleCompileReport = async () => {
+    const { traineeName, course, industryPartner, department, startDate, endDate } = compileForm;
+    if (!startDate || !endDate) {
+      toast.error("Please select a start and end date.", { position: "top-right", theme: "light", transition: Bounce });
+      return;
+    }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    const rangeEntries = entries.filter((e) => {
+      const d = new Date(e.date);
+      return d >= start && d <= end;
+    });
+    if (rangeEntries.length === 0) {
+      toast.error("No journal entries found in the selected date range.", { position: "top-right", theme: "light", transition: Bounce });
+      return;
+    }
+    if (!session?.access_token) return;
+    setCompileLoading(true);
+    try {
+      const result = await compileJournalSummary(
+        {
+          entries: rangeEntries,
+          traineeName,
+          course,
+          industryPartner,
+          department,
+          dateRange: { start: startDate, end: endDate },
+        },
+        session.access_token
+      );
+      generateCTUJournalPDF({
+        traineeName,
+        course,
+        industryPartner,
+        department,
+        dateRange: { start: startDate, end: endDate },
+        activities: result.activities,
+        learnings: result.learnings,
+      });
+      setCompileModalOpen(false);
+      toast.success("CTU OJT Form 6 exported!", { position: "top-right", theme: "light", transition: Bounce });
+    } catch (err: unknown) {
+      console.error("Compile journal error:", err);
+      const msg =
+        (err as { response?: { data?: { error?: string; details?: string } } })?.response?.data?.error ||
+        (err as { response?: { data?: { details?: string } } })?.response?.data?.details ||
+        "Failed to compile journal. Please try again.";
+      toast.error(msg, { position: "top-right", theme: "light", transition: Bounce });
+    } finally {
+      setCompileLoading(false);
+    }
+  };
+
   if (loading && entries.length === 0) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
@@ -1793,6 +1862,14 @@ const LogsPage = () => {
                 >
                   <Download className="w-4 h-4" />
                   Export PDF
+                </button>
+                <button
+                  onClick={() => setCompileModalOpen(true)}
+                  disabled={entries.length === 0}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                >
+                  <FileText className="w-4 h-4" />
+                  Compile Report
                 </button>
               </>
             ) : mainView === "notes" ? (
@@ -3166,6 +3243,122 @@ const LogsPage = () => {
                   type="button"
                   onClick={() => setMergeModalOpen(false)}
                   className="px-4 py-3 rounded-xl border border-border text-text text-sm font-medium hover:bg-accent/30 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Compile Report (CTU OJT Form 6) modal */}
+        {compileModalOpen && (
+          <div className="fixed inset-0 bg-text/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-canvas rounded-2xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl">
+              <div className="p-6 border-b border-border flex items-center justify-between shrink-0">
+                <h2 className="text-lg font-bold text-text flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Compile Monthly Report
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setCompileModalOpen(false)}
+                  className="p-2 hover:bg-accent/30 rounded-xl transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5 text-text/60" />
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1 min-h-0 space-y-4">
+                <p className="text-sm text-text-muted">
+                  Fill in your trainee details and choose a date range. AI will summarize your entries into a CTU OJT Form 6 PDF.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-text-muted mb-1">Trainee Name</label>
+                    <input
+                      type="text"
+                      value={compileForm.traineeName}
+                      onChange={(e) => setCompileForm((f) => ({ ...f, traineeName: e.target.value }))}
+                      placeholder="e.g. Juan Dela Cruz"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-text-muted mb-1">Course & Major</label>
+                    <input
+                      type="text"
+                      value={compileForm.course}
+                      onChange={(e) => setCompileForm((f) => ({ ...f, course: e.target.value }))}
+                      placeholder="e.g. BSIT — Web Development"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-text-muted mb-1">Industry Partner</label>
+                    <input
+                      type="text"
+                      value={compileForm.industryPartner}
+                      onChange={(e) => setCompileForm((f) => ({ ...f, industryPartner: e.target.value }))}
+                      placeholder="e.g. Acme Corp"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-text-muted mb-1">Department</label>
+                    <input
+                      type="text"
+                      value={compileForm.department}
+                      onChange={(e) => setCompileForm((f) => ({ ...f, department: e.target.value }))}
+                      placeholder="e.g. IT Department"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-text-muted mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={compileForm.startDate}
+                        onChange={(e) => setCompileForm((f) => ({ ...f, startDate: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-text-muted mb-1">End Date</label>
+                      <input
+                        type="date"
+                        value={compileForm.endDate}
+                        onChange={(e) => setCompileForm((f) => ({ ...f, endDate: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 border-t border-border flex gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCompileReport}
+                  disabled={compileLoading || !compileForm.startDate || !compileForm.endDate}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {compileLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Compiling with AI...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4" />
+                      Generate PDF
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCompileModalOpen(false)}
+                  className="px-4 py-3 rounded-xl border border-border text-sm font-medium text-text hover:bg-accent/30 transition-all"
                 >
                   Cancel
                 </button>

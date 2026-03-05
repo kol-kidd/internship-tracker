@@ -63,6 +63,27 @@ const validateWeeklySummaryRequest = [
   handleValidationErrors,
 ];
 
+const validateCompileSummaryRequest = [
+  body('entries')
+    .isArray({ min: 1 })
+    .withMessage('Entries array with at least one entry is required'),
+  body('entries.*.title').optional({ nullable: true }).trim(),
+  body('entries.*.date').optional({ nullable: true }).trim(),
+  body('entries.*.content').optional({ nullable: true }).trim(),
+  body('entries.*.mood').optional({ nullable: true }).trim(),
+  body('entries.*.tags').optional({ nullable: true }).isArray(),
+  body('entries.*.time_in').optional({ nullable: true }).trim(),
+  body('entries.*.time_out').optional({ nullable: true }).trim(),
+  body('entries.*.break_time').optional({ nullable: true }).isInt(),
+  body('traineeName').optional({ nullable: true }).trim(),
+  body('course').optional({ nullable: true }).trim(),
+  body('industryPartner').optional({ nullable: true }).trim(),
+  body('department').optional({ nullable: true }).trim(),
+  body('dateRange.start').optional({ nullable: true }).trim(),
+  body('dateRange.end').optional({ nullable: true }).trim(),
+  handleValidationErrors,
+];
+
 const validateJourneySummaryRequest = [
   body('applications')
     .isArray()
@@ -159,6 +180,7 @@ router.post('/ai/enhance', validateEnhanceRequest, journalController.enhanceEntr
 router.post('/ai/suggest-tags', journalController.suggestTags);
 router.post('/ai/weekly-summary', validateWeeklySummaryRequest, journalController.summarizeWeek);
 router.post('/ai/journey-summary', validateJourneySummaryRequest, journalController.journeySummary);
+router.post('/ai/compile-summary', validateCompileSummaryRequest, journalController.compileJournal);
 
 // CRUD routes
 router.get('/', journalController.getEntries);

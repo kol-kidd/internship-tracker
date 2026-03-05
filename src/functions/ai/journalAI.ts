@@ -66,6 +66,43 @@ export async function summarizeWeek(
   return response.data.summary;
 }
 
+export interface CompileJournalEntry {
+  title?: string;
+  date?: string;
+  content?: string;
+  mood?: string;
+  tags?: string[];
+  time_in?: string | null;
+  time_out?: string | null;
+  break_time?: number | null;
+}
+
+export interface CompileJournalRequest {
+  entries: CompileJournalEntry[];
+  traineeName?: string;
+  course?: string;
+  industryPartner?: string;
+  department?: string;
+  dateRange?: { start: string; end: string };
+}
+
+export interface CompileJournalResponse {
+  activities: string[];
+  learnings: string[];
+}
+
+export async function compileJournalSummary(
+  payload: CompileJournalRequest,
+  token: string
+): Promise<CompileJournalResponse> {
+  const response = await api.post<CompileJournalResponse>(
+    "/journal/ai/compile-summary",
+    payload,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return response.data;
+}
+
 export interface JourneyApplicationInput {
   date_applied: string;
   company_name: string;
