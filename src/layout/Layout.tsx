@@ -97,164 +97,144 @@ const Layout = ({ children }: LayoutProps) => {
     setIsMobileSidebarOpen(false);
   };
 
-  const handleLogoutAndClose = () => {
-    handleLogout();
-    setIsMobileSidebarOpen(false);
-  };
-
   return (
-    <div className="h-screen flex overflow-hidden bg-surface">
+    <div className="h-screen flex overflow-hidden bg-surface font-sans">
       {/* Mobile Overlay */}
       {isMobileSidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-30"
+          className="lg:hidden fixed inset-0 bg-black/20 backdrop-blur-sm z-30 transition-opacity"
           onClick={() => setIsMobileSidebarOpen(false)}
           aria-hidden
         />
       )}
 
-      {/* Sidebar - Drawer on mobile, static on desktop */}
+      {/* Sidebar - Glassmorphic Drawer on mobile, static on desktop */}
       <aside
         className={`
         fixed lg:static inset-y-0 left-0 z-40
-        w-64 bg-sidebar border-r border-sidebar-border flex flex-col
-        transform transition-transform duration-300 ease-in-out
-        ${
-          isMobileSidebarOpen
-            ? "translate-x-0"
-            : "-translate-x-full lg:translate-x-0"
-        }
+        w-64 border-r border-border flex flex-col
+        transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+        lg:translate-x-0 glass
+        ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}
       `}
       >
-        {/* Logo */}
-        <div className="p-4 border-b border-sidebar-border flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-sm">IP</span>
+        {/* Logo Section */}
+        <div className="p-6 flex items-center gap-3 shrink-0">
+          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+            <span className="text-white font-bold text-sm tracking-tight">
+              IP
+            </span>
           </div>
           <div className="min-w-0">
-            <h1 className="font-semibold text-sm text-white truncate">
+            <h1 className="font-bold text-base text-text tracking-tight">
               InternPal
             </h1>
-            <p className="text-xs text-sidebar-text truncate">
-              {user?.user_metadata?.full_name}
+            <p className="text-[11px] font-medium text-text-muted uppercase tracking-widest opacity-70">
+              Premium Tracker
             </p>
           </div>
         </div>
 
-        {/* Main Menu Section - Scrollable */}
-        <div className="flex-1 overflow-y-auto flex flex-col">
-          <div className="p-3">
-            <span className="flex items-center gap-3 w-full text-sidebar-text-muted text-xs font-medium mb-2">
-              MAIN MENU
-            </span>
+        {/* Navigation Section */}
+        <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-1">
+          <p className="px-3 text-[11px] font-bold text-text-muted uppercase tracking-[0.15em] mb-2 opacity-60">
+            Menu
+          </p>
 
-            <nav className="space-y-0.5">
-              {sidebar.map((item) => (
+          <nav className="space-y-1">
+            {sidebar.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
                 <button
                   key={item.key}
                   onClick={() => handleNavClick(item.path)}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 min-h-[44px] text-left text-sm text-sidebar-text hover:bg-primary/20 rounded-lg transition-colors cursor-pointer touch-manipulation"
+                  className={`
+                    flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium
+                    transition-all duration-200 cursor-pointer group
+                    ${
+                      isActive
+                        ? "bg-primary text-white shadow-md shadow-primary/20"
+                        : "text-text-muted hover:bg-black/5 hover:text-text"
+                    }
+                  `}
                 >
-                  {item.icon}
+                  <div
+                    className={`transition-transform duration-200 group-hover:scale-110 ${isActive ? "text-white" : "text-primary opacity-70"}`}
+                  >
+                    {item.icon}
+                  </div>
                   <span>{item.title}</span>
                 </button>
-              ))}
-            </nav>
-          </div>
-
-          {/* Logout - inside menu on mobile only */}
-          <div className="mt-auto p-3 border-t border-sidebar-border lg:hidden">
-            <button
-              onClick={handleLogoutAndClose}
-              className="flex items-center gap-3 w-full px-3 py-2.5 min-h-[44px] text-left text-sm text-sidebar-text hover:bg-primary/20 rounded-lg transition-colors cursor-pointer touch-manipulation"
-            >
-              <LogOut className="w-4 h-4 shrink-0" />
-              <span>Logout</span>
-            </button>
-          </div>
-
-          {/* My Projects Section */}
-          {/* <div className="p-3 mt-4">
-            <button
-              onClick={() => setIsProjectsOpen(!isProjectsOpen)}
-              className="flex items-center gap-3 w-full text-neutral-500 hover:text-neutral-300 text-xs font-medium mb-2"
-            >
-              MY PROJECTS
-              <ChevronDown
-                className={`w-3 h-3 ml-auto transition-transform ${
-                  !isProjectsOpen ? "-rotate-90" : ""
-                }`}
-              />
-            </button>
-
-            {isProjectsOpen && (
-              <nav className="space-y-1">
-                <button className="flex items-center gap-3 w-full px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer">
-                  <div className="w-2 h-2 bg-neutral-400 rounded-full"></div>
-                  <span>Internship Applications</span>
-                </button>
-
-                <button className="flex items-center gap-3 w-full px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer">
-                  <div className="w-2 h-2 bg-neutral-500 rounded-full"></div>
-                  <span>Interview Prep</span>
-                </button>
-
-                <button className="flex items-center gap-3 w-full px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer">
-                  <div className="w-2 h-2 bg-neutral-600 rounded-full"></div>
-                  <span>Resume Updates</span>
-                  <span className="ml-auto text-xs text-neutral-500">8</span>
-                </button>
-
-                <button className="flex items-center gap-3 w-full px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer">
-                  <div className="w-2 h-2 bg-neutral-700 rounded-full"></div>
-                  <span>Follow-ups</span>
-                </button>
-              </nav>
-            )}
-          </div> */}
+              );
+            })}
+          </nav>
         </div>
-      </aside>
 
-      {/* Main Content Area - Flex Column */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header - Menu (mobile) + title/greeting + Logout (desktop) */}
-        <header className="bg-canvas border-b border-border px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-4 justify-between shrink-0 min-h-[56px]">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <button
-              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-              className="lg:hidden shrink-0 w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-text-muted hover:bg-accent/30 hover:text-text transition-colors touch-manipulation"
-              aria-label={isMobileSidebarOpen ? "Close menu" : "Open menu"}
-            >
-              {isMobileSidebarOpen ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
-            </button>
-            <div className="flex flex-col min-w-0 flex-1 py-0.5">
-              <h2 className="text-xs sm:text-sm font-medium text-text-muted truncate">
-                {pageTitle}
-              </h2>
-              <p className="text-sm sm:text-base font-semibold text-text truncate">
-                {greeting}, {firstName}
+        {/* User / Logout Section */}
+        <div className="p-4 mt-auto border-t border-border">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-black/5 mb-4">
+            <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary">
+              {firstName[0]}
+            </div>
+            <div className="min-w-0 overflow-hidden">
+              <p className="text-sm font-bold text-text truncate leading-none mb-1">
+                {user?.user_metadata?.full_name}
+              </p>
+              <p className="text-[11px] text-text-muted truncate opacity-80">
+                Logged in
               </p>
             </div>
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl text-sm font-bold text-error bg-error/5 hover:bg-error/10 transition-colors cursor-pointer border border-error/10"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Header - Refined Apple Style */}
+        <header className="h-16 flex items-center justify-between px-6 shrink-0 z-20 glass border-b border-border/50">
+          <div className="flex items-center gap-4 min-w-0">
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors cursor-pointer"
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              className="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-black/5 text-text hover:bg-black/10 transition-colors"
+              aria-label="Toggle Menu"
             >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
+              {isMobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] leading-none mb-1">
+                {pageTitle}
+              </span>
+              <h2 className="text-lg font-bold text-text tracking-tight flex items-center gap-2">
+                {greeting}, {firstName}{" "}
+                <span className="animate-bounce">👋</span>
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center px-4 py-2 rounded-full bg-black/5 border border-black/5 text-xs font-semibold text-text-muted">
+              <div className="w-1.5 h-1.5 rounded-full bg-success mr-2 animate-pulse" />
+              Live Status
+            </div>
           </div>
         </header>
 
-        {/* Main Content - Scrollable */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-surface">
-          <div className="p-4 sm:p-6 min-h-0">{children}</div>
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto bg-surface relative">
+          <div className="max-w-[1600px] mx-auto p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {children}
+          </div>
+
+          {/* Subtle Background Decoration */}
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
         </main>
       </div>
     </div>
