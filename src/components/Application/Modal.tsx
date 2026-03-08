@@ -1,75 +1,24 @@
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Slide,
-  styled,
-  type DialogProps,
-} from "@mui/material";
+import { Dialog, DialogContent, IconButton, Slide } from "@mui/material";
 import type { TransitionProps } from "@mui/material/transitions";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
-import { CircleX } from "lucide-react";
+import { X, Calendar } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import CustomInput from "../Input";
-import { useAuthStore } from "@/store/authStore";
 import { useAppStore } from "@/store/applicationStore";
-import { Bounce, toast } from "react-toastify";
+import { toast } from "react-toastify";
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
-    children: React.ReactElement<any, any>;
+    children: React.ReactElement;
   },
-  ref: React.Ref<unknown>
+  ref: React.Ref<unknown>,
 ) {
-  return <Slide direction="down" ref={ref} {...props} />;
+  return <Slide direction="up" ref={ref} {...props} />;
 });
-
-const themeColors = {
-  canvas: "#ffffff",
-  text: "#222222",
-  textMuted: "#666666",
-  border: "#e6e6e6",
-  primary: "#c4946e",
-  primaryHover: "#b8855e",
-  accent: "#e8d4c4",
-};
-
-const BootstrapDialog = styled(Dialog)(({ theme }) => ({
-  "& .MuiDialog-paper": {
-    backgroundColor: themeColors.canvas,
-    border: `1px solid ${themeColors.border}`,
-    borderRadius: 16,
-    boxShadow:
-      "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
-  },
-  "& .MuiDialogTitle-root": {
-    color: themeColors.text,
-    fontWeight: 600,
-    fontSize: "1.125rem",
-    padding: theme.spacing(2, 3),
-    borderBottom: `1px solid ${themeColors.border}`,
-  },
-  "& .MuiDialogContent-root": {
-    padding: theme.spacing(2, 3),
-    "&.MuiDialogContent-dividers": {
-      borderTop: "none",
-    },
-  },
-  "& .MuiDialogActions-root": {
-    padding: theme.spacing(2, 3),
-    borderTop: `1px solid ${themeColors.border}`,
-    gap: theme.spacing(1.5),
-  },
-}));
 
 type ModalProps = {
   handleModal: () => void;
   isUpdate?: boolean;
-  setIsCreating?: (value: boolean) => void;
   appId?: number;
   companyName?: string;
   companyAddress?: string;
@@ -79,30 +28,25 @@ type ModalProps = {
 };
 
 export default function Modal(props: ModalProps) {
-  const { user } = useAuthStore();
-
   const {
     addApplication: storeAddApplication,
     updateApplication: storeUpdateApplication,
   } = useAppStore();
-
-  const [fullWidth] = useState(true);
-  const [maxWidth] = useState<DialogProps["maxWidth"]>("sm");
 
   const [companyName, setCompanyName] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
   const [position, setPosition] = useState("");
   const [stipend, setStipend] = useState<"paid" | "unpaid" | "">("");
   const [dateApplied, setDateApplied] = useState<Dayjs | null>(dayjs());
-  const [loadingCreate, setLoadingCreate] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (props.open) {
-      if (props.isUpdate && props.companyName && props.companyAddress) {
+      if (props.isUpdate && props.companyName) {
         setCompanyName(props.companyName);
-        setCompanyAddress(props.companyAddress);
-        setPosition(props.position ?? "");
-        setStipend(props.stipend ?? "");
+        setCompanyAddress(props.companyAddress || "");
+        setPosition(props.position || "");
+        setStipend(props.stipend || "");
       } else {
         setCompanyName("");
         setCompanyAddress("");
@@ -121,237 +65,191 @@ export default function Modal(props: ModalProps) {
   ]);
 
   const handleClose = () => {
-    setCompanyName("");
-    setCompanyAddress("");
-    setPosition("");
-    setStipend("");
-    setDateApplied(dayjs());
-    setLoadingCreate(false);
     props.handleModal();
   };
 
-  const handleSaveApplication = async () => {
-    // Validation
-    if (
-      !companyName ||
-      !companyAddress ||
-      companyName.trim() === "" ||
-      companyAddress.trim() === ""
-    ) {
-      toast.error("Please fill in all required fields", {
-        position: "top-right",
-        hideProgressBar: false,
-        closeOnClick: false,
-        progress: undefined,
-        theme: "light",
-        transition: Bounce,
-      });
+  const handleSave = async () => {
+    if (!companyName || !companyAddress) {
+      toast.error("Company name and address are required");
       return;
     }
 
-    if (!props.isUpdate && !dateApplied) {
-      toast.error("Please select a date", {
-        position: "top-right",
-        hideProgressBar: false,
-        closeOnClick: false,
-        progress: undefined,
-        theme: "light",
-        transition: Bounce,
-      });
-      return;
-    }
-
-    setLoadingCreate(true);
-    props.setIsCreating && props.setIsCreating(true);
-
+    setLoading(true);
     try {
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-
       if (props.isUpdate && props.appId) {
         await storeUpdateApplication(props.appId, {
-          companyName: companyName,
-          companyAddress: companyAddress,
-          position: position.trim() || "",
-          stipend: stipend === "paid" || stipend === "unpaid" ? stipend : "",
+          companyName,
+          companyAddress,
+          position,
+          stipend: stipend === "" ? undefined : stipend,
         });
-
-        toast.info("Application updated successfully", {
-          position: "top-right",
-          hideProgressBar: false,
-          closeOnClick: false,
-          progress: undefined,
-          theme: "light",
-          transition: Bounce,
-        });
+        toast.success("Application updated");
       } else {
-        // Create new application
-        if (!dateApplied) return;
-
         await storeAddApplication({
           companyName,
           companyAddress,
-          position: position.trim() || "",
-          stipend: stipend === "paid" || stipend === "unpaid" ? stipend : "",
-          dateApplied: dateApplied.toISOString(),
+          position,
+          stipend: stipend === "" ? undefined : stipend,
+          dateApplied: dateApplied?.toISOString() || dayjs().toISOString(),
           status: "applied",
         });
-
-        toast.success("Application added successfully", {
-          position: "top-right",
-          hideProgressBar: false,
-          closeOnClick: false,
-          progress: undefined,
-          theme: "light",
-          transition: Bounce,
-        });
+        toast.success("Application added");
       }
-
-      // Close modal and reset form
       handleClose();
-    } catch (error) {
-      console.error("Error saving application:", error);
-      toast.error(
-        props.isUpdate
-          ? "Failed to update application"
-          : "Failed to add application",
-        {
-          position: "top-right",
-          hideProgressBar: false,
-          closeOnClick: false,
-          progress: undefined,
-          theme: "light",
-          transition: Bounce,
-        }
-      );
+    } catch {
+      toast.error("Failed to save application");
     } finally {
-      setLoadingCreate(false);
+      setLoading(false);
     }
   };
 
   return (
-    <BootstrapDialog
+    <Dialog
       open={props.open}
-      slots={{
-        transition: Transition,
-      }}
-      keepMounted
+      TransitionComponent={Transition}
       onClose={handleClose}
-      fullWidth={fullWidth}
-      maxWidth={maxWidth}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{
+        sx: {
+          borderRadius: "2.5rem",
+          overflow: "hidden",
+          backgroundImage: "none",
+          backgroundColor: "rgba(255, 255, 255, 0.9)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(0, 0, 0, 0.05)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.1)",
+        },
+      }}
     >
-      <DialogTitle sx={{ m: 0, p: 2, pr: 6 }} id="customized-dialog-title">
-        {props.isUpdate ? "Edit Application" : "Add New Application"}
-      </DialogTitle>
-      <IconButton
-        aria-label="close"
-        onClick={handleClose}
-        sx={{
-          position: "absolute",
-          right: 12,
-          top: 12,
-          color: themeColors.textMuted,
-          "&:hover": {
-            backgroundColor: "rgba(232, 212, 196, 0.35)",
-            color: themeColors.text,
-          },
-        }}
-      >
-        <CircleX className="w-5 h-5" />
-      </IconButton>
-      <DialogContent dividers className="flex flex-col gap-3">
-        {!props.isUpdate && (
-          <DatePicker
-            label="Date Applied"
-            value={dateApplied}
-            onChange={(newValue) => {
-              setDateApplied(newValue);
-            }}
-            maxDate={dayjs()}
-          />
-        )}
-
-        <CustomInput
-          type="text"
-          variant="outlined"
-          label="Company Name"
-          value={companyName}
-          onChange={(e) => {
-            setCompanyName(e.target.value);
-          }}
-        />
-        <CustomInput
-          type="text"
-          variant="outlined"
-          label="Role / Position"
-          value={position}
-          onChange={(e) => {
-            setPosition(e.target.value);
-          }}
-        />
-        <CustomInput
-          type="text"
-          variant="outlined"
-          label="Company Address"
-          value={companyAddress}
-          onChange={(e) => {
-            setCompanyAddress(e.target.value);
-          }}
-        />
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#222222]">Stipend</label>
-          <select
-            value={stipend}
-            onChange={(e) =>
-              setStipend((e.target.value || "") as "" | "paid" | "unpaid")
-            }
-            className="w-full rounded-lg border border-[#e6e6e6] bg-white px-3 py-2.5 text-sm text-[#222222] focus:outline-none focus:border-primary"
+      <div className="p-8 space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-black tracking-tight">
+              {props.isUpdate ? "Edit Details" : "New Application"}
+            </h2>
+            <p className="text-sm font-medium text-text-muted">
+              {props.isUpdate
+                ? "Make sure everything is up to date."
+                : "Track another opportunity."}
+            </p>
+          </div>
+          <IconButton
+            onClick={handleClose}
+            className="bg-black/5 hover:bg-black/10 transition-colors"
           >
-            <option value="">Not specified</option>
-            <option value="paid">Paid</option>
-            <option value="unpaid">Unpaid</option>
-          </select>
+            <X size={20} />
+          </IconButton>
         </div>
-      </DialogContent>
-      <DialogActions>
-        <Button
-          onClick={handleClose}
-          sx={{
-            color: themeColors.textMuted,
-            textTransform: "none",
-            fontWeight: 500,
-            "&:hover": {
-              backgroundColor: "rgba(232, 212, 196, 0.35)",
-              color: themeColors.text,
-            },
-          }}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleSaveApplication}
-          disabled={loadingCreate}
-          sx={{
-            bgcolor: themeColors.primary,
-            color: "#fff",
-            textTransform: "none",
-            fontWeight: 500,
-            "&:hover": {
-              bgcolor: themeColors.primaryHover,
-            },
-          }}
-        >
-          {loadingCreate
-            ? props.isUpdate
-              ? "Updating..."
-              : "Saving..."
-            : props.isUpdate
-            ? "Update Application"
-            : "Add Application"}
-        </Button>
-      </DialogActions>
-    </BootstrapDialog>
+
+        <DialogContent className="space-y-6 !p-0">
+          {!props.isUpdate && (
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+                Application Date
+              </label>
+              <div className="relative">
+                <Calendar
+                  size={18}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted opacity-40"
+                />
+                <DatePicker
+                  value={dateApplied}
+                  onChange={(n) => setDateApplied(n)}
+                  sx={{
+                    width: "100%",
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "1.25rem",
+                      paddingLeft: "2.5rem",
+                      backgroundColor: "rgba(0,0,0,0.03)",
+                      border: "none",
+                      "& fieldset": { border: "none" },
+                    },
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+                Company Name
+              </label>
+              <input
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="e.g. Apple"
+                className="w-full px-5 py-4 rounded-2xl bg-black/5 border-none text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+                Position / Role
+              </label>
+              <input
+                value={position}
+                onChange={(e) => setPosition(e.target.value)}
+                placeholder="e.g. Software Intern"
+                className="w-full px-5 py-4 rounded-2xl bg-black/5 border-none text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+              Location / Address
+            </label>
+            <input
+              value={companyAddress}
+              onChange={(e) => setCompanyAddress(e.target.value)}
+              placeholder="e.g. Cupertino, CA"
+              className="w-full px-5 py-4 rounded-2xl bg-black/5 border-none text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+              Stipend Status
+            </label>
+            <div className="flex gap-2">
+              {["paid", "unpaid"].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStipend(s as "paid" | "unpaid")}
+                  className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                    stipend === s
+                      ? "bg-text text-white shadow-lg shadow-black/10 scale-95"
+                      : "bg-black/5 text-text-muted hover:bg-black/10"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+
+        <div className="flex gap-4 pt-4">
+          <button
+            onClick={handleClose}
+            className="flex-1 py-4 rounded-2xl bg-black/5 text-text-muted text-sm font-bold hover:bg-black/10 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="flex-[2] py-4 rounded-2xl bg-text text-white text-sm font-bold hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-black/10 disabled:opacity-50"
+          >
+            {loading
+              ? "Optimizing..."
+              : props.isUpdate
+                ? "Verify Changes"
+                : "Create Application"}
+          </button>
+        </div>
+      </div>
+    </Dialog>
   );
 }

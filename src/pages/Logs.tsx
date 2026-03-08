@@ -56,9 +56,12 @@ const PDF_LANDSCAPE_WIDTH_MM = 80;
 const PDF_PORTRAIT_WIDTH_MM = 45;
 const PDF_THUMB_GAP_MM = 4;
 
-function loadImageAsResizedDataUrl(
-  url: string
-): Promise<{ dataUrl: string; wMm: number; hMm: number; isLandscape: boolean } | null> {
+function loadImageAsResizedDataUrl(url: string): Promise<{
+  dataUrl: string;
+  wMm: number;
+  hMm: number;
+  isLandscape: boolean;
+} | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -68,7 +71,9 @@ function loadImageAsResizedDataUrl(
         const naturalH = img.naturalHeight;
         const isLandscape = naturalW > naturalH;
         const maxPx = isLandscape ? PDF_LANDSCAPE_MAX_PX : PDF_PORTRAIT_MAX_PX;
-        const targetWidthMm = isLandscape ? PDF_LANDSCAPE_WIDTH_MM : PDF_PORTRAIT_WIDTH_MM;
+        const targetWidthMm = isLandscape
+          ? PDF_LANDSCAPE_WIDTH_MM
+          : PDF_PORTRAIT_WIDTH_MM;
 
         let w = naturalW;
         let h = naturalH;
@@ -157,7 +162,7 @@ const LogsPage = () => {
   });
 
   const [weeklyReportMode, setWeeklyReportMode] = useState<"view" | "new">(
-    "view"
+    "view",
   );
   const [selectedWeekDate, setSelectedWeekDate] = useState(() => {
     const d = new Date();
@@ -170,7 +175,7 @@ const LogsPage = () => {
   const [weeklyLogSaving, setWeeklyLogSaving] = useState(false);
   const [reportName, setReportName] = useState("");
   const [reportDate, setReportDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
+    new Date().toISOString().slice(0, 10),
   );
   const [mainView, setMainView] = useState<
     "entries" | "weekly" | "notes" | "gallery"
@@ -199,16 +204,16 @@ const LogsPage = () => {
 
   const [noteFormContent, setNoteFormContent] = useState("");
   const [noteFormDate, setNoteFormDate] = useState(
-    () => new Date().toISOString().split("T")[0]
+    () => new Date().toISOString().split("T")[0],
   );
   const [noteFormTime, setNoteFormTime] = useState("");
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [mergeTitle, setMergeTitle] = useState("");
   const [mergeDate, setMergeDate] = useState(
-    () => new Date().toISOString().split("T")[0]
+    () => new Date().toISOString().split("T")[0],
   );
   const [deleteNotesAfterMerge, setDeleteNotesAfterMerge] = useState(false);
   const [mergeSaving, setMergeSaving] = useState(false);
@@ -222,7 +227,7 @@ const LogsPage = () => {
   const [entryViewUploading, setEntryViewUploading] = useState(false);
   const [exportPdfModalOpen, setExportPdfModalOpen] = useState(false);
   const [exportPdfSelectedIds, setExportPdfSelectedIds] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [exportPdfLoading, setExportPdfLoading] = useState(false);
 
@@ -276,7 +281,7 @@ const LogsPage = () => {
         formData.content,
         formData.title,
         enhanceType,
-        session.access_token
+        session.access_token,
       );
 
       setFormData((prev) => ({
@@ -334,7 +339,7 @@ const LogsPage = () => {
       const tags = await suggestTags(
         formData.content,
         formData.title,
-        session.access_token
+        session.access_token,
       );
 
       const existingTags = formData.tags
@@ -668,7 +673,7 @@ const LogsPage = () => {
   };
 
   const handleGalleryUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (!file || !user?.id) return;
@@ -738,7 +743,7 @@ const LogsPage = () => {
   };
 
   const handleEntryViewUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (!file || !user?.id || !viewingEntry) return;
@@ -782,7 +787,7 @@ const LogsPage = () => {
   const calculateHours = (
     timeIn: string,
     timeOut: string,
-    breakTime?: number | null
+    breakTime?: number | null,
   ) => {
     if (!timeIn || !timeOut) return 0;
     const [inHour, inMin] = timeIn.split(":").map(Number);
@@ -824,7 +829,7 @@ const LogsPage = () => {
       const hours = calculateHours(
         entry.time_in,
         entry.time_out,
-        entry.break_time
+        entry.break_time,
       );
       return total + hours;
     }
@@ -842,7 +847,7 @@ const LogsPage = () => {
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
+        tag.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     const matchesMood = filterMood === "all" || entry.mood === filterMood;
     return matchesSearch && matchesMood;
@@ -887,19 +892,22 @@ const LogsPage = () => {
     },
   };
 
-  const moodCounts = entries.reduce((acc, entry) => {
-    acc[entry.mood] = (acc[entry.mood] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const moodCounts = entries.reduce(
+    (acc, entry) => {
+      acc[entry.mood] = (acc[entry.mood] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   const weekBounds = getWeekBounds(new Date(selectedWeekDate));
   const entriesForSelectedWeek = entries.filter((e) =>
-    isDateInWeekBounds(e.date, weekBounds)
+    isDateInWeekBounds(e.date, weekBounds),
   );
 
   const handleGenerateWeeklySummary = async () => {
     const entriesToSummarize = entries.filter((e) =>
-      isDateInWeekBounds(e.date, weekBounds)
+      isDateInWeekBounds(e.date, weekBounds),
     );
     if (entriesToSummarize.length === 0 || !session?.access_token) {
       if (entriesToSummarize.length === 0) {
@@ -909,7 +917,7 @@ const LogsPage = () => {
             position: "top-right",
             theme: "light",
             transition: Bounce,
-          }
+          },
         );
       }
       return;
@@ -933,7 +941,7 @@ const LogsPage = () => {
       });
       const summary = await summarizeWeek(
         payload as Parameters<typeof summarizeWeek>[0],
-        session.access_token
+        session.access_token,
       );
       setWeeklySummary(summary);
       toast.success("Weekly summary generated", {
@@ -1002,14 +1010,11 @@ const LogsPage = () => {
     const hasSummary = Boolean(weeklySummary?.trim());
 
     if (!hasSummary) {
-      toast.error(
-        "Please generate an AI summary first before exporting.",
-        {
-          position: "top-right",
-          theme: "light",
-          transition: Bounce,
-        }
-      );
+      toast.error("Please generate an AI summary first before exporting.", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
       return;
     }
 
@@ -1020,7 +1025,7 @@ const LogsPage = () => {
 
       // Load images for all entries
       const sortedEntries = [...entriesForSelectedWeek].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
       );
 
       const imagesByEntry = new Map<number, PdfThumb[]>();
@@ -1028,11 +1033,11 @@ const LogsPage = () => {
         sortedEntries.map(async (entry) => {
           const images = await getGalleryForEntry(entry.id);
           const loaded = await Promise.all(
-            images.map((img) => loadImageAsResizedDataUrl(img.image_url))
+            images.map((img) => loadImageAsResizedDataUrl(img.image_url)),
           );
           const valid = loaded.filter((x): x is PdfThumb => x != null);
           imagesByEntry.set(entry.id, valid);
-        })
+        }),
       );
 
       const doc = new jsPDF();
@@ -1151,7 +1156,9 @@ const LogsPage = () => {
           (reportName || "—").slice(0, 12),
           formatTimePDF(entry.time_in),
           formatTimePDF(entry.time_out),
-          entry.title.length > 26 ? entry.title.slice(0, 25) + "…" : entry.title,
+          entry.title.length > 26
+            ? entry.title.slice(0, 25) + "…"
+            : entry.title,
         ];
         cells.forEach((cell, i) => {
           const w = colWidths[i];
@@ -1192,7 +1199,7 @@ const LogsPage = () => {
       doc.setFontSize(10);
       doc.setTextColor(...darkText);
       const conclusionText = hasSummary
-        ? weeklySummary ?? ""
+        ? (weeklySummary ?? "")
         : "No summary generated for this week.";
       const conclusionLines = doc.splitTextToSize(conclusionText, contentWidth);
       const lineHeight = 5;
@@ -1206,7 +1213,9 @@ const LogsPage = () => {
       });
 
       // Proof of Work section with images
-      const hasAnyImages = sortedEntries.some((e) => (imagesByEntry.get(e.id)?.length ?? 0) > 0);
+      const hasAnyImages = sortedEntries.some(
+        (e) => (imagesByEntry.get(e.id)?.length ?? 0) > 0,
+      );
       if (hasAnyImages) {
         y += 12;
         if (y + 30 > pageHeight - 30) {
@@ -1234,11 +1243,14 @@ const LogsPage = () => {
           }
 
           // Entry date label
-          const entryDateLabel = new Date(entry.date).toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-          });
+          const entryDateLabel = new Date(entry.date).toLocaleDateString(
+            "en-US",
+            {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            },
+          );
           doc.setFontSize(9);
           doc.setTextColor(...mutedText);
           doc.setFont("helvetica", "bold");
@@ -1297,9 +1309,14 @@ const LogsPage = () => {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(...mutedText);
-        doc.text(`InternPal  |  Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, {
-          align: "center",
-        });
+        doc.text(
+          `InternPal  |  Page ${i} of ${totalPages}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          {
+            align: "center",
+          },
+        );
       }
 
       const fileName = `internpal-weekly-${weekBounds.start}-to-${weekBounds.end}.pdf`;
@@ -1344,11 +1361,16 @@ const LogsPage = () => {
     setExportPdfSelectedIds(new Set());
   };
 
-  type PdfThumb = { dataUrl: string; wMm: number; hMm: number; isLandscape: boolean };
+  type PdfThumb = {
+    dataUrl: string;
+    wMm: number;
+    hMm: number;
+    isLandscape: boolean;
+  };
 
   const exportToPDF = (
     entriesToExport: JournalEntry[],
-    imagesByEntryId?: Map<number, PdfThumb[]>
+    imagesByEntryId?: Map<number, PdfThumb[]>,
   ) => {
     if (entriesToExport.length === 0) {
       toast.error("Select at least one entry to export", {
@@ -1372,7 +1394,7 @@ const LogsPage = () => {
     const lightAccent: [number, number, number] = [232, 212, 196]; // #e8d4c4
 
     const sortedEntries = [...entriesToExport].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
 
     const addPageFooter = (pageNum: number, totalPages: number) => {
@@ -1383,7 +1405,7 @@ const LogsPage = () => {
         `InternPal  |  Page ${pageNum} of ${totalPages}`,
         pageWidth / 2,
         pageHeight - 10,
-        { align: "center" }
+        { align: "center" },
       );
     };
 
@@ -1399,13 +1421,25 @@ const LogsPage = () => {
       doc.text("InternPal", margin, yPosition);
       doc.setTextColor(...mutedText);
       doc.setFont("helvetica", "normal");
-      doc.text(" - Journal Entry", margin + doc.getTextWidth("InternPal"), yPosition);
+      doc.text(
+        " - Journal Entry",
+        margin + doc.getTextWidth("InternPal"),
+        yPosition,
+      );
       yPosition += 12;
 
       // Day badge with background
       const dayText = `Day ${index + 1} of ${sortedEntries.length}`;
       doc.setFillColor(...lightAccent);
-      doc.roundedRect(margin, yPosition - 5, doc.getTextWidth(dayText) + 10, 8, 2, 2, "F");
+      doc.roundedRect(
+        margin,
+        yPosition - 5,
+        doc.getTextWidth(dayText) + 10,
+        8,
+        2,
+        2,
+        "F",
+      );
       doc.setFontSize(9);
       doc.setTextColor(...primaryColor);
       doc.setFont("helvetica", "bold");
@@ -1438,7 +1472,7 @@ const LogsPage = () => {
         const hours = calculateHours(
           entry.time_in,
           entry.time_out,
-          entry.break_time
+          entry.break_time,
         );
         let timeStr = `${formatTime(entry.time_in)} - ${formatTime(entry.time_out)}`;
         if (entry.break_time) timeStr += `  •  ${entry.break_time} min break`;
@@ -1510,7 +1544,12 @@ const LogsPage = () => {
         const headerWidth = doc.getTextWidth("Proof of Work");
         doc.setDrawColor(...lightAccent);
         doc.setLineWidth(0.3);
-        doc.line(margin + headerWidth + 4, yPosition - 2, pageWidth - margin, yPosition - 2);
+        doc.line(
+          margin + headerWidth + 4,
+          yPosition - 2,
+          pageWidth - margin,
+          yPosition - 2,
+        );
         yPosition += 8;
 
         const gap = PDF_THUMB_GAP_MM;
@@ -1576,25 +1615,25 @@ const LogsPage = () => {
 
   const handleExportSelectedPdf = async () => {
     const selected = filteredEntries.filter((e) =>
-      exportPdfSelectedIds.has(e.id)
+      exportPdfSelectedIds.has(e.id),
     );
     if (selected.length === 0) return;
 
     setExportPdfLoading(true);
     try {
       const imageLists = await Promise.all(
-        selected.map((e) => getGalleryForEntry(e.id))
+        selected.map((e) => getGalleryForEntry(e.id)),
       );
       const thumbMap = new Map<number, PdfThumb[]>();
       await Promise.all(
         selected.map(async (e, i) => {
           const imgs = imageLists[i] ?? [];
           const loaded = await Promise.all(
-            imgs.map((img) => loadImageAsResizedDataUrl(img.image_url))
+            imgs.map((img) => loadImageAsResizedDataUrl(img.image_url)),
           );
           const valid = loaded.filter((x): x is PdfThumb => x != null);
           thumbMap.set(e.id, valid);
-        })
+        }),
       );
       exportToPDF(selected, thumbMap);
       setExportPdfModalOpen(false);
@@ -1613,9 +1652,20 @@ const LogsPage = () => {
   };
 
   const handleCompileReport = async () => {
-    const { traineeName, course, industryPartner, department, startDate, endDate } = compileForm;
+    const {
+      traineeName,
+      course,
+      industryPartner,
+      department,
+      startDate,
+      endDate,
+    } = compileForm;
     if (!startDate || !endDate) {
-      toast.error("Please select a start and end date.", { position: "top-right", theme: "light", transition: Bounce });
+      toast.error("Please select a start and end date.", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
       return;
     }
     const start = new Date(startDate);
@@ -1626,7 +1676,11 @@ const LogsPage = () => {
       return d >= start && d <= end;
     });
     if (rangeEntries.length === 0) {
-      toast.error("No journal entries found in the selected date range.", { position: "top-right", theme: "light", transition: Bounce });
+      toast.error("No journal entries found in the selected date range.", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
       return;
     }
     if (!session?.access_token) return;
@@ -1641,7 +1695,7 @@ const LogsPage = () => {
           department,
           dateRange: { start: startDate, end: endDate },
         },
-        session.access_token
+        session.access_token,
       );
       generateCTUJournalPDF({
         traineeName,
@@ -1653,14 +1707,24 @@ const LogsPage = () => {
         learnings: result.learnings,
       });
       setCompileModalOpen(false);
-      toast.success("CTU OJT Form 6 exported!", { position: "top-right", theme: "light", transition: Bounce });
+      toast.success("CTU OJT Form 6 exported!", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
     } catch (err: unknown) {
       console.error("Compile journal error:", err);
       const msg =
-        (err as { response?: { data?: { error?: string; details?: string } } })?.response?.data?.error ||
-        (err as { response?: { data?: { details?: string } } })?.response?.data?.details ||
+        (err as { response?: { data?: { error?: string; details?: string } } })
+          ?.response?.data?.error ||
+        (err as { response?: { data?: { details?: string } } })?.response?.data
+          ?.details ||
         "Failed to compile journal. Please try again.";
-      toast.error(msg, { position: "top-right", theme: "light", transition: Bounce });
+      toast.error(msg, {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
     } finally {
       setCompileLoading(false);
     }
@@ -1808,7 +1872,6 @@ const LogsPage = () => {
                 </div>
               </div>
             </div>
-
           </div>
         </aside>
 
@@ -1848,7 +1911,8 @@ const LogsPage = () => {
                       <option value="all">All Moods ({entries.length})</option>
                       {Object.entries(moodConfig).map(([mood, config]) => (
                         <option key={mood} value={mood}>
-                          {moodEmojis[mood]} {config.label} ({moodCounts[mood] || 0})
+                          {moodEmojis[mood]} {config.label} (
+                          {moodCounts[mood] || 0})
                         </option>
                       ))}
                     </select>
@@ -1965,17 +2029,26 @@ const LogsPage = () => {
             {/* Mobile stats row */}
             <div className="flex items-center justify-between text-xs text-text-muted bg-surface-alt/50 rounded-lg px-3 py-2">
               <span>
-                <span className="font-semibold text-text">{entries.length}</span> entries
+                <span className="font-semibold text-text">
+                  {entries.length}
+                </span>{" "}
+                entries
               </span>
               <span className="text-border">|</span>
               <span>
-                <span className="font-semibold text-text">{totalHoursLogged.toFixed(1)}h</span> logged
+                <span className="font-semibold text-text">
+                  {totalHoursLogged.toFixed(1)}h
+                </span>{" "}
+                logged
               </span>
               <span className="text-border">|</span>
               <span>
-                <span className={`font-semibold ${hoursRemaining > 0 ? "text-soft-pink" : "text-soft-green"}`}>
+                <span
+                  className={`font-semibold ${hoursRemaining > 0 ? "text-soft-pink" : "text-soft-green"}`}
+                >
                   {hoursRemaining.toFixed(1)}h
-                </span> left
+                </span>{" "}
+                left
               </span>
             </div>
           </div>
@@ -2091,7 +2164,7 @@ const LogsPage = () => {
                           .sort(
                             (a, b) =>
                               new Date(a.date).getTime() -
-                              new Date(b.date).getTime()
+                              new Date(b.date).getTime(),
                           )
                           .map((e) => (
                             <tr
@@ -2195,7 +2268,9 @@ const LogsPage = () => {
                       ) : (
                         <Download className="w-4 h-4 shrink-0" />
                       )}
-                      <span>{weeklyExportLoading ? "Exporting..." : "Export PDF"}</span>
+                      <span>
+                        {weeklyExportLoading ? "Exporting..." : "Export PDF"}
+                      </span>
                     </button>
                   )}
                 </div>
@@ -2290,7 +2365,7 @@ const LogsPage = () => {
                                 {
                                   month: "short",
                                   day: "numeric",
-                                }
+                                },
                               )}
                             </span>
                           </div>
@@ -2301,7 +2376,7 @@ const LogsPage = () => {
                                 {calculateHours(
                                   entry.time_in,
                                   entry.time_out,
-                                  entry.break_time
+                                  entry.break_time,
                                 ).toFixed(1)}
                                 h
                               </span>
@@ -2494,7 +2569,7 @@ const LogsPage = () => {
                                       month: "short",
                                       day: "numeric",
                                       year: "numeric",
-                                    }
+                                    },
                                   )}
                                   {note.time?.trim()
                                     ? ` · ${note.time.trim()}`
@@ -2567,7 +2642,7 @@ const LogsPage = () => {
                               setGalleryEntryId(
                                 e.target.value === ""
                                   ? ""
-                                  : Number(e.target.value)
+                                  : Number(e.target.value),
                               )
                             }
                             className="w-40 sm:w-52 px-3 py-2 rounded-lg border border-border text-sm text-text focus:outline-none focus:border-primary bg-surface"
@@ -2989,7 +3064,7 @@ const LogsPage = () => {
                             month: "long",
                             day: "numeric",
                             year: "numeric",
-                          }
+                          },
                         )}
                       </span>
                     </div>
@@ -3006,7 +3081,7 @@ const LogsPage = () => {
                           {calculateHours(
                             viewingEntry.time_in,
                             viewingEntry.time_out,
-                            viewingEntry.break_time
+                            viewingEntry.break_time,
                           ).toFixed(1)}{" "}
                           hours
                         </span>
@@ -3271,65 +3346,108 @@ const LogsPage = () => {
               </div>
               <div className="p-6 overflow-y-auto flex-1 min-h-0 space-y-4">
                 <p className="text-sm text-text-muted">
-                  Fill in your trainee details and choose a date range. AI will summarize your entries into a CTU OJT Form 6 PDF.
+                  Fill in your trainee details and choose a date range. AI will
+                  summarize your entries into a CTU OJT Form 6 PDF.
                 </p>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1">Trainee Name</label>
+                    <label className="block text-xs font-medium text-text-muted mb-1">
+                      Trainee Name
+                    </label>
                     <input
                       type="text"
                       value={compileForm.traineeName}
-                      onChange={(e) => setCompileForm((f) => ({ ...f, traineeName: e.target.value }))}
+                      onChange={(e) =>
+                        setCompileForm((f) => ({
+                          ...f,
+                          traineeName: e.target.value,
+                        }))
+                      }
                       placeholder="e.g. Juan Dela Cruz"
                       className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1">Course & Major</label>
+                    <label className="block text-xs font-medium text-text-muted mb-1">
+                      Course & Major
+                    </label>
                     <input
                       type="text"
                       value={compileForm.course}
-                      onChange={(e) => setCompileForm((f) => ({ ...f, course: e.target.value }))}
+                      onChange={(e) =>
+                        setCompileForm((f) => ({
+                          ...f,
+                          course: e.target.value,
+                        }))
+                      }
                       placeholder="e.g. BSIT — Web Development"
                       className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1">Industry Partner</label>
+                    <label className="block text-xs font-medium text-text-muted mb-1">
+                      Industry Partner
+                    </label>
                     <input
                       type="text"
                       value={compileForm.industryPartner}
-                      onChange={(e) => setCompileForm((f) => ({ ...f, industryPartner: e.target.value }))}
+                      onChange={(e) =>
+                        setCompileForm((f) => ({
+                          ...f,
+                          industryPartner: e.target.value,
+                        }))
+                      }
                       placeholder="e.g. Acme Corp"
                       className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1">Department</label>
+                    <label className="block text-xs font-medium text-text-muted mb-1">
+                      Department
+                    </label>
                     <input
                       type="text"
                       value={compileForm.department}
-                      onChange={(e) => setCompileForm((f) => ({ ...f, department: e.target.value }))}
+                      onChange={(e) =>
+                        setCompileForm((f) => ({
+                          ...f,
+                          department: e.target.value,
+                        }))
+                      }
                       placeholder="e.g. IT Department"
                       className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-text-muted mb-1">Start Date</label>
+                      <label className="block text-xs font-medium text-text-muted mb-1">
+                        Start Date
+                      </label>
                       <input
                         type="date"
                         value={compileForm.startDate}
-                        onChange={(e) => setCompileForm((f) => ({ ...f, startDate: e.target.value }))}
+                        onChange={(e) =>
+                          setCompileForm((f) => ({
+                            ...f,
+                            startDate: e.target.value,
+                          }))
+                        }
                         className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-text-muted mb-1">End Date</label>
+                      <label className="block text-xs font-medium text-text-muted mb-1">
+                        End Date
+                      </label>
                       <input
                         type="date"
                         value={compileForm.endDate}
-                        onChange={(e) => setCompileForm((f) => ({ ...f, endDate: e.target.value }))}
+                        onChange={(e) =>
+                          setCompileForm((f) => ({
+                            ...f,
+                            endDate: e.target.value,
+                          }))
+                        }
                         className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
                       />
                     </div>
@@ -3340,7 +3458,11 @@ const LogsPage = () => {
                 <button
                   type="button"
                   onClick={handleCompileReport}
-                  disabled={compileLoading || !compileForm.startDate || !compileForm.endDate}
+                  disabled={
+                    compileLoading ||
+                    !compileForm.startDate ||
+                    !compileForm.endDate
+                  }
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {compileLoading ? (

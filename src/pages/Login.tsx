@@ -41,7 +41,7 @@ export default function Login() {
 
         navigate("/dashboard");
       }
-    } catch (error) {
+    } catch {
       setError("An unexpected error occurred");
     } finally {
       setLoading(false);
@@ -57,17 +57,29 @@ export default function Login() {
 
   return (
     <>
-      <SEO
-        title="Login"
-        description="Sign in to InternPal to track your internship applications and manage your career journey."
-      />
+      <SEO description="Sign in to InternPal to track your internship applications and manage your career journey." />
       <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-surface" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,var(--color-primary)/8%,transparent)]" aria-hidden />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[520px] h-[360px] rounded-full bg-primary/8 blur-3xl -translate-y-1/2" aria-hidden />
-        <div className="absolute bottom-0 right-0 w-[380px] h-[280px] rounded-full bg-accent/40 blur-3xl translate-x-1/3 translate-y-1/3" aria-hidden />
-        <div className="absolute top-1/2 left-0 w-[240px] h-[240px] rounded-full bg-soft-blue/10 blur-3xl -translate-y-1/2 -translate-x-1/2" aria-hidden />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-size-[24px_24px] mask-[radial-gradient(ellipse_70%_60%_at_50%_50%,black_20%,transparent_70%)]" aria-hidden />
+        <div
+          className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,var(--color-primary)/8%,transparent)]"
+          aria-hidden
+        />
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[520px] h-[360px] rounded-full bg-primary/8 blur-3xl -translate-y-1/2"
+          aria-hidden
+        />
+        <div
+          className="absolute bottom-0 right-0 w-[380px] h-[280px] rounded-full bg-accent/40 blur-3xl translate-x-1/3 translate-y-1/3"
+          aria-hidden
+        />
+        <div
+          className="absolute top-1/2 left-0 w-[240px] h-[240px] rounded-full bg-soft-blue/10 blur-3xl -translate-y-1/2 -translate-x-1/2"
+          aria-hidden
+        />
+        <div
+          className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-size-[24px_24px] mask-[radial-gradient(ellipse_70%_60%_at_50%_50%,black_20%,transparent_70%)]"
+          aria-hidden
+        />
         <div className="relative w-full max-w-sm">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-canvas/80 backdrop-blur-sm border border-border shadow-sm shadow-black/5 mb-5">
@@ -79,11 +91,17 @@ export default function Login() {
             <p className="text-sm text-text-muted mt-1.5">
               Sign in to continue
             </p>
-            <div className="mt-4 h-px w-12 mx-auto bg-linear-to-r from-transparent via-primary/30 to-transparent rounded-full" aria-hidden />
+            <div
+              className="mt-4 h-px w-12 mx-auto bg-linear-to-r from-transparent via-primary/30 to-transparent rounded-full"
+              aria-hidden
+            />
           </div>
 
           <div className="relative bg-canvas/95 backdrop-blur-sm rounded-2xl border border-border p-6 shadow-lg shadow-black/6 overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-linear-to-r from-transparent via-primary/50 to-transparent rounded-t-2xl" aria-hidden />
+            <div
+              className="absolute top-0 left-0 right-0 h-[3px] bg-linear-to-r from-transparent via-primary/50 to-transparent rounded-t-2xl"
+              aria-hidden
+            />
 
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">

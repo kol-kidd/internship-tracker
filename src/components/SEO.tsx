@@ -9,11 +9,11 @@ interface SEOProps {
   canonicalUrl?: string;
 }
 
-const DEFAULT_TITLE = "InternPal";
+const DEFAULT_TITLE = "InternPal | Smart Internship Tracker & AI Journal";
 const DEFAULT_DESCRIPTION =
-  "Track your internship applications, log your daily journal entries, and enhance your writing with AI. The smart companion for your internship journey.";
+  "Master your internship search with InternPal. Track applications, log daily insights, and leverage Gemini AI to refine your professional journal.";
 const DEFAULT_KEYWORDS =
-  "internship tracker, job applications, internship journal, AI writing assistant, career management, internship search";
+  "internship tracker, internship journal, career management, AI journal, professional growth, internship search tool";
 const DEFAULT_OG_IMAGE = "/og-image.png";
 
 export default function SEO({
@@ -24,7 +24,7 @@ export default function SEO({
   ogType = "website",
   canonicalUrl,
 }: SEOProps) {
-  const fullTitle = title ? `${title} | ${DEFAULT_TITLE}` : DEFAULT_TITLE;
+  const fullTitle = title ? `${title} | InternPal` : DEFAULT_TITLE;
 
   useEffect(() => {
     // Update document title
