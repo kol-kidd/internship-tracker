@@ -10,6 +10,8 @@
 
   --color-primary: #0071e3; /* Apple SF Blue */
   --color-primary-hover: #0077ed;
+  --color-accent: #64d2ff;
+  --color-soft-blue: #e1f5fe;
 
   --color-text: #1d1d1f; /* Apple's standard text */
   --color-text-muted: #86868b; /* Apple's muted text */

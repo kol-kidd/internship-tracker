@@ -13,6 +13,7 @@ import { useEffect } from "react";
 import { Bounce, ToastContainer } from "react-toastify";
 import ApplicationList from "./pages/ApplicationList";
 import LogsPage from "./pages/Logs";
+import Landing from "./pages/Landing";
 
 function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
@@ -32,7 +33,7 @@ function App() {
           path="/"
           element={
             <GuestRoute>
-              <Login />
+              <Landing />
             </GuestRoute>
           }
         />

@@ -132,8 +132,8 @@ export default function Register() {
             Verify your email
           </h2>
           <p className="text-sm text-text-muted mb-6">
-            We sent a confirmation link to <strong>{email}</strong>. Verify
-            your email to activate your account.
+            We sent a confirmation link to <strong>{email}</strong>. Verify your
+            email to activate your account.
           </p>
           <Link
             to="/login"
@@ -149,16 +149,31 @@ export default function Register() {
   return (
     <>
       <SEO
-        title="Sign Up"
+        title="Join InternPal"
         description="Create your InternPal account to start tracking internship applications and enhance your career journey with AI."
       />
       <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-surface" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,var(--color-primary)/8%,transparent)]" aria-hidden />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[520px] h-[360px] rounded-full bg-primary/8 blur-3xl -translate-y-1/2" aria-hidden />
-        <div className="absolute bottom-0 right-0 w-[380px] h-[280px] rounded-full bg-accent/40 blur-3xl translate-x-1/3 translate-y-1/3" aria-hidden />
-        <div className="absolute top-1/2 left-0 w-[240px] h-[240px] rounded-full bg-soft-blue/10 blur-3xl -translate-y-1/2 -translate-x-1/2" aria-hidden />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-size-[24px_24px] mask-[radial-gradient(ellipse_70%_60%_at_50%_50%,black_20%,transparent_70%)]" aria-hidden />
+        <div
+          className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,var(--color-primary)/8%,transparent)]"
+          aria-hidden
+        />
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[520px] h-[360px] rounded-full bg-primary/8 blur-3xl -translate-y-1/2"
+          aria-hidden
+        />
+        <div
+          className="absolute bottom-0 right-0 w-[380px] h-[280px] rounded-full bg-accent/40 blur-3xl translate-x-1/3 translate-y-1/3"
+          aria-hidden
+        />
+        <div
+          className="absolute top-1/2 left-0 w-[240px] h-[240px] rounded-full bg-soft-blue/10 blur-3xl -translate-y-1/2 -translate-x-1/2"
+          aria-hidden
+        />
+        <div
+          className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-size-[24px_24px] mask-[radial-gradient(ellipse_70%_60%_at_50%_50%,black_20%,transparent_70%)]"
+          aria-hidden
+        />
         <div className="relative w-full max-w-sm">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-canvas/80 backdrop-blur-sm border border-border shadow-sm shadow-black/5 mb-5">
@@ -170,11 +185,17 @@ export default function Register() {
             <p className="text-sm text-text-muted mt-1.5">
               Sign up in a minute
             </p>
-            <div className="mt-4 h-px w-12 mx-auto bg-linear-to-r from-transparent via-primary/30 to-transparent rounded-full" aria-hidden />
+            <div
+              className="mt-4 h-px w-12 mx-auto bg-linear-to-r from-transparent via-primary/30 to-transparent rounded-full"
+              aria-hidden
+            />
           </div>
 
           <div className="relative bg-canvas/95 backdrop-blur-sm rounded-2xl border border-border p-6 shadow-lg shadow-black/6 overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-linear-to-r from-transparent via-primary/50 to-transparent rounded-t-2xl" aria-hidden />
+            <div
+              className="absolute top-0 left-0 right-0 h-[3px] bg-linear-to-r from-transparent via-primary/50 to-transparent rounded-t-2xl"
+              aria-hidden
+            />
 
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -295,9 +316,7 @@ disabled:opacity-50 disabled:cursor-not-allowed"
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              <span className="text-text font-medium">
-                Sign up with Google
-              </span>
+              <span className="text-text font-medium">Sign up with Google</span>
             </button>
 
             <p className="mt-6 text-center text-sm text-text-muted">

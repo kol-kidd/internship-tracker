@@ -73,10 +73,10 @@ export function downloadJourneyPdf(
   const maxW = pageW - margin * 2;
 
   // Brand colors (matching web app theme)
-  const primaryColor: [number, number, number] = [196, 148, 110]; // #c4946e
-  const darkText: [number, number, number] = [34, 34, 34]; // #222222
-  const mutedText: [number, number, number] = [102, 102, 102]; // #666666
-  const lightAccent: [number, number, number] = [232, 212, 196]; // #e8d4c4
+  const primaryColor: [number, number, number] = [0, 113, 227]; // #0071e3
+  const darkText: [number, number, number] = [29, 29, 31]; // #1d1d1f
+  const mutedText: [number, number, number] = [134, 134, 139]; // #86868b
+  const lightAccent: [number, number, number] = [225, 245, 254]; // #e1f5fe
 
   let y = margin;
 
@@ -191,7 +191,7 @@ export function downloadJourneyPdf(
     // Alternating row background
     doc.setDrawColor(...lightAccent);
     if (idx % 2 === 0) {
-      doc.setFillColor(249, 246, 242); // #f9f6f2 surface color
+      doc.setFillColor(245, 245, 247); // #f5f5f7 surface color
     } else {
       doc.setFillColor(255, 255, 255);
     }
