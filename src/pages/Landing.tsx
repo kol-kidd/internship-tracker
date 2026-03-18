@@ -10,9 +10,11 @@ import {
   Globe,
 } from "lucide-react";
 import SEO from "@/components/SEO";
+import { useAuthStore } from "@/store/authStore";
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   const features = [
     {
@@ -68,18 +70,29 @@ export default function Landing() {
           <span className="font-bold text-lg tracking-tight">InternPal</span>
         </div>
         <div className="flex items-center gap-6">
-          <button
-            onClick={() => navigate("/login")}
-            className="text-sm font-semibold text-text-muted hover:text-text transition-colors"
-          >
-            Log In
-          </button>
-          <button
-            onClick={() => navigate("/register")}
-            className="px-5 py-2 rounded-full bg-text text-white text-sm font-bold hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-black/10"
-          >
-            Sign Up
-          </button>
+          {user ? (
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="px-5 py-2 rounded-full bg-primary text-white text-sm font-bold hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-primary/20"
+            >
+              Go to Dashboard
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate("/login")}
+                className="text-sm font-semibold text-text-muted hover:text-text transition-colors"
+              >
+                Log In
+              </button>
+              <button
+                onClick={() => navigate("/register")}
+                className="px-5 py-2 rounded-full bg-text text-white text-sm font-bold hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-black/10"
+              >
+                Sign Up
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -101,10 +114,10 @@ export default function Landing() {
           </p>
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-300">
             <button
-              onClick={() => navigate("/register")}
+              onClick={() => navigate(user ? "/dashboard" : "/register")}
               className="w-full md:w-auto px-10 py-5 rounded-[2rem] bg-text text-white text-lg font-black hover:opacity-90 transition-all active:scale-95 shadow-2xl shadow-black/20 flex items-center justify-center gap-3 group"
             >
-              Get Started for Free
+              {user ? "Go to Dashboard" : "Get Started for Free"}
               <ArrowRight className="group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
@@ -221,10 +234,10 @@ export default function Landing() {
               with InternPal.
             </p>
             <button
-              onClick={() => navigate("/register")}
+              onClick={() => navigate(user ? "/dashboard" : "/register")}
               className="px-12 py-6 rounded-[2rem] bg-primary text-white text-xl font-black hover:bg-primary-hover transition-all active:scale-95 shadow-xl shadow-primary/20"
             >
-              Get Started Now
+              {user ? "Go to Dashboard" : "Get Started Now"}
             </button>
           </div>
 
