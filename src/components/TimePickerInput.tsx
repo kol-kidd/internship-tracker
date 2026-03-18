@@ -72,41 +72,42 @@ export default function TimePickerInput({
           {label}
         </label>
       )}
-      <div className="flex items-center gap-1.5">
-        {/* Hour */}
-        <select
-          value={hour12}
-          onChange={(e) => handleHourChange(Number(e.target.value))}
-          className={`${selectClass} w-[52px]`}
-        >
-          {HOURS.map((h) => (
-            <option key={h} value={h}>
-              {h}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-2">
+        {/* Hour : Minute row */}
+        <div className="flex items-center gap-1.5">
+          <select
+            value={hour12}
+            onChange={(e) => handleHourChange(Number(e.target.value))}
+            className={`${selectClass} flex-1 min-w-0`}
+          >
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </select>
 
-        <span className="text-text font-medium text-sm select-none">:</span>
+          <span className="text-text font-medium text-sm select-none">:</span>
 
-        {/* Minute */}
-        <select
-          value={minute}
-          onChange={(e) => handleMinuteChange(Number(e.target.value))}
-          className={`${selectClass} w-[56px]`}
-        >
-          {MINUTES.map((m) => (
-            <option key={m} value={m}>
-              {String(m).padStart(2, "0")}
-            </option>
-          ))}
-        </select>
+          <select
+            value={minute}
+            onChange={(e) => handleMinuteChange(Number(e.target.value))}
+            className={`${selectClass} flex-1 min-w-0`}
+          >
+            {MINUTES.map((m) => (
+              <option key={m} value={m}>
+                {String(m).padStart(2, "0")}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        {/* AM/PM toggle */}
-        <div className="flex rounded-lg border border-border overflow-hidden ml-1">
+        {/* AM/PM toggle row */}
+        <div className="flex rounded-lg border border-border overflow-hidden w-full">
           <button
             type="button"
             onClick={() => handlePeriodChange("AM")}
-            className={`px-2.5 py-2 text-xs font-semibold transition-all ${
+            className={`flex-1 py-1.5 text-xs font-semibold transition-all ${
               period === "AM"
                 ? "bg-primary text-white"
                 : "bg-canvas text-text-muted hover:bg-accent/30"
@@ -117,7 +118,7 @@ export default function TimePickerInput({
           <button
             type="button"
             onClick={() => handlePeriodChange("PM")}
-            className={`px-2.5 py-2 text-xs font-semibold transition-all ${
+            className={`flex-1 py-1.5 text-xs font-semibold transition-all ${
               period === "PM"
                 ? "bg-primary text-white"
                 : "bg-canvas text-text-muted hover:bg-accent/30"
