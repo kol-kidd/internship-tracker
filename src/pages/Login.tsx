@@ -8,6 +8,7 @@ import { createOrUpdateProfile } from "@/functions/auth/updateProfile";
 import { useAuthStore } from "@/store/authStore";
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -81,6 +82,13 @@ export default function Login() {
           aria-hidden
         />
         <div className="relative w-full max-w-sm">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to home
+          </Link>
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-canvas/80 backdrop-blur-sm border border-border shadow-sm shadow-black/5 mb-5">
               <AppLogo size={44} />

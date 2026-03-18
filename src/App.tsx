@@ -29,14 +29,7 @@ function App() {
   return (
     <>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <GuestRoute>
-              <Landing />
-            </GuestRoute>
-          }
-        />
+        <Route path="/" element={<Landing />} />
         <Route
           path="/login"
           element={

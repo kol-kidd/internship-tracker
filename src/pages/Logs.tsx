@@ -28,6 +28,7 @@ import {
   FileText,
 } from "lucide-react";
 import SEO from "@/components/SEO";
+import TimePickerInput, { getDefaultTimes } from "@/components/TimePickerInput";
 import { jsPDF } from "jspdf";
 import { useAuthStore } from "@/store/authStore";
 import { useJournalStore } from "@/store/journalStore";
@@ -140,15 +141,18 @@ const LogsPage = () => {
   const [selectedEntryTitle, setSelectedEntryTitle] = useState("");
   const [viewingEntry, setViewingEntry] = useState<JournalEntry | null>(null);
 
-  const [formData, setFormData] = useState({
-    title: "",
-    date: new Date().toISOString().split("T")[0],
-    content: "",
-    mood: "neutral",
-    tags: "",
-    time_in: "",
-    time_out: "",
-    break_time: "",
+  const [formData, setFormData] = useState(() => {
+    const { timeIn, timeOut } = getDefaultTimes();
+    return {
+      title: "",
+      date: new Date().toISOString().split("T")[0],
+      content: "",
+      mood: "neutral",
+      tags: "",
+      time_in: timeIn,
+      time_out: timeOut,
+      break_time: "",
+    };
   });
 
   // AI Enhancement State
@@ -485,14 +489,15 @@ const LogsPage = () => {
   };
 
   const resetForm = () => {
+    const { timeIn, timeOut } = getDefaultTimes();
     setFormData({
       title: "",
       date: new Date().toISOString().split("T")[0],
       content: "",
       mood: "neutral",
       tags: "",
-      time_in: "",
-      time_out: "",
+      time_in: timeIn,
+      time_out: timeOut,
       break_time: "",
     });
     setEditingEntry(null);
@@ -2806,32 +2811,20 @@ const LogsPage = () => {
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-text mb-2">
-                        Time In
-                      </label>
-                      <input
-                        type="time"
-                        value={formData.time_in}
-                        onChange={(e) =>
-                          setFormData({ ...formData, time_in: e.target.value })
-                        }
-                        className="w-full px-4 py-3 rounded-xl border border-border text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-text mb-2">
-                        Time Out
-                      </label>
-                      <input
-                        type="time"
-                        value={formData.time_out}
-                        onChange={(e) =>
-                          setFormData({ ...formData, time_out: e.target.value })
-                        }
-                        className="w-full px-4 py-3 rounded-xl border border-border text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                      />
-                    </div>
+                    <TimePickerInput
+                      label="Time In"
+                      value={formData.time_in}
+                      onChange={(val) =>
+                        setFormData({ ...formData, time_in: val })
+                      }
+                    />
+                    <TimePickerInput
+                      label="Time Out"
+                      value={formData.time_out}
+                      onChange={(val) =>
+                        setFormData({ ...formData, time_out: val })
+                      }
+                    />
                     <div>
                       <label className="block text-sm font-medium text-text mb-2">
                         Break (mins)
