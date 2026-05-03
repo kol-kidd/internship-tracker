@@ -20,6 +20,26 @@ function parseLastModified(header) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function normalizeCompileBullet(value) {
+  const words = String(value ?? '')
+    .replace(/^[\s\d.)\-\u2022*]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 8);
+  const text = words.join(' ');
+  return text.length > 68 ? `${text.slice(0, 65).trim()}...` : text;
+}
+
+function normalizeCompileList(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map(normalizeCompileBullet)
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
 export const getEntries = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -471,7 +491,15 @@ Provide only the summary text, no preamble. Stay strictly faithful to the entrie
 
 export const compileJournal = async (req, res) => {
   try {
-    const { entries, traineeName, course, industryPartner, department, dateRange } = req.body;
+    const {
+      entries,
+      traineeName,
+      course,
+      industryPartner,
+      department,
+      dateRange,
+      summaryScope = 'range',
+    } = req.body;
 
     if (!entries || !Array.isArray(entries) || entries.length === 0) {
       return res.status(400).json({
@@ -510,13 +538,19 @@ export const compileJournal = async (req, res) => {
       })
       .join('\n---\n');
 
-    const prompt = `You are an internship report assistant. Analyze the following journal entries and produce a structured JSON summary suitable for a CTU (Cebu Technological University) OJT Form 6 Monthly Report.
+    const reportPurpose =
+      summaryScope === 'internship'
+        ? 'whole internship summary report'
+        : 'selected period report';
+
+    const prompt = `You are an internship report assistant. Analyze the following journal entries and produce a structured JSON summary suitable for a CTU (Cebu Technological University) OJT Form 6 ${reportPurpose}.
 
 STRICT RULES:
 - Extract ONLY what is explicitly mentioned. Do NOT invent anything.
 - "activities": concrete tasks done. "learnings": skills and insights gained.
 - EXACTLY 3 to 5 bullets per array. Never more than 5. Merge aggressively.
-- Each bullet = one short sentence, max 8 words.
+- Each bullet = one short sentence, max 8 words and 68 characters.
+- For a whole internship summary, combine repeated work into broad factual bullets.
 - Use plain, specific wording. No buzzwords or inflated claims.
 - Return ONLY a valid JSON object. No markdown, no code fences, no extra text.
 
@@ -555,8 +589,8 @@ ${entriesText}`;
       });
     }
 
-    const activities = Array.isArray(parsed.activities) ? parsed.activities.filter(Boolean) : [];
-    const learnings = Array.isArray(parsed.learnings) ? parsed.learnings.filter(Boolean) : [];
+    const activities = normalizeCompileList(parsed.activities);
+    const learnings = normalizeCompileList(parsed.learnings);
 
     if (activities.length === 0 && learnings.length === 0) {
       return res.status(500).json({

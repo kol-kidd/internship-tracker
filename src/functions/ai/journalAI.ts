@@ -84,6 +84,7 @@ export interface CompileJournalRequest {
   industryPartner?: string;
   department?: string;
   dateRange?: { start: string; end: string };
+  summaryScope?: "range" | "internship";
 }
 
 export interface CompileJournalResponse {

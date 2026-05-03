@@ -81,6 +81,7 @@ const validateCompileSummaryRequest = [
   body('department').optional({ nullable: true }).trim(),
   body('dateRange.start').optional({ nullable: true }).trim(),
   body('dateRange.end').optional({ nullable: true }).trim(),
+  body('summaryScope').optional({ nullable: true }).isIn(['range', 'internship']),
   handleValidationErrors,
 ];
 

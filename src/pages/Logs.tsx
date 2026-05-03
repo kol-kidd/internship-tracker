@@ -128,12 +128,14 @@ type MainView = "entries" | "weekly" | "notes" | "gallery" | "reports";
 
 type ReportHistoryItem = {
   id: string;
-  type: "Journal PDF" | "Weekly Report" | "CTU Form 6";
+  type: "Journal PDF" | "Weekly Report" | "CTU Form 6" | "Internship Summary";
   title: string;
   range: string;
   entryCount: number;
   createdAt: string;
 };
+
+type CompileReportMode = "range" | "internship";
 
 const REPORT_HISTORY_KEY = "internpal_report_history";
 
@@ -278,6 +280,8 @@ const LogsPage = () => {
   // Compile Report (CTU OJT Form 6) state
   const [compileModalOpen, setCompileModalOpen] = useState(false);
   const [compileLoading, setCompileLoading] = useState(false);
+  const [compileReportMode, setCompileReportMode] =
+    useState<CompileReportMode>("range");
   const [compileForm, setCompileForm] = useState({
     traineeName: "",
     course: "",
@@ -310,7 +314,11 @@ const LogsPage = () => {
     });
   };
 
-  const openCompileReportModal = (range?: { start: string; end: string }) => {
+  const openCompileReportModal = (
+    range?: { start: string; end: string },
+    mode: CompileReportMode = "range",
+  ) => {
+    setCompileReportMode(mode);
     setCompileForm((form) => ({
       ...form,
       traineeName: form.traineeName || reportName,
@@ -929,6 +937,16 @@ const LogsPage = () => {
     const matchesMood = filterMood === "all" || entry.mood === filterMood;
     return matchesSearch && matchesMood;
   });
+  const sortedInternshipEntries = [...entries].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+  const internshipStartDate = sortedInternshipEntries[0]?.date ?? "";
+  const internshipEndDate =
+    sortedInternshipEntries[sortedInternshipEntries.length - 1]?.date ?? "";
+  const internshipDateRangeLabel =
+    internshipStartDate && internshipEndDate
+      ? `${internshipStartDate} to ${internshipEndDate}`
+      : "No entries yet";
 
   const moodEmojis: Record<string, string> = {
     great: "😊",
@@ -1832,7 +1850,11 @@ const LogsPage = () => {
       startDate,
       endDate,
     } = compileForm;
-    if (!startDate || !endDate) {
+    const isInternshipSummary = compileReportMode === "internship";
+    const reportStartDate = isInternshipSummary ? internshipStartDate : startDate;
+    const reportEndDate = isInternshipSummary ? internshipEndDate : endDate;
+
+    if (!reportStartDate || !reportEndDate) {
       toast.error("Please select a start and end date.", {
         position: "top-right",
         theme: "light",
@@ -1840,13 +1862,15 @@ const LogsPage = () => {
       });
       return;
     }
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-    const rangeEntries = entries.filter((e) => {
-      const d = new Date(e.date);
-      return d >= start && d <= end;
-    });
+    const rangeEntries = isInternshipSummary
+      ? sortedInternshipEntries
+      : entries.filter((e) => {
+          const start = new Date(reportStartDate);
+          const end = new Date(reportEndDate);
+          end.setHours(23, 59, 59, 999);
+          const d = new Date(e.date);
+          return d >= start && d <= end;
+        });
     if (rangeEntries.length === 0) {
       toast.error("No journal entries found in the selected date range.", {
         position: "top-right",
@@ -1865,7 +1889,8 @@ const LogsPage = () => {
           course,
           industryPartner,
           department,
-          dateRange: { start: startDate, end: endDate },
+          dateRange: { start: reportStartDate, end: reportEndDate },
+          summaryScope: compileReportMode,
         },
         session.access_token,
       );
@@ -1874,22 +1899,30 @@ const LogsPage = () => {
         course,
         industryPartner,
         department,
-        dateRange: { start: startDate, end: endDate },
+        dateRange: { start: reportStartDate, end: reportEndDate },
         activities: result.activities,
         learnings: result.learnings,
+        fileLabel: isInternshipSummary ? "internship_summary" : undefined,
       });
       addReportHistory({
-        type: "CTU Form 6",
-        title: "CTU OJT Form 6",
-        range: `${startDate} to ${endDate}`,
+        type: isInternshipSummary ? "Internship Summary" : "CTU Form 6",
+        title: isInternshipSummary
+          ? "Whole Internship Summary"
+          : "CTU OJT Form 6",
+        range: `${reportStartDate} to ${reportEndDate}`,
         entryCount: rangeEntries.length,
       });
       setCompileModalOpen(false);
-      toast.success("CTU OJT Form 6 exported!", {
+      toast.success(
+        isInternshipSummary
+          ? "Whole internship summary exported!"
+          : "CTU OJT Form 6 exported!",
+        {
         position: "top-right",
         theme: "light",
         transition: Bounce,
-      });
+        },
+      );
     } catch (err: unknown) {
       console.error("Compile journal error:", err);
       const msg =
@@ -3172,7 +3205,38 @@ const LogsPage = () => {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5 md:col-span-2">
+                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5">
+                      <div>
+                        <h3 className="text-lg font-bold text-text">
+                          Internship Summary
+                        </h3>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {entries.length} entries, {totalHoursLogged.toFixed(1)}h
+                        </p>
+                        <p className="mt-1 text-xs text-text-muted">
+                          {internshipDateRangeLabel}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openCompileReportModal(
+                            {
+                              start: internshipStartDate,
+                              end: internshipEndDate,
+                            },
+                            "internship",
+                          )
+                        }
+                        disabled={entries.length === 0}
+                        className="w-fit flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Summary PDF
+                      </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5">
                       <div>
                         <h3 className="text-lg font-bold text-text">
                           CTU Form 6
@@ -3183,12 +3247,12 @@ const LogsPage = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => openCompileReportModal()}
+                        onClick={() => openCompileReportModal(undefined, "range")}
                         disabled={selectedRangeEntries.length === 0}
                         className="w-fit flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FileText className="w-4 h-4" />
-                        Compile report
+                        Compile range
                       </button>
                     </div>
                   </section>
@@ -3830,7 +3894,9 @@ const LogsPage = () => {
               <div className="p-6 border-b border-border flex items-center justify-between shrink-0">
                 <h2 className="text-lg font-bold text-text flex items-center gap-2">
                   <FileText className="w-5 h-5 text-primary" />
-                  Compile Report
+                  {compileReportMode === "internship"
+                    ? "Internship Summary"
+                    : "Compile Report"}
                 </h2>
                 <button
                   type="button"
@@ -3945,6 +4011,7 @@ const LogsPage = () => {
                       <input
                         type="date"
                         value={compileForm.startDate}
+                        disabled={compileReportMode === "internship"}
                         onChange={(e) =>
                           setCompileForm((f) => ({
                             ...f,
@@ -3961,6 +4028,7 @@ const LogsPage = () => {
                       <input
                         type="date"
                         value={compileForm.endDate}
+                        disabled={compileReportMode === "internship"}
                         onChange={(e) =>
                           setCompileForm((f) => ({
                             ...f,
@@ -3979,20 +4047,25 @@ const LogsPage = () => {
                   onClick={handleCompileReport}
                   disabled={
                     compileLoading ||
-                    !compileForm.startDate ||
-                    !compileForm.endDate
+                    (compileReportMode === "internship"
+                      ? entries.length === 0
+                      : !compileForm.startDate || !compileForm.endDate)
                   }
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {compileLoading ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Compiling report...
+                      {compileReportMode === "internship"
+                        ? "Compiling summary..."
+                        : "Compiling report..."}
                     </>
                   ) : (
                     <>
                       <FileText className="w-4 h-4" />
-                      Generate PDF
+                      {compileReportMode === "internship"
+                        ? "Generate Summary PDF"
+                        : "Generate PDF"}
                     </>
                   )}
                 </button>

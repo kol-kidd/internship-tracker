@@ -8,6 +8,7 @@ export interface CTUJournalParams {
   dateRange: { start: string; end: string };
   activities: string[];
   learnings: string[];
+  fileLabel?: string;
 }
 
 type Rect = {
@@ -90,29 +91,64 @@ function drawBulletList(
   const x = rect.x + 5.2;
   let y = rect.y + 26.6;
   const maxY = rect.y + rect.h - 8;
-  const maxWidth = options.maxWidth;
-  const remaining: string[] = [];
+  const maxWidth = Math.min(options.maxWidth, rect.w - 10.4);
+  let remainingCount = 0;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(options.fontSize);
 
-  for (const item of items.filter((value) => value.trim())) {
-    const lines = doc.splitTextToSize(`\u2022 ${item.trim()}`, maxWidth) as string[];
+  const cleanItems = items.filter((value) => value.trim());
 
-    if (y + lines.length * options.lineHeight > maxY) {
-      remaining.push(item);
+  for (const [index, item] of cleanItems.entries()) {
+    const availableLines = Math.floor((maxY - y) / options.lineHeight);
+
+    if (availableLines <= 0) {
+      remainingCount = cleanItems.length - index;
+      break;
+    }
+
+    const lines = doc.splitTextToSize(`\u2022 ${item.trim()}`, maxWidth) as string[];
+    const linesToPrint = lines.slice(0, availableLines).map((line) =>
+      fitText(doc, line, maxWidth),
+    );
+
+    if (lines.length > availableLines) {
+      const lastIndex = linesToPrint.length - 1;
+      linesToPrint[lastIndex] = fitText(
+        doc,
+        `${linesToPrint[lastIndex].replace(/\.\.\.$/, "")}...`,
+        maxWidth,
+      );
+      remainingCount = cleanItems.length - index - 1;
+    }
+
+    if (linesToPrint.length === 0) {
+      remainingCount = cleanItems.length - index;
       continue;
     }
 
-    for (const line of lines) {
+    for (const line of linesToPrint) {
       doc.text(line, x, y);
       y += options.lineHeight;
     }
+
+    if (lines.length > availableLines) {
+      break;
+    }
+
     y += 1.5;
   }
 
-  if (remaining.length > 0 && y + options.lineHeight <= maxY) {
-    doc.text(`+${remaining.length} more item${remaining.length === 1 ? "" : "s"}`, x, y);
+  if (remainingCount > 0 && y + options.lineHeight <= maxY) {
+    doc.text(
+      fitText(
+        doc,
+        `+${remainingCount} more item${remainingCount === 1 ? "" : "s"}`,
+        maxWidth,
+      ),
+      x,
+      y,
+    );
   }
 }
 
@@ -287,5 +323,8 @@ export function generateCTUJournalPDF(params: CTUJournalParams): void {
   const safeName = (params.traineeName || "trainee")
     .replace(/[^a-z0-9]/gi, "_")
     .toLowerCase();
-  doc.save(`CTU_OJT_Form6_${safeName}.pdf`);
+  const safeLabel = params.fileLabel
+    ? `_${params.fileLabel.replace(/[^a-z0-9]/gi, "_").toLowerCase()}`
+    : "";
+  doc.save(`CTU_OJT_Form6${safeLabel}_${safeName}.pdf`);
 }
