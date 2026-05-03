@@ -9,11 +9,11 @@ interface SEOProps {
   canonicalUrl?: string;
 }
 
-const DEFAULT_TITLE = "InternPal | Smart Internship Tracker & AI Journal";
+const DEFAULT_TITLE = "InternPal | Internship Tracker & Journal";
 const DEFAULT_DESCRIPTION =
-  "Master your internship search with InternPal. Track applications, log daily insights, and leverage Gemini AI to refine your professional journal.";
+  "Track internship applications, log daily work, and export clean reports with InternPal.";
 const DEFAULT_KEYWORDS =
-  "internship tracker, internship journal, career management, AI journal, professional growth, internship search tool";
+  "internship tracker, internship journal, application tracker, career management, internship search tool";
 const DEFAULT_OG_IMAGE = "/og-image.png";
 
 export default function SEO({

@@ -249,7 +249,8 @@ export const enhanceEntry = async (req, res) => {
       case 'improve':
         prompt = `You are an internship journal writing assistant. Improve the following journal entry by:
 - Fixing grammar and spelling errors
-- Making the writing more professional and clear
+- Making the writing clearer without sounding inflated or generic
+- Avoiding motivational filler, corporate buzzwords, and generic generated phrasing
 - Keeping the original meaning and personal voice—do not add or invent events, details, or stories
 - Maintaining a first-person perspective. Keep the response concise and natural
 
@@ -265,6 +266,7 @@ Provide only the improved content. No explanations, no title. Do not fabricate a
 - Elaborating only on what the user actually wrote; add detail and clarity to their existing points
 - Do NOT invent events, experiences, anecdotes, or stories that are not in the original text
 - Do NOT add fictional details, examples, or hypotheticals—only expand on facts and ideas already present
+- If there is not enough detail to expand, improve clarity instead of padding the entry
 - You may rephrase for flow and add brief, grounded reflections that directly follow from what they wrote
 - Maintain first-person perspective and the user's voice. Keep it authentic and not overly formal
 
@@ -277,10 +279,11 @@ Provide only the expanded content. No explanations, no title. Stay strictly fait
         
       case 'professional':
         prompt = `You are an internship journal writing assistant. Rewrite the following journal entry to be more professional and suitable for a portfolio or performance review:
-- Use professional language while maintaining authenticity
+- Use plain professional language while maintaining authenticity
 - Highlight only achievements, skills, and contributions that are stated or clearly implied in the original—do not invent events or accomplishments
 - Structure the content clearly. Keep the first-person perspective
 - Quantify only where the original gives numbers or clear basis; do not make up figures or examples
+- Avoid buzzwords, exaggerated impact, and generic career-coach phrasing
 
 Original entry title: "${title || 'Untitled'}"
 Original content:
@@ -290,9 +293,10 @@ Provide only the professional version. No explanations, no title. Do not add fic
         break;
         
       case 'summarize':
-        prompt = `You are an internship journal writing assistant. Summarize the following journal entry into a brief, impactful summary:
+        prompt = `You are an internship journal writing assistant. Summarize the following journal entry into a brief, useful summary:
 - Capture only the key points and takeaways that are actually in the entry—do not add or invent events, learnings, or accomplishments
 - Keep it to 2-3 sentences. Maintain the first-person perspective
+- Avoid motivational framing and generic filler
 
 Original entry title: "${title || 'Untitled'}"
 Original content:
@@ -302,7 +306,7 @@ Provide only the summary. No explanations or prefixes. Do not fabricate any cont
         break;
         
       default:
-        prompt = `You are an internship journal writing assistant. Improve the following journal entry by fixing grammar, improving clarity, and making it more engaging while keeping the original voice and meaning. Do not add or invent events, details, or stories.
+        prompt = `You are an internship journal writing assistant. Improve the following journal entry by fixing grammar and clarity while keeping the original voice and meaning. Avoid generic generated phrasing, motivational filler, and inflated claims. Do not add or invent events, details, or stories.
 
 Original entry title: "${title || 'Untitled'}"
 Original content:
@@ -427,12 +431,13 @@ export const summarizeWeek = async (req, res) => {
       })
       .join('\n---\n');
 
-    const prompt = `You are an internship journal assistant. Summarize the following week's journal entries into one concise weekly report.
+    const prompt = `You are an internship journal assistant. Summarize the following week's journal entries into one plain weekly report.
 
 Guidelines:
 - Write in first person, as the intern. Use only information that appears in the entries below.
 - Do NOT invent events, activities, learnings, challenges, or accomplishments—only summarize what is actually written.
 - Highlight main activities, learnings, challenges, and accomplishments that are stated in the entries.
+- Use direct language. Avoid motivational filler, buzzwords, and exaggerated claims.
 - Keep the summary to 1–2 short paragraphs suitable for a weekly report or supervisor update.
 - Do not add headers or labels; output only the summary text.
 
@@ -512,6 +517,7 @@ STRICT RULES:
 - "activities": concrete tasks done. "learnings": skills and insights gained.
 - EXACTLY 3 to 5 bullets per array. Never more than 5. Merge aggressively.
 - Each bullet = one short sentence, max 8 words.
+- Use plain, specific wording. No buzzwords or inflated claims.
 - Return ONLY a valid JSON object. No markdown, no code fences, no extra text.
 
 Expected format:
@@ -611,13 +617,14 @@ export const journeySummary = async (req, res) => {
       })
       .join('\n');
 
-    const prompt = `You are a supportive career coach. The user has been tracking their internship applications. Below is their application journey as a short timeline of events (company, role, date applied, current status).
+    const prompt = `You write concise summaries for an internship tracker. The user has been tracking applications. Below is a short timeline of events (company, role, date applied, current status).
 
-Your task: Write a brief, encouraging narrative (2–4 sentences) that summarizes their journey in second person ("You applied...", "You're interviewing with..."). 
-- Use only the facts from the timeline. Do not invent companies, dates, or outcomes.
-- If they have an accepted offer, celebrate that and acknowledge the path they took.
-- If they're still in progress, acknowledge their effort and the variety of applications.
-- Keep the tone warm and professional. No bullet points or headers—output only the narrative paragraph.`;
+Your task: Write 2-3 factual sentences in second person ("You applied...", "You're interviewing with...").
+- Use only the facts from the timeline. Do not invent companies, dates, outcomes, or lessons.
+- If there is an accepted offer, mention it plainly.
+- If the search is still in progress, summarize the current statuses without cheerleading.
+- Use clear, direct language. Avoid motivational filler, hype, and generic career-coach phrasing.
+- No bullet points or headers; output only the paragraph.`;
 
     const fullPrompt = `${prompt}
 

@@ -169,7 +169,7 @@ export default function Dashboard() {
     <>
       <SEO
         title="Dashboard"
-        description="View your internship application stats with a premium experience."
+        description="View your applications, interviews, offers, and journal progress."
       />
       <div className="space-y-8 animate-in fade-in duration-1000">
         {/* Top Header Section */}
@@ -333,7 +333,7 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* AI Feature Card - Apple Pink/Purple Style */}
+          {/* Journal tools card */}
           <div
             onClick={() => navigate("/logs")}
             className="md:col-span-4 lg:col-span-1 rounded-[2.5rem] bg-text p-8 text-white relative overflow-hidden cursor-pointer group shadow-xl"
@@ -343,21 +343,21 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 mb-6">
                   <Sparkles size={20} className="text-primary animate-pulse" />
                   <span className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
-                    AI Integration
+                    Journal Tools
                   </span>
                 </div>
                 <h2 className="text-2xl font-black tracking-tight mb-4">
-                  Master your entries with Gemini.
+                  Clean up entries faster.
                 </h2>
                 <p className="text-sm font-medium text-white/60 leading-relaxed max-w-[200px]">
-                  Smart tag suggestions, content expansion, and refined writing
-                  styles.
+                  Improve wording, suggest tags, and prepare summaries from
+                  your logs.
                 </p>
               </div>
 
               <div className="mt-8 flex items-center justify-between">
                 <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
-                  Powered by Google
+                  Review before saving
                 </span>
                 <ArrowRight
                   size={20}

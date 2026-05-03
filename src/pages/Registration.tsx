@@ -150,7 +150,7 @@ export default function Register() {
     <>
       <SEO
         title="Join InternPal"
-        description="Create your InternPal account to start tracking internship applications and enhance your career journey with AI."
+        description="Create your InternPal account to start tracking internship applications, notes, and reports."
       />
       <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-surface" />

@@ -191,9 +191,9 @@ const LogsPage = () => {
     };
   });
 
-  // AI Enhancement State
+  // Writing tool state
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [showAIMenu, setShowAIMenu] = useState(false);
+  const [showWritingTools, setShowWritingTools] = useState(false);
   const [originalContent, setOriginalContent] = useState<string | null>(null);
 
   const [requiredHours, setRequiredHours] = useState(() => {
@@ -320,8 +320,8 @@ const LogsPage = () => {
     setCompileModalOpen(true);
   };
 
-  // AI Enhancement Functions
-  const handleAIEnhance = async (enhanceType: EnhanceType) => {
+  // Writing tool functions
+  const handleWritingTool = async (enhanceType: EnhanceType) => {
     if (!formData.content.trim()) {
       toast.error("Please write some content first", {
         position: "top-right",
@@ -341,7 +341,7 @@ const LogsPage = () => {
     }
 
     setIsEnhancing(true);
-    setShowAIMenu(false);
+    setShowWritingTools(false);
 
     try {
       if (!originalContent) {
@@ -367,13 +367,13 @@ const LogsPage = () => {
         summarize: "summarized",
       };
 
-      toast.success(`Content ${typeLabels[enhanceType]} with AI!`, {
+      toast.success(`Content ${typeLabels[enhanceType]}.`, {
         position: "top-right",
         theme: "light",
         transition: Bounce,
       });
     } catch (error) {
-      console.error("AI Enhancement Error:", error);
+      console.error("Writing Tool Error:", error);
       toast.error("Failed to enhance content. Please try again.", {
         position: "top-right",
         theme: "light",
@@ -384,7 +384,7 @@ const LogsPage = () => {
     }
   };
 
-  const handleAISuggestTags = async () => {
+  const handleSuggestTags = async () => {
     if (!formData.content.trim()) {
       toast.error("Please write some content first", {
         position: "top-right",
@@ -404,7 +404,7 @@ const LogsPage = () => {
     }
 
     setIsEnhancing(true);
-    setShowAIMenu(false);
+    setShowWritingTools(false);
 
     try {
       const tags = await suggestTags(
@@ -424,13 +424,13 @@ const LogsPage = () => {
         tags: allTags.join(", "),
       }));
 
-      toast.success(`Added ${tags.length} AI-suggested tags!`, {
+      toast.success(`Added ${tags.length} suggested tags.`, {
         position: "top-right",
         theme: "light",
         transition: Bounce,
       });
     } catch (error) {
-      console.error("AI Tag Suggestion Error:", error);
+      console.error("Tag Suggestion Error:", error);
       toast.error("Failed to suggest tags. Please try again.", {
         position: "top-right",
         theme: "light",
@@ -575,7 +575,7 @@ const LogsPage = () => {
     setEditingEntry(null);
     setIsModalOpen(false);
     setOriginalContent(null);
-    setShowAIMenu(false);
+    setShowWritingTools(false);
   };
 
   const handleEdit = (entry: JournalEntry) => {
@@ -1164,7 +1164,7 @@ const LogsPage = () => {
     const hasSummary = Boolean(weeklySummary?.trim());
 
     if (!hasSummary) {
-      toast.error("Please generate an AI summary first before exporting.", {
+      toast.error("Please generate a summary first before exporting.", {
         position: "top-right",
         theme: "light",
         transition: Bounce,
@@ -1928,7 +1928,7 @@ const LogsPage = () => {
     <>
       <SEO
         title="Journal"
-        description="Document your internship journey with AI-enhanced journal entries. Track hours, reflect on experiences, and grow professionally."
+        description="Document your internship work, track hours, reflect on progress, and prepare reports."
       />
       <div className="flex min-h-screen bg-surface">
         {/* Sidebar */}
@@ -2463,12 +2463,12 @@ const LogsPage = () => {
                     rows={5}
                     value={weeklySummary ?? ""}
                     onChange={(e) => setWeeklySummary(e.target.value)}
-                    placeholder="Generate an AI summary from this week's entries to see the conclusion here."
+                    placeholder="Generate a summary from this week's entries to see the conclusion here."
                     className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-text placeholder-text-muted resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                   {weeklySummary && (
                     <p className="mt-2 text-xs font-medium text-text-muted">
-                      AI draft. Edit before exporting.
+                      Draft summary. Edit before exporting.
                     </p>
                   )}
                 </div>
@@ -2489,7 +2489,7 @@ const LogsPage = () => {
                       ) : (
                         <>
                           <Sparkles className="w-4 h-4 shrink-0" />
-                          <span>Generate AI summary</span>
+                          <span>Generate summary</span>
                         </>
                       )}
                     </button>
@@ -3353,7 +3353,9 @@ const LogsPage = () => {
                       <div className="relative">
                         <button
                           type="button"
-                          onClick={() => setShowAIMenu(!showAIMenu)}
+                          onClick={() =>
+                            setShowWritingTools(!showWritingTools)
+                          }
                           disabled={isEnhancing || !formData.content.trim()}
                           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-soft-blue text-white text-xs font-medium hover:bg-soft-blue/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -3365,21 +3367,21 @@ const LogsPage = () => {
                           ) : (
                             <>
                               <Wand2 className="w-3 h-3" />
-                              AI Enhance
+                              Writing tools
                               <ChevronDown className="w-3 h-3" />
                             </>
                           )}
                         </button>
 
-                        {showAIMenu && (
+                        {showWritingTools && (
                           <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-border shadow-sm z-10 overflow-hidden">
                             <div className="p-2">
                               <div className="text-xs font-medium text-text/40 px-3 py-1.5 uppercase tracking-wide">
-                                AI Actions
+                                Writing Tools
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleAIEnhance("improve")}
+                                onClick={() => handleWritingTool("improve")}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                               >
                                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -3396,7 +3398,7 @@ const LogsPage = () => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleAIEnhance("expand")}
+                                onClick={() => handleWritingTool("expand")}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                               >
                                 <div className="w-7 h-7 rounded-lg bg-soft-blue/10 flex items-center justify-center">
@@ -3413,7 +3415,9 @@ const LogsPage = () => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleAIEnhance("professional")}
+                                onClick={() =>
+                                  handleWritingTool("professional")
+                                }
                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                               >
                                 <div className="w-7 h-7 rounded-lg bg-pastel-green flex items-center justify-center">
@@ -3430,7 +3434,7 @@ const LogsPage = () => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleAIEnhance("summarize")}
+                                onClick={() => handleWritingTool("summarize")}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                               >
                                 <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
@@ -3478,12 +3482,12 @@ const LogsPage = () => {
                       </label>
                       <button
                         type="button"
-                        onClick={handleAISuggestTags}
+                        onClick={handleSuggestTags}
                         disabled={isEnhancing || !formData.content.trim()}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-soft-blue hover:bg-soft-blue/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Tag className="w-3 h-3" />
-                        AI Suggest
+                        Suggest tags
                       </button>
                     </div>
                     <input
@@ -3983,7 +3987,7 @@ const LogsPage = () => {
                   {compileLoading ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Compiling with AI...
+                      Compiling report...
                     </>
                   ) : (
                     <>

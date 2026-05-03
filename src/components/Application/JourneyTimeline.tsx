@@ -187,12 +187,12 @@ export default function JourneyTimeline({
         {narrativeLoading && (
           <div className="flex items-center gap-3 text-text-muted py-2">
             <span className="inline-block w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-            <span className="text-sm">Generating your story...</span>
+            <span className="text-sm">Building summary...</span>
           </div>
         )}
         {narrativeError && (
           <p className="text-sm text-text-muted">
-            We couldn’t generate a summary right now. Your timeline is below.
+            We couldn't generate a summary right now. Your timeline is below.
           </p>
         )}
         {!narrativeLoading && narrative && (

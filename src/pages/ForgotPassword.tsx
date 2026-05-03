@@ -52,8 +52,8 @@ export default function ForgotPassword() {
             </h1>
 
             <p className="text-sidebar-text text-lg leading-relaxed mb-10">
-              Your AI-powered companion for tracking internship applications,
-              organizing opportunities, and achieving your career goals.
+              A focused workspace for tracking internship applications,
+              organizing opportunities, and keeping career notes.
             </p>
 
             <div className="space-y-5">

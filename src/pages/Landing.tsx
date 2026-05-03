@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
-  Sparkles,
+  BookOpen,
+  Briefcase,
   LayoutGrid,
   History,
   CheckCircle2,
@@ -20,7 +21,7 @@ export default function Landing() {
     {
       title: "Visual Kanban",
       description:
-        "Manage your application pipeline with a sleek, drag-and-drop board designed for clarity.",
+        "Move applications through each stage with a clear drag-and-drop board.",
       icon: <LayoutGrid className="w-6 h-6" />,
       image: "/feature_kanban_icon_premium_1772958235096.png",
       color: "bg-primary/10",
@@ -28,10 +29,10 @@ export default function Landing() {
       span: "md:col-span-2",
     },
     {
-      title: "AI Insights",
+      title: "Journal Tools",
       description:
-        "Leverage Gemini to refine your journal entries and get smart suggestions.",
-      icon: <Sparkles className="w-6 h-6" />,
+        "Clean up entries, suggest tags, and prepare report-ready summaries.",
+      icon: <BookOpen className="w-6 h-6" />,
       image: "/feature_ai_sparkle_premium_1772958280215_1772958308667.png",
       color: "bg-purple-500/10",
       textColor: "text-[#af52de]",
@@ -40,7 +41,7 @@ export default function Landing() {
     {
       title: "Live Journey",
       description:
-        "Visualize your entire professional growth in a beautiful, chronological timeline.",
+        "See every application in order, from first submission to final decision.",
       icon: <History className="w-6 h-6" />,
       color: "bg-success/10",
       textColor: "text-success",
@@ -49,7 +50,7 @@ export default function Landing() {
     {
       title: "Onboarding Checklists",
       description:
-        "Stay prepared with automated tasks for every successful offer.",
+        "Turn accepted offers into a checklist for documents, dates, and prep.",
       icon: <CheckCircle2 className="w-6 h-6" />,
       color: "bg-warning/10",
       textColor: "text-warning",
@@ -100,17 +101,16 @@ export default function Landing() {
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6 overflow-hidden">
         <div className="max-w-7xl mx-auto text-center relative z-10">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 text-primary text-xs font-black uppercase tracking-[0.2em] mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <Sparkles size={14} />
-            <span>AI-Powered Career OS</span>
+            <Briefcase size={14} />
+            <span>Internship Tracker</span>
           </div>
           <h1 className="text-5xl md:text-8xl font-black tracking-tighter mb-8 leading-[0.9] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100">
-            The premium way to <br />
-            <span className="text-primary italic">track</span> your journey.
+            Keep your internship <br />
+            <span className="text-primary italic">search</span> organized.
           </h1>
           <p className="text-lg md:text-2xl text-text-muted font-medium max-w-2xl mx-auto mb-12 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
-            Master your internship search with intuitive Kanban boards,
-            AI-driven journal insights, and a personalized professional
-            timeline.
+            Track applications, log daily work, and export clean reports when
+            you need them.
           </p>
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-300">
             <button
@@ -139,11 +139,12 @@ export default function Landing() {
       <section className="py-20 px-6 max-w-7xl mx-auto">
         <div className="mb-16">
           <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">
-            Everything you need. <br />
-            Nothing you don't.
+            Everything useful. <br />
+            Nothing in the way.
           </h2>
           <p className="text-text-muted font-medium text-lg">
-            Designed for the modern intern aiming for excellence.
+            Built for students managing real roles, interviews, and internship
+            logs.
           </p>
         </div>
 
@@ -192,10 +193,10 @@ export default function Landing() {
               <Zap size={32} strokeWidth={2.5} />
             </div>
             <h4 className="text-xl font-black tracking-tight">
-              Lightning Fast
+              Quick Updates
             </h4>
             <p className="text-text-muted font-medium">
-              Built with performance in mind. Zero lag, just pure productivity.
+              Add roles, move cards, and update notes without slowing down.
             </p>
           </div>
           <div className="space-y-4">
@@ -204,7 +205,7 @@ export default function Landing() {
             </div>
             <h4 className="text-xl font-black tracking-tight">Privacy First</h4>
             <p className="text-text-muted font-medium">
-              Your data is encrypted and secure. Always in your control.
+              Your application history and journal records stay in your account.
             </p>
           </div>
           <div className="space-y-4">
@@ -212,10 +213,10 @@ export default function Landing() {
               <Globe size={32} strokeWidth={2.5} />
             </div>
             <h4 className="text-xl font-black tracking-tight">
-              Always Syncing
+              Always Current
             </h4>
             <p className="text-text-muted font-medium">
-              Real-time updates across all your devices. Never miss a beat.
+              Real-time updates keep changes in sync across tabs and devices.
             </p>
           </div>
         </div>
@@ -226,12 +227,11 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto rounded-[3.5rem] bg-text p-12 md:p-24 text-center text-white relative overflow-hidden shadow-2xl">
           <div className="relative z-10">
             <h2 className="text-4xl md:text-7xl font-black tracking-tighter mb-8 leading-none">
-              Ready to land your <br />
-              dream internship?
+              Ready to organize <br />
+              your search?
             </h2>
             <p className="text-white/60 text-lg md:text-xl font-medium mb-12 max-w-xl mx-auto">
-              Join thousands of students who have organized their career search
-              with InternPal.
+              Keep roles, deadlines, notes, and outcomes in one focused place.
             </p>
             <button
               onClick={() => navigate(user ? "/dashboard" : "/register")}
@@ -254,7 +254,7 @@ export default function Landing() {
             <span className="text-white font-bold text-xs uppercase">IP</span>
           </div>
           <span className="font-bold text-sm tracking-tight">
-            © 2026 InternPal. All rights reserved.
+            Copyright 2026 InternPal. All rights reserved.
           </span>
         </div>
         <div className="flex items-center gap-8 text-sm font-bold text-text-muted hover:text-text transition-colors cursor-pointer">

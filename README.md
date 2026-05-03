@@ -1,16 +1,16 @@
 # Internship Tracker
 
-Track internship applications from first apply to acceptance. Board view, list view, and an AI-powered journey timeline—with real-time updates and optional PDF/CSV export.
+Track internship applications from first apply to acceptance. Board view, list view, timeline, daily journal, and optional PDF/CSV export.
 
 ## Features
 
 - **Board view (Kanban)** — Drag-and-drop columns: Applied → Interviewing → Offer Received → Accepted. Status updates when you move cards.
 - **List view** — Table-style list of applications with filters.
-- **Journey timeline** — Chronological timeline with an AI-generated narrative summary of your applications.
+- **Journey timeline** — Chronological timeline with an optional plain-language summary of your applications.
 - **Post-acceptance (Onboarding mode)** — When an application is Accepted: winner card, onboarding checklist, countdown to start date, and a “Past applications” tab for rejected/withdrawn.
 - **Application details** — Company, role/position, stipend (paid/unpaid), address, status, and date applied.
 - **Confetti** — Celebration when an application moves to Accepted.
-- **Export** — Download journey history as CSV or PDF (PDF includes AI narrative).
+- **Export** — Download journey history as CSV or PDF (PDF can include the generated summary).
 - **Auth** — Sign up, sign in (email or Google), forgot/reset password. Protected routes and guest redirects.
 - **Real-time** — Socket.io sync so changes appear across tabs/devices.
 - **Dashboard & Logs** — Overview and activity logs.
@@ -23,7 +23,7 @@ Track internship applications from first apply to acceptance. Board view, list v
 | UI        | MUI, Lucide icons, @dnd-kit (drag-and-drop), canvas-confetti, jsPDF |
 | Auth & DB | Supabase (auth + Postgres)                                          |
 | Backend   | Node.js, Express 5, Supabase (service role), Socket.io              |
-| AI        | Google Gemini (journey summary, optional)                           |
+| Summaries | Google Gemini (optional journal tools and summaries)                |
 
 ## Project structure
 
@@ -32,7 +32,7 @@ internship-tracker/
 ├── src/                    # Frontend (Vite + React)
 │   ├── components/        # Application cards, Kanban, Modal, etc.
 │   ├── config/            # Supabase client
-│   ├── functions/         # API calls, auth, AI
+│   ├── functions/         # API calls, auth, journal helpers
 │   ├── layout/            # App layout
 │   ├── lib/               # Kanban config, export, confetti
 │   ├── pages/             # Login, Dashboard, ApplicationList, Logs, etc.
@@ -52,7 +52,7 @@ internship-tracker/
 - Node.js 18+
 - npm (or pnpm/yarn)
 - [Supabase](https://supabase.com) project
-- (Optional) [Google AI](https://ai.google.dev) API key for journey summary
+- (Optional) [Google Gemini](https://ai.google.dev) API key for journal tools and summaries
 
 ## Environment variables
 
@@ -81,7 +81,7 @@ GEMINI_API_KEY=your-gemini-key
 ```
 
 - `FRONTEND_URL` — Used for CORS and auth redirects (e.g. `https://your-app.vercel.app` in production).
-- `GEMINI_API_KEY` — Optional; omit or leave empty to disable AI journey summary (timeline still works).
+- `GEMINI_API_KEY` — Optional; omit or leave empty to disable generated summaries (timeline still works).
 
 ## Getting started
 
@@ -97,7 +97,7 @@ GEMINI_API_KEY=your-gemini-key
 2. **Configure env**
 
    - Copy the frontend and backend env vars above into `.env` and `tracktern-api/.env`.
-   - Use your Supabase project URL and keys; add `GEMINI_API_KEY` only if you want AI summary.
+   - Use your Supabase project URL and keys; add `GEMINI_API_KEY` only if you want generated summaries.
 
 3. **Database**
 
