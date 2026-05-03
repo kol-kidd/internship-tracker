@@ -33,6 +33,22 @@ interface JournalState {
   clearEntries: () => void;
 }
 
+type ApiErrorResponse = {
+  error?: string;
+};
+
+function getApiErrorMessage(error: unknown, fallback = "Request failed") {
+  if (axios.isAxiosError<ApiErrorResponse>(error)) {
+    return error.response?.data?.error ?? error.message ?? fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: {
@@ -121,9 +137,8 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         lastModified: newLastMod ?? undefined,
       });
     } catch (err: unknown) {
-      const errObj = err as { response?: { data?: { error?: string }; status?: number } };
       set({
-        error: errObj.response?.data?.error ?? "Failed to fetch entries",
+        error: getApiErrorMessage(err, "Failed to fetch entries"),
         loading: false,
       });
       throw err;
@@ -138,8 +153,8 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         entries: [res.data.entry, ...state.entries],
         loading: false,
       }));
-    } catch (err: any) {
-      set({ error: err.response?.data?.error || err.message, loading: false });
+    } catch (err: unknown) {
+      set({ error: getApiErrorMessage(err), loading: false });
       throw err;
     }
   },
@@ -154,8 +169,8 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         ),
         loading: false,
       }));
-    } catch (err: any) {
-      set({ error: err.response?.data?.error || err.message, loading: false });
+    } catch (err: unknown) {
+      set({ error: getApiErrorMessage(err), loading: false });
       throw err;
     }
   },
@@ -168,8 +183,8 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         entries: state.entries.filter((e) => e.id !== entryId),
         loading: false,
       }));
-    } catch (err: any) {
-      set({ error: err.response?.data?.error || err.message, loading: false });
+    } catch (err: unknown) {
+      set({ error: getApiErrorMessage(err), loading: false });
       throw err;
     }
   },

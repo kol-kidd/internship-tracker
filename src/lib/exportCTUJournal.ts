@@ -1,4 +1,4 @@
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 
 export interface CTUJournalParams {
   traineeName: string;
@@ -10,206 +10,282 @@ export interface CTUJournalParams {
   learnings: string[];
 }
 
-export function generateCTUJournalPDF(params: CTUJournalParams): void {
-  const { traineeName, course, industryPartner, department, dateRange, activities, learnings } = params;
+type Rect = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
 
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const W = doc.internal.pageSize.getWidth();
-  const H = doc.internal.pageSize.getHeight();
-  const mx = 18;
-  const contentW = W - mx * 2;
-  const black: [number, number, number] = [0, 0, 0];
-  const lw = 0.3;
+const TEMPLATE = {
+  ojtBox: { x: 479.2, y: 41.5, w: 83.2, h: 52.5 },
+  outer: { x: 63, y: 146.3, w: 469.4, h: 599 },
+  gridX: 72.5,
+  gridRight: 523,
+  labelX: 77.7,
+  valueX: 229.4,
+  dateX: 417.2,
+  dateValueX: 448.5,
+  rowTop: 146.8,
+  rowH: 14.5,
+  labelW: 151.2,
+  valueW: 187.4,
+  dateW: 110.9,
+  content: {
+    left: { x: 72.5, y: 221.6, w: 258.8, h: 230.9 },
+    right: { x: 331.8, y: 221.6, w: 191.2, h: 230.9 },
+  },
+  prepared: { x: 72.5, y: 453, w: 450.5, h: 72.5 },
+  supervisorHeader: { x: 72.5, y: 526, w: 450.5, h: 14.5 },
+  supervisorBody: { x: 72.5, y: 541.1, w: 450.5, h: 130.3 },
+  notedHeader: { x: 72.5, y: 671.8, w: 450.5, h: 14.5 },
+  notedBody: { x: 72.5, y: 686.8, w: 450.5, h: 58 },
+};
 
-  const fmtDate = (iso: string) =>
-    iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+function formatDate(iso: string): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
-  // ── TOP-RIGHT CORNER BOX ──────────────────────────────────────────────────
-  const bw = 28;
-  const bh = 13;
-  const bx = W - mx - bw;
-  const by = 12;
-  doc.setDrawColor(...black);
-  doc.setLineWidth(lw);
-  doc.rect(bx, by, bw, bh, "S");
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(...black);
-  doc.text("OJT Form 6", bx + bw / 2, by + 4.5, { align: "center" });
-  doc.text("October 2012", bx + bw / 2, by + 8, { align: "center" });
-  doc.text("Revision: 0", bx + bw / 2, by + 11.5, { align: "center" });
+function fitText(doc: jsPDF, text: string, maxWidth: number): string {
+  const value = text.trim();
+  if (doc.getTextWidth(value) <= maxWidth) return value;
 
-  // ── CENTERED HEADER ───────────────────────────────────────────────────────
-  let y = 18;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text("CEBU TECHNOLOGICAL UNIVERSITY", W / 2, y, { align: "center" });
-  y += 5.5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("( Danao Campus", W / 2, y, { align: "center" });
-  y += 5;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("Daily/ Weekly/ Monthly Performance Report", W / 2, y, { align: "center" });
-  y += 7;
-
-  // ── SINGLE OUTER BORDER for entire form (info + table + signatures) ──────
-  const formTopY = y;
-  const formBottomY = H - 12;
-  const formH = formBottomY - formTopY;
-  doc.setLineWidth(lw);
-  doc.setDrawColor(...black);
-  doc.rect(mx, formTopY, contentW, formH, "S");
-
-  // ── INFO ROWS (rows 0-3) inside the form ──────────────────────────────────
-  const rowH = 7;
-  const labelColW = 40;
-  const dateColW = 38;
-  const valueColW = contentW - labelColW - dateColW;
-  const dateDivX = mx + labelColW + valueColW;
-
-  // Vertical divider for date column (rows 0-3 only)
-  doc.line(dateDivX, formTopY, dateDivX, formTopY + rowH * 4);
-
-  // Horizontal dividers for rows 1-4
-  for (let i = 1; i <= 4; i++) {
-    doc.line(mx, formTopY + i * rowH, mx + contentW, formTopY + i * rowH);
+  let next = value;
+  while (next.length > 1 && doc.getTextWidth(`${next}...`) > maxWidth) {
+    next = next.slice(0, -1);
   }
 
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  const textY = (row: number) => formTopY + row * rowH + rowH * 0.7;
+  return `${next.trimEnd()}...`;
+}
 
-  // Row 0: Name of Student Trainee + Inclusive Date:
-  doc.text("Name of Student Trainee:", mx + 2, textY(0));
-  doc.text(traineeName || "", mx + labelColW + 2, textY(0));
-  doc.text("Inclusive Date:", dateDivX + 2, textY(0));
+function drawRect(doc: jsPDF, rect: Rect) {
+  doc.rect(rect.x, rect.y, rect.w, rect.h);
+}
 
-  // Row 1: Course & Major + From:
-  doc.text("Course & Major", mx + 2, textY(1));
-  doc.text(":", mx + labelColW - 4, textY(1));
-  doc.text(course || "", mx + labelColW + 2, textY(1));
-  doc.text("From:", dateDivX + 2, textY(1));
-  doc.text(fmtDate(dateRange.start), dateDivX + 14, textY(1));
+function fillRect(doc: jsPDF, rect: Rect) {
+  doc.rect(rect.x, rect.y, rect.w, rect.h, "F");
+}
 
-  // Row 2: Industry Partner + To:
-  doc.text("Industry Partner", mx + 2, textY(2));
-  doc.text(":", mx + labelColW - 4, textY(2));
-  doc.text(industryPartner || "", mx + labelColW + 2, textY(2));
-  doc.text("To:", dateDivX + 2, textY(2));
-  doc.text(fmtDate(dateRange.end), dateDivX + 14, textY(2));
+function drawTextInWidth(
+  doc: jsPDF,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+) {
+  doc.text(fitText(doc, text, width), x, y);
+}
 
-  // Row 3: Department Assigned
-  doc.text("Department Assigned", mx + 2, textY(3));
-  doc.text(":", mx + labelColW - 4, textY(3));
-  doc.text(department || "", mx + labelColW + 2, textY(3));
-
-  // ── ROW 4: Activities / Learning/Insights HEADER ──────────────────────────
-  const actHeaderY = formTopY + 4 * rowH;
-  const colW = contentW / 2;
-
-  // Vertical center divider from row 4 header down to signature section
-  const sigSectionY = formBottomY - 52; // reserve 52mm for signatures at bottom
-  doc.line(mx + colW, actHeaderY, mx + colW, sigSectionY);
-
-  // Row 4 text: "Activities:" left, "Learning/Insights:" right
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("Activities:", mx + 2, textY(4));
-  doc.text("Learning/Insights:", mx + colW + 2, textY(4));
-
-  // ── CONTENT AREA (below row 4 header, above signature section) ────────────
-  const contentTopY = actHeaderY + rowH;
-  // Horizontal divider between content and signature section
-  doc.line(mx, sigSectionY, mx + contentW, sigSectionY);
-
-  const textPad = 3;
-  const lineH = 3.8;
-  const bulletW = colW - textPad * 2;
-  const availableH = sigSectionY - contentTopY - 2;
-  const maxLines = Math.floor(availableH / lineH);
+function drawBulletList(
+  doc: jsPDF,
+  items: string[],
+  rect: Rect,
+  options: { fontSize: number; lineHeight: number; maxWidth: number },
+) {
+  const x = rect.x + 5.2;
+  let y = rect.y + 26.6;
+  const maxY = rect.y + rect.h - 8;
+  const maxWidth = options.maxWidth;
+  const remaining: string[] = [];
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(options.fontSize);
 
-  const buildLines = (items: string[], maxW: number): string[] => {
-    const out: string[] = [];
-    for (const item of items) {
-      const wrapped = doc.splitTextToSize(`\u2022 ${item}`, maxW) as string[];
-      for (const l of wrapped) out.push(l);
+  for (const item of items.filter((value) => value.trim())) {
+    const lines = doc.splitTextToSize(`\u2022 ${item.trim()}`, maxWidth) as string[];
+
+    if (y + lines.length * options.lineHeight > maxY) {
+      remaining.push(item);
+      continue;
     }
-    return out;
-  };
 
-  const actLines = buildLines(activities, bulletW);
-  const leaLines = buildLines(learnings, bulletW);
+    for (const line of lines) {
+      doc.text(line, x, y);
+      y += options.lineHeight;
+    }
+    y += 1.5;
+  }
 
-  actLines.slice(0, maxLines).forEach((line, i) => {
-    doc.text(line, mx + textPad, contentTopY + lineH * i + 2);
+  if (remaining.length > 0 && y + options.lineHeight <= maxY) {
+    doc.text(`+${remaining.length} more item${remaining.length === 1 ? "" : "s"}`, x, y);
+  }
+}
+
+function drawTemplate(doc: jsPDF) {
+  doc.setTextColor(0, 0, 0);
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.5);
+
+  drawRect(doc, TEMPLATE.ojtBox);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(12);
+  doc.text("OJT Form 6", 486.9, 56.6);
+  doc.text("October 2012", 486.9, 70.4);
+  doc.text("Revision: 0", 486.9, 84.2);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("CEBU TECHNOLOGICAL UNIVERSITY", 297.6, 97.8, {
+    align: "center",
+  });
+  doc.setFont("helvetica", "normal");
+  doc.text("( Danao Campus", 297.6, 112.2, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  doc.text("Daily/", 162.7, 126.7);
+  doc.text("Weekly", 203.7, 126.7);
+  doc.line(203.7, 128.8, 248, 128.8);
+  doc.text("/ Monthly Performance Report", 248, 126.7);
+  doc.setFont("helvetica", "normal");
+
+  drawRect(doc, TEMPLATE.outer);
+
+  const row0: Rect[] = [
+    { x: 72.5, y: 146.8, w: 151.2, h: 14.5 },
+    { x: 224.2, y: 146.8, w: 298.8, h: 14.5 },
+  ];
+  const row1: Rect[] = [
+    { x: 72.5, y: 161.8, w: 151.2, h: 14.4 },
+    { x: 224.2, y: 161.8, w: 187.4, h: 14.4 },
+    { x: 412.1, y: 161.8, w: 110.9, h: 14.4 },
+  ];
+  const row2: Rect[] = [
+    { x: 72.5, y: 176.6, w: 151.2, h: 14.4 },
+    { x: 224.2, y: 176.6, w: 187.4, h: 14.4 },
+    { x: 412.1, y: 176.6, w: 110.9, h: 29.4 },
+  ];
+  const row3: Rect[] = [
+    { x: 72.5, y: 191.6, w: 151.2, h: 14.4 },
+    { x: 224.2, y: 191.6, w: 187.4, h: 14.4 },
+  ];
+  const activityHeader: Rect[] = [
+    { x: 72.5, y: 206.6, w: 258.8, h: 14.5 },
+    { x: 331.8, y: 206.6, w: 191.2, h: 14.5 },
+  ];
+
+  const shaded = [
+    row0[0],
+    row1[0],
+    row1[2],
+    row2[0],
+    row3[0],
+    ...activityHeader,
+    TEMPLATE.supervisorHeader,
+    TEMPLATE.notedHeader,
+  ];
+
+  doc.setFillColor(238, 237, 231);
+  shaded.forEach((rect) => fillRect(doc, rect));
+
+  [...row0, ...row1, ...row2, ...row3, ...activityHeader].forEach((rect) =>
+    drawRect(doc, rect),
+  );
+  drawRect(doc, TEMPLATE.content.left);
+  drawRect(doc, TEMPLATE.content.right);
+  drawRect(doc, TEMPLATE.prepared);
+  drawRect(doc, TEMPLATE.supervisorHeader);
+  drawRect(doc, TEMPLATE.supervisorBody);
+  drawRect(doc, TEMPLATE.notedHeader);
+  drawRect(doc, TEMPLATE.notedBody);
+}
+
+export function createCTUJournalPDF(params: CTUJournalParams): jsPDF {
+  const {
+    traineeName,
+    course,
+    industryPartner,
+    department,
+    dateRange,
+    activities,
+    learnings,
+  } = params;
+
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+  drawTemplate(doc);
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(12);
+
+  drawTextInWidth(doc, "Name of Student Trainee:", TEMPLATE.labelX, 158.8, 145);
+  drawTextInWidth(doc, traineeName || "", TEMPLATE.valueX, 158.8, 285);
+
+  drawTextInWidth(doc, "Course & Major", TEMPLATE.labelX, 173.6, 104);
+  doc.text(":", 185.7, 173.6);
+  drawTextInWidth(doc, course || "", TEMPLATE.valueX, 173.6, 175);
+  doc.text("Inclusive Date:", TEMPLATE.dateX, 173.6);
+
+  drawTextInWidth(doc, "Industry Partner", TEMPLATE.labelX, 188.6, 104);
+  doc.text(":", 185.7, 188.6);
+  drawTextInWidth(doc, industryPartner || "", TEMPLATE.valueX, 188.6, 175);
+  doc.text("From:", TEMPLATE.dateX, 188.6);
+  doc.setFontSize(11);
+  drawTextInWidth(doc, formatDate(dateRange.start), TEMPLATE.dateValueX, 188.6, 72);
+
+  doc.setFontSize(12);
+  drawTextInWidth(doc, "Department Assigned", TEMPLATE.labelX, 203.6, 132);
+  doc.text(":", 185.7, 203.6);
+  drawTextInWidth(doc, department || "", TEMPLATE.valueX, 203.6, 175);
+  doc.text("To", TEMPLATE.dateX, 203.2);
+  doc.text(":", 430.7, 203.2);
+  doc.setFontSize(11);
+  drawTextInWidth(doc, formatDate(dateRange.end), 434.9, 203.2, 86);
+
+  doc.setFontSize(12);
+  doc.text("Activities:", TEMPLATE.labelX, 218.6);
+  doc.text("Learning/Insights:", 336.9, 218.6);
+
+  drawBulletList(doc, activities, TEMPLATE.content.left, {
+    fontSize: 12,
+    lineHeight: 14.45,
+    maxWidth: 230,
+  });
+  drawBulletList(doc, learnings, TEMPLATE.content.right, {
+    fontSize: 12,
+    lineHeight: 14.45,
+    maxWidth: 170,
   });
 
-  leaLines.slice(0, maxLines).forEach((line, i) => {
-    doc.text(line, mx + colW + textPad, contentTopY + lineH * i + 2);
-  });
-
-  // ── SIGNATURE SECTION (inside the same outer border) ──────────────────────
-  let sy = sigSectionY + 4;
-
-  // "Prepared by:"
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("Prepared by:", mx + 2, sy);
-  sy += 8;
+  doc.setFontSize(12);
+  doc.text("Prepared by:", TEMPLATE.labelX, 465);
 
-  // Trainee name (underlined)
+  const name = (traineeName || "").toUpperCase();
   doc.setFont("helvetica", "bold");
-  doc.text((traineeName || "").toUpperCase(), mx + 2, sy);
-  doc.setDrawColor(...black);
-  const nameW = doc.getTextWidth((traineeName || "").toUpperCase());
-  doc.line(mx + 2, sy + 1, mx + 2 + nameW + 10, sy + 1);
-  sy += 4;
+  doc.text(name, TEMPLATE.labelX, 494);
+  const nameEnd = TEMPLATE.labelX + doc.getTextWidth(name);
+  doc.setLineWidth(0.7);
+  doc.line(TEMPLATE.labelX, 496.2, Math.min(nameEnd + 46, 270), 496.2);
+
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text("Student Trainee\u2019s Signature Over Printed Name", mx + 2, sy);
-
-  // Horizontal divider before supervisor remarks
-  sy += 4;
-  doc.line(mx, sy, mx + contentW, sy);
-
-  // "Industry Training Supervisor Remarks:" section
-  sy += 4;
+  doc.setFontSize(12);
+  doc.text("Student Trainee\u2019s Signature Over Printed Name", TEMPLATE.labelX, 508.5);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("Industry Training Supervisor Remarks:", mx + 2, sy);
+  doc.text("Industry Training Supervisor Remarks:", TEMPLATE.labelX, 538);
 
-  // Remarks empty area + sig line right-aligned
-  const remarkEndY = sy + 18;
-  doc.setDrawColor(...black);
+  doc.line(353.9, 642, 506, 642);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.line(mx + contentW - 55, remarkEndY, mx + contentW - 2, remarkEndY);
-  doc.text("Signature Over Printed Name", mx + contentW - 2, remarkEndY + 4, { align: "right" });
+  doc.text("Signature Over Printed Name", 362.9, 654.3);
 
-  // Horizontal divider before "Noted by"
-  const notedDivY = remarkEndY + 7;
-  doc.line(mx, notedDivY, mx + contentW, notedDivY);
-
-  // "Noted by:" section
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("Noted by:", mx + 2, notedDivY + 4);
-
-  // REYNILDA A. CASTRO centered
-  const castroY = notedDivY + 12;
+  doc.text("Noted by:", TEMPLATE.labelX, 683.8);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("REYNILDA A. CASTRO", mx + contentW / 2, castroY, { align: "center" });
+  doc.text("REYNILDA A. CASTRO", 413, 713.4, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text("Internship Coordinator", mx + contentW / 2, castroY + 4, { align: "center" });
+  doc.text("Internship Coordinator", 413, 727.8, { align: "center" });
 
-  // ── SAVE ──────────────────────────────────────────────────────────────────
-  const safeName = (traineeName || "trainee").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  return doc;
+}
+
+export function generateCTUJournalPDF(params: CTUJournalParams): void {
+  const doc = createCTUJournalPDF(params);
+  const safeName = (params.traineeName || "trainee")
+    .replace(/[^a-z0-9]/gi, "_")
+    .toLowerCase();
   doc.save(`CTU_OJT_Form6_${safeName}.pdf`);
 }

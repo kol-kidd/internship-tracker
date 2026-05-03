@@ -15,7 +15,7 @@ export const checkEmailProvider = async (email: string) => {
     }
     // If no specific error, might be OAuth
     return "unknown";
-  } catch (err) {
+  } catch {
     return "unknown";
   }
 };

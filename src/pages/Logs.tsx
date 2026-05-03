@@ -26,9 +26,13 @@ import {
   Upload,
   Filter,
   FileText,
+  CheckCircle2,
+  AlertTriangle,
+  FolderOpen,
 } from "lucide-react";
 import SEO from "@/components/SEO";
-import TimePickerInput, { getDefaultTimes } from "@/components/TimePickerInput";
+import TimePickerInput from "@/components/TimePickerInput";
+import { getDefaultTimes } from "@/components/timePickerUtils";
 import { jsPDF } from "jspdf";
 import { useAuthStore } from "@/store/authStore";
 import { useJournalStore } from "@/store/journalStore";
@@ -120,6 +124,38 @@ interface JournalEntry {
   updated_at: string;
 }
 
+type MainView = "entries" | "weekly" | "notes" | "gallery" | "reports";
+
+type ReportHistoryItem = {
+  id: string;
+  type: "Journal PDF" | "Weekly Report" | "CTU Form 6";
+  title: string;
+  range: string;
+  entryCount: number;
+  createdAt: string;
+};
+
+const REPORT_HISTORY_KEY = "internpal_report_history";
+
+function loadReportHistory(): ReportHistoryItem[] {
+  try {
+    const raw = localStorage.getItem(REPORT_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveReportHistory(items: ReportHistoryItem[]) {
+  try {
+    localStorage.setItem(REPORT_HISTORY_KEY, JSON.stringify(items.slice(0, 8)));
+  } catch {
+    // ignore localStorage failures
+  }
+}
+
 const LogsPage = () => {
   const { user, session } = useAuthStore();
   const {
@@ -181,9 +217,7 @@ const LogsPage = () => {
   const [reportDate, setReportDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
-  const [mainView, setMainView] = useState<
-    "entries" | "weekly" | "notes" | "gallery"
-  >("entries");
+  const [mainView, setMainView] = useState<MainView>("entries");
 
   const {
     notes,
@@ -230,10 +264,16 @@ const LogsPage = () => {
   const [entryViewCaption, setEntryViewCaption] = useState("");
   const [entryViewUploading, setEntryViewUploading] = useState(false);
   const [exportPdfModalOpen, setExportPdfModalOpen] = useState(false);
+  const [exportPdfEntryPool, setExportPdfEntryPool] = useState<JournalEntry[]>(
+    [],
+  );
   const [exportPdfSelectedIds, setExportPdfSelectedIds] = useState<Set<number>>(
     new Set(),
   );
   const [exportPdfLoading, setExportPdfLoading] = useState(false);
+  const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>(
+    () => loadReportHistory(),
+  );
 
   // Compile Report (CTU OJT Form 6) state
   const [compileModalOpen, setCompileModalOpen] = useState(false);
@@ -251,6 +291,33 @@ const LogsPage = () => {
     const hours = Number(value) || 0;
     setRequiredHours(hours);
     localStorage.setItem("internship_required_hours", String(hours));
+  };
+
+  const addReportHistory = (
+    item: Omit<ReportHistoryItem, "id" | "createdAt">,
+  ) => {
+    setReportHistory((prev) => {
+      const next = [
+        {
+          ...item,
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ].slice(0, 8);
+      saveReportHistory(next);
+      return next;
+    });
+  };
+
+  const openCompileReportModal = (range?: { start: string; end: string }) => {
+    setCompileForm((form) => ({
+      ...form,
+      traineeName: form.traineeName || reportName,
+      startDate: range?.start ?? form.startDate,
+      endDate: range?.end ?? form.endDate,
+    }));
+    setCompileModalOpen(true);
   };
 
   // AI Enhancement Functions
@@ -402,7 +469,12 @@ const LogsPage = () => {
   }, [user?.id, mainView, fetchNotes]);
 
   useEffect(() => {
-    if (user?.id && mainView === "gallery") {
+    if (
+      user?.id &&
+      (mainView === "gallery" ||
+        mainView === "weekly" ||
+        mainView === "reports")
+    ) {
       fetchGallery();
     }
   }, [user?.id, mainView, fetchGallery]);
@@ -909,6 +981,83 @@ const LogsPage = () => {
   const entriesForSelectedWeek = entries.filter((e) =>
     isDateInWeekBounds(e.date, weekBounds),
   );
+  const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
+  const galleryByEntryId = galleryImages.reduce(
+    (map, image) => {
+      if (image.journal_entry_id != null) {
+        const list = map.get(image.journal_entry_id) ?? [];
+        list.push(image);
+        map.set(image.journal_entry_id, list);
+      }
+      return map;
+    },
+    new Map<number, typeof galleryImages>(),
+  );
+  const weeklyHours = entriesForSelectedWeek.reduce(
+    (total, entry) =>
+      total + calculateHours(entry.time_in ?? "", entry.time_out ?? "", entry.break_time),
+    0,
+  );
+  const weeklyEvidenceCount = entriesForSelectedWeek.reduce(
+    (total, entry) => total + (galleryByEntryId.get(entry.id)?.length ?? 0),
+    0,
+  );
+  const entriesMissingTime = entries.filter(
+    (entry) => !entry.time_in || !entry.time_out,
+  );
+  const entriesMissingTags = entries.filter((entry) => entry.tags.length === 0);
+  const lowDetailEntries = entries.filter((entry) => {
+    const words = entry.content.trim().split(/\s+/).filter(Boolean);
+    return words.length > 0 && words.length < 25;
+  });
+  const entriesMissingEvidence = entries.filter(
+    (entry) => (galleryByEntryId.get(entry.id)?.length ?? 0) === 0,
+  );
+  const selectedRangeEntries =
+    compileForm.startDate && compileForm.endDate
+      ? entries.filter((entry) => {
+          const date = new Date(entry.date);
+          const start = new Date(compileForm.startDate);
+          const end = new Date(compileForm.endDate);
+          end.setHours(23, 59, 59, 999);
+          return date >= start && date <= end;
+        })
+      : [];
+  const selectedRangeHours = selectedRangeEntries.reduce(
+    (total, entry) =>
+      total + calculateHours(entry.time_in ?? "", entry.time_out ?? "", entry.break_time),
+    0,
+  );
+  const selectedRangeEvidenceCount = selectedRangeEntries.reduce(
+    (total, entry) => total + (galleryByEntryId.get(entry.id)?.length ?? 0),
+    0,
+  );
+  const selectedRangeLabel =
+    compileForm.startDate && compileForm.endDate
+      ? `${compileForm.startDate} to ${compileForm.endDate}`
+      : "No range selected";
+  const reportReadinessChecks = [
+    {
+      label: "Time logs",
+      ready: entriesMissingTime.length === 0,
+      issueCount: entriesMissingTime.length,
+    },
+    {
+      label: "Tags",
+      ready: entriesMissingTags.length === 0,
+      issueCount: entriesMissingTags.length,
+    },
+    {
+      label: "Detail",
+      ready: lowDetailEntries.length === 0,
+      issueCount: lowDetailEntries.length,
+    },
+    {
+      label: "Evidence",
+      ready: entriesMissingEvidence.length === 0,
+      issueCount: entriesMissingEvidence.length,
+    },
+  ];
 
   const handleGenerateWeeklySummary = async () => {
     const entriesToSummarize = entries.filter((e) =>
@@ -1326,6 +1475,12 @@ const LogsPage = () => {
 
       const fileName = `internpal-weekly-${weekBounds.start}-to-${weekBounds.end}.pdf`;
       doc.save(fileName);
+      addReportHistory({
+        type: "Weekly Report",
+        title: "Weekly Report",
+        range: `${weekBounds.start} to ${weekBounds.end}`,
+        entryCount: sortedEntries.length,
+      });
 
       toast.success("Weekly report exported to PDF", {
         position: "top-right",
@@ -1344,8 +1499,9 @@ const LogsPage = () => {
     }
   };
 
-  const openExportPdfModal = () => {
-    setExportPdfSelectedIds(new Set(filteredEntries.map((e) => e.id)));
+  const openExportPdfModal = (entriesToUse = filteredEntries) => {
+    setExportPdfEntryPool(entriesToUse);
+    setExportPdfSelectedIds(new Set(entriesToUse.map((e) => e.id)));
     setExportPdfModalOpen(true);
   };
 
@@ -1359,7 +1515,7 @@ const LogsPage = () => {
   };
 
   const exportPdfSelectAll = () => {
-    setExportPdfSelectedIds(new Set(filteredEntries.map((e) => e.id)));
+    setExportPdfSelectedIds(new Set(exportPdfEntryPool.map((e) => e.id)));
   };
 
   const exportPdfClearSelection = () => {
@@ -1610,6 +1766,17 @@ const LogsPage = () => {
 
     const fileName = `internpal-journal-${new Date().toISOString().split("T")[0]}.pdf`;
     doc.save(fileName);
+    const firstEntry = sortedEntries[0];
+    const lastEntry = sortedEntries[sortedEntries.length - 1];
+    addReportHistory({
+      type: "Journal PDF",
+      title: `Journal PDF (${sortedEntries.length} entries)`,
+      range:
+        firstEntry && lastEntry
+          ? `${firstEntry.date} to ${lastEntry.date}`
+          : "Selected entries",
+      entryCount: sortedEntries.length,
+    });
 
     toast.success(`Exported ${sortedEntries.length} entries to PDF`, {
       position: "top-right",
@@ -1619,7 +1786,7 @@ const LogsPage = () => {
   };
 
   const handleExportSelectedPdf = async () => {
-    const selected = filteredEntries.filter((e) =>
+    const selected = exportPdfEntryPool.filter((e) =>
       exportPdfSelectedIds.has(e.id),
     );
     if (selected.length === 0) return;
@@ -1711,6 +1878,12 @@ const LogsPage = () => {
         activities: result.activities,
         learnings: result.learnings,
       });
+      addReportHistory({
+        type: "CTU Form 6",
+        title: "CTU OJT Form 6",
+        range: `${startDate} to ${endDate}`,
+        entryCount: rangeEntries.length,
+      });
       setCompileModalOpen(false);
       toast.success("CTU OJT Form 6 exported!", {
         position: "top-right",
@@ -1785,48 +1958,61 @@ const LogsPage = () => {
               <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
                 View
               </p>
-              <div className="grid grid-cols-2 gap-1 rounded-lg border border-border p-0.5">
+              <div className="space-y-1 rounded-xl border border-border p-1">
                 <button
                   onClick={() => setMainView("entries")}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     mainView === "entries"
                       ? "bg-primary text-white"
                       : "text-text-muted hover:text-text"
                   }`}
                 >
+                  <BookOpen className="w-3.5 h-3.5" />
                   Entries
                 </button>
                 <button
                   onClick={() => setMainView("weekly")}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     mainView === "weekly"
                       ? "bg-primary text-white"
                       : "text-text-muted hover:text-text"
                   }`}
                 >
+                  <CalendarRange className="w-3.5 h-3.5" />
                   Weekly
                 </button>
                 <button
                   onClick={() => setMainView("notes")}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     mainView === "notes"
                       ? "bg-primary text-white"
                       : "text-text-muted hover:text-text"
                   }`}
                 >
                   <StickyNote className="w-3.5 h-3.5" />
-                  Notes
+                  Notes Inbox
                 </button>
                 <button
                   onClick={() => setMainView("gallery")}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     mainView === "gallery"
                       ? "bg-primary text-white"
                       : "text-text-muted hover:text-text"
                   }`}
                 >
                   <ImagePlus className="w-3.5 h-3.5" />
-                  Gallery
+                  Evidence Gallery
+                </button>
+                <button
+                  onClick={() => setMainView("reports")}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    mainView === "reports"
+                      ? "bg-primary text-white"
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  Reports
                 </button>
               </div>
             </div>
@@ -1925,7 +2111,7 @@ const LogsPage = () => {
                   </div>
                 </div>
                 <button
-                  onClick={openExportPdfModal}
+                  onClick={() => openExportPdfModal()}
                   disabled={filteredEntries.length === 0}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                 >
@@ -1933,7 +2119,7 @@ const LogsPage = () => {
                   Export PDF
                 </button>
                 <button
-                  onClick={() => setCompileModalOpen(true)}
+                  onClick={() => openCompileReportModal()}
                   disabled={entries.length === 0}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                 >
@@ -1943,11 +2129,15 @@ const LogsPage = () => {
               </>
             ) : mainView === "notes" ? (
               <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
-                Quick Notes
+                Notes Inbox
               </h2>
             ) : mainView === "gallery" ? (
               <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
-                Gallery
+                Evidence Gallery
+              </h2>
+            ) : mainView === "reports" ? (
+              <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
+                Reports
               </h2>
             ) : (
               <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
@@ -1959,7 +2149,7 @@ const LogsPage = () => {
           {/* Mobile: view toggle + New Entry + filters (sidebar is hidden) */}
           <div className="lg:hidden px-4 sm:px-6 py-3 border-b border-border bg-canvas space-y-3">
             <div className="flex items-center gap-2">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 rounded-lg border border-border p-0.5 flex-1">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1 rounded-lg border border-border p-0.5 flex-1">
                 <button
                   onClick={() => setMainView("entries")}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -2000,7 +2190,18 @@ const LogsPage = () => {
                   }`}
                 >
                   <ImagePlus className="w-3.5 h-3.5" />
-                  Gallery
+                  Evidence
+                </button>
+                <button
+                  onClick={() => setMainView("reports")}
+                  className={`flex items-center justify-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    mainView === "reports"
+                      ? "bg-primary text-white"
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  Reports
                 </button>
               </div>
               <button
@@ -2134,6 +2335,33 @@ const LogsPage = () => {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-border bg-canvas p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
+                      Entries
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-text">
+                      {entriesForSelectedWeek.length}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-canvas p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
+                      Hours
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-text">
+                      {weeklyHours.toFixed(1)}h
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-canvas p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
+                      Evidence
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-text">
+                      {weeklyEvidenceCount}
+                    </p>
+                  </div>
+                </div>
+
                 {/* PROJECT PROGRESS REPORT */}
                 <h3 className="text-base sm:text-lg font-bold text-text mb-2 mt-4 sm:mt-6">
                   PROJECT PROGRESS REPORT
@@ -2232,12 +2460,17 @@ const LogsPage = () => {
                 </div>
                 <div className="mb-4">
                   <textarea
-                    readOnly
                     rows={5}
                     value={weeklySummary ?? ""}
+                    onChange={(e) => setWeeklySummary(e.target.value)}
                     placeholder="Generate an AI summary from this week's entries to see the conclusion here."
                     className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-text placeholder-text-muted resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
+                  {weeklySummary && (
+                    <p className="mt-2 text-xs font-medium text-text-muted">
+                      AI draft. Edit before exporting.
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -2441,7 +2674,7 @@ const LogsPage = () => {
               <div className="max-w-3xl mx-auto space-y-6">
                 <div className="bg-canvas rounded-2xl border border-border p-5">
                   <label className="block text-sm font-medium text-text mb-2">
-                    Quick note
+                    Capture note
                   </label>
                   <textarea
                     rows={3}
@@ -2478,7 +2711,7 @@ const LogsPage = () => {
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold text-text">
-                    Your notes ({notes.length})
+                    Notes Inbox ({notes.length})
                   </h3>
                   <button
                     type="button"
@@ -2622,7 +2855,7 @@ const LogsPage = () => {
                   <>
                     <div className="bg-canvas rounded-2xl border border-border p-5">
                       <p className="text-sm font-medium text-text mb-3">
-                        Add proof of work (screenshots, photos)
+                        Add evidence
                       </p>
                       <div className="flex flex-wrap items-end gap-3">
                         <div className="flex flex-col gap-1">
@@ -2722,8 +2955,9 @@ const LogsPage = () => {
                                 </p>
                               )}
                               {img.journal_entry_id != null && (
-                                <p className="text-xs text-text-muted mb-1">
-                                  Entry #{img.journal_entry_id}
+                                <p className="text-xs text-text-muted mb-1 truncate">
+                                  {entriesById.get(img.journal_entry_id)?.title ??
+                                    `Entry #${img.journal_entry_id}`}
                                 </p>
                               )}
                               <button
@@ -2740,6 +2974,272 @@ const LogsPage = () => {
                     )}
                   </>
                 )}
+              </div>
+            )}
+
+            {mainView === "reports" && (
+              <div className="max-w-6xl mx-auto space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-2xl border border-border bg-canvas p-5">
+                    <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
+                      Journal
+                    </p>
+                    <p className="mt-2 text-2xl font-bold text-text">
+                      {entries.length}
+                    </p>
+                    <p className="text-sm text-text-muted">
+                      {totalHoursLogged.toFixed(1)}h logged
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-canvas p-5">
+                    <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
+                      Selected range
+                    </p>
+                    <p className="mt-2 text-2xl font-bold text-text">
+                      {selectedRangeEntries.length}
+                    </p>
+                    <p className="text-sm text-text-muted">
+                      {selectedRangeHours.toFixed(1)}h,{" "}
+                      {selectedRangeEvidenceCount} evidence
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-canvas p-5">
+                    <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
+                      Weekly
+                    </p>
+                    <p className="mt-2 text-2xl font-bold text-text">
+                      {entriesForSelectedWeek.length}
+                    </p>
+                    <p className="text-sm text-text-muted">
+                      {weekBounds.start} to {weekBounds.end}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-6">
+                  <section className="rounded-2xl border border-border bg-canvas p-5 space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold text-text">
+                          Report Range
+                        </h3>
+                        <p className="text-sm text-text-muted">
+                          {selectedRangeLabel}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCompileForm((form) => ({
+                            ...form,
+                            startDate: weekBounds.start,
+                            endDate: weekBounds.end,
+                          }))
+                        }
+                        className="px-3 py-2 rounded-xl border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors"
+                      >
+                        Use week
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-text-muted mb-1">
+                          Start Date
+                        </label>
+                        <input
+                          type="date"
+                          value={compileForm.startDate}
+                          onChange={(e) =>
+                            setCompileForm((form) => ({
+                              ...form,
+                              startDate: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-text-muted mb-1">
+                          End Date
+                        </label>
+                        <input
+                          type="date"
+                          value={compileForm.endDate}
+                          onChange={(e) =>
+                            setCompileForm((form) => ({
+                              ...form,
+                              endDate: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {reportReadinessChecks.map((check) => (
+                        <div
+                          key={check.label}
+                          className="rounded-xl border border-border bg-surface p-3"
+                        >
+                          <div className="flex items-center gap-2">
+                            {check.ready ? (
+                              <CheckCircle2 className="w-4 h-4 text-success" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-warning" />
+                            )}
+                            <span className="text-sm font-semibold text-text">
+                              {check.label}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-text-muted">
+                            {check.ready
+                              ? "Ready"
+                              : `${check.issueCount} to review`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5">
+                      <div>
+                        <h3 className="text-lg font-bold text-text">
+                          Journal PDF
+                        </h3>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {entries.length} entries available
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openExportPdfModal(entries)}
+                          disabled={entries.length === 0}
+                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Download className="w-4 h-4" />
+                          Export all
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openExportPdfModal(selectedRangeEntries)}
+                          disabled={selectedRangeEntries.length === 0}
+                          className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Export range
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5">
+                      <div>
+                        <h3 className="text-lg font-bold text-text">
+                          Weekly Report
+                        </h3>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {entriesForSelectedWeek.length} entries,{" "}
+                          {weeklyHours.toFixed(1)}h
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={handleGenerateWeeklySummary}
+                          disabled={
+                            entriesForSelectedWeek.length === 0 ||
+                            weeklySummaryLoading
+                          }
+                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {weeklySummaryLoading ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-4 h-4" />
+                          )}
+                          Summary
+                        </button>
+                        <button
+                          type="button"
+                          onClick={exportWeeklyReportToPDF}
+                          disabled={!weeklySummary || weeklyExportLoading}
+                          className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Export
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5 md:col-span-2">
+                      <div>
+                        <h3 className="text-lg font-bold text-text">
+                          CTU Form 6
+                        </h3>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {selectedRangeEntries.length} entries in range
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openCompileReportModal()}
+                        disabled={selectedRangeEntries.length === 0}
+                        className="w-fit flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Compile report
+                      </button>
+                    </div>
+                  </section>
+                </div>
+
+                <section className="rounded-2xl border border-border bg-canvas p-5">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <h3 className="text-lg font-bold text-text">
+                      Recent Exports
+                    </h3>
+                    <span className="text-xs font-medium text-text-muted">
+                      {reportHistory.length}
+                    </span>
+                  </div>
+                  {reportHistory.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border bg-surface p-6 text-sm text-text-muted text-center">
+                      No exports yet.
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-border">
+                      {reportHistory.map((report) => (
+                        <li
+                          key={report.id}
+                          className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+                        >
+                          <div>
+                            <p className="font-semibold text-text">
+                              {report.title}
+                            </p>
+                            <p className="text-xs text-text-muted">
+                              {report.type} - {report.range}
+                            </p>
+                          </div>
+                          <div className="text-xs text-text-muted sm:text-right">
+                            <p>{report.entryCount} entries</p>
+                            <p>
+                              {new Date(report.createdAt).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                },
+                              )}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
               </div>
             )}
           </div>
@@ -3326,7 +3826,7 @@ const LogsPage = () => {
               <div className="p-6 border-b border-border flex items-center justify-between shrink-0">
                 <h2 className="text-lg font-bold text-text flex items-center gap-2">
                   <FileText className="w-5 h-5 text-primary" />
-                  Compile Monthly Report
+                  Compile Report
                 </h2>
                 <button
                   type="button"
@@ -3338,10 +3838,32 @@ const LogsPage = () => {
                 </button>
               </div>
               <div className="p-6 overflow-y-auto flex-1 min-h-0 space-y-4">
-                <p className="text-sm text-text-muted">
-                  Fill in your trainee details and choose a date range. AI will
-                  summarize your entries into a CTU OJT Form 6 PDF.
-                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl border border-border bg-surface p-3">
+                    <p className="text-[11px] uppercase tracking-wider text-text-muted">
+                      Entries
+                    </p>
+                    <p className="text-lg font-bold text-text">
+                      {selectedRangeEntries.length}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-surface p-3">
+                    <p className="text-[11px] uppercase tracking-wider text-text-muted">
+                      Hours
+                    </p>
+                    <p className="text-lg font-bold text-text">
+                      {selectedRangeHours.toFixed(1)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-surface p-3">
+                    <p className="text-[11px] uppercase tracking-wider text-text-muted">
+                      Evidence
+                    </p>
+                    <p className="text-lg font-bold text-text">
+                      {selectedRangeEvidenceCount}
+                    </p>
+                  </div>
+                </div>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-medium text-text-muted mb-1">
@@ -3522,7 +4044,7 @@ const LogsPage = () => {
                   </button>
                 </div>
                 <ul className="space-y-2">
-                  {filteredEntries.map((entry) => (
+                  {exportPdfEntryPool.map((entry) => (
                     <li
                       key={entry.id}
                       className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-accent/20 transition-colors"

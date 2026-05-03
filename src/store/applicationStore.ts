@@ -48,6 +48,22 @@ interface AppState {
   clearApplications: () => void;
 }
 
+type ApiErrorResponse = {
+  error?: string;
+};
+
+function getApiErrorMessage(error: unknown, fallback = "Request failed") {
+  if (axios.isAxiosError<ApiErrorResponse>(error)) {
+    return error.response?.data?.error ?? error.message ?? fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL, 
   headers: {
@@ -131,8 +147,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const res = await api.get("/applications");
       set({ applications: res.data.applications, loading: false });
-    } catch (err: any) {
-      set({ error: err.response?.data?.error || err.message, loading: false });
+    } catch (err: unknown) {
+      set({ error: getApiErrorMessage(err), loading: false });
     }
   },
 
@@ -145,8 +161,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         applications: [res.data.application, ...state.applications],
         loading: false,
       }));
-    } catch (err: any) {
-      set({ error: err.response?.data?.error || err.message, loading: false });
+    } catch (err: unknown) {
+      set({ error: getApiErrorMessage(err), loading: false });
     }
   },
 
@@ -161,8 +177,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
         loading: false,
       }));
-    } catch (err: any) {
-      set({ error: err.response?.data?.error || err.message, loading: false });
+    } catch (err: unknown) {
+      set({ error: getApiErrorMessage(err), loading: false });
     }
   },
 
@@ -178,9 +194,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
         loading: false,
       }));
-    } catch (err: any) {
-      set({ error: err.message, loading: false });
-      console.log("Error updating status:", err.message);
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err);
+      set({ error: message, loading: false });
+      console.log("Error updating status:", message);
     }
   },
 
@@ -193,8 +210,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         applications: state.applications.filter((a) => a.id !== id),
         loading: false,
       }));
-    } catch (err: any) {
-      set({ error: err.response?.data?.error || err.message, loading: false });
+    } catch (err: unknown) {
+      set({ error: getApiErrorMessage(err), loading: false });
     }
   },
 

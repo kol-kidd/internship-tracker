@@ -1,13 +1,20 @@
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/config/supabaseClient";
 
-export async function createOrUpdateProfile(user: any, fullName: string) {
+export async function createOrUpdateProfile(
+  user: Pick<User, "id" | "email">,
+  fullName?: string | null,
+) {
   console.log("creating full name in profiles", fullName)
+  const email = user.email ?? "";
+  const trimmedName = fullName?.trim();
+
   const { data, error } = await supabase
     .from("profiles")
     .upsert({
       id: user.id,
-      email: user.email,
-      full_name: fullName && fullName.trim() !== "" ? fullName.trim() : user.email,
+      email,
+      full_name: trimmedName ? trimmedName : email,
     })
     .select()
     .single();

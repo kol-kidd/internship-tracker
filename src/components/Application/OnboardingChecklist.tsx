@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Check } from "lucide-react";
 
 const CHECKLIST_KEYS = [
@@ -17,17 +17,24 @@ const CHECKLIST_LABELS: Record<(typeof CHECKLIST_KEYS)[number], string> = {
 
 const STORAGE_PREFIX = "onboarding_checklist_";
 
+function getEmptyChecks(): Record<string, boolean> {
+  return CHECKLIST_KEYS.reduce((acc, key) => {
+    acc[key] = false;
+    return acc;
+  }, {} as Record<string, boolean>);
+}
+
 function getStored(appId: number): Record<string, boolean> {
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${appId}`);
-    if (!raw) return {};
+    if (!raw) return getEmptyChecks();
     const parsed = JSON.parse(raw) as Record<string, boolean>;
     return CHECKLIST_KEYS.reduce((acc, key) => {
       acc[key] = !!parsed[key];
       return acc;
-    }, {} as Record<string, boolean>);
+    }, getEmptyChecks());
   } catch {
-    return {};
+    return getEmptyChecks();
   }
 }
 
@@ -46,20 +53,18 @@ type OnboardingChecklistProps = {
 export default function OnboardingChecklist({
   applicationId,
 }: OnboardingChecklistProps) {
+  return (
+    <OnboardingChecklistItems
+      key={applicationId}
+      applicationId={applicationId}
+    />
+  );
+}
+
+function OnboardingChecklistItems({ applicationId }: OnboardingChecklistProps) {
   const [checks, setChecks] = useState<Record<string, boolean>>(() =>
     getStored(applicationId)
   );
-
-  useEffect(() => {
-    setChecks((prev) => {
-      const next = { ...prev };
-      CHECKLIST_KEYS.forEach((key) => {
-        if (!(key in next)) next[key] = false;
-      });
-      setStored(applicationId, next);
-      return next;
-    });
-  }, [applicationId]);
 
   const toggle = (key: (typeof CHECKLIST_KEYS)[number]) => {
     setChecks((prev) => {

@@ -59,13 +59,30 @@ type JourneyTimelineProps = {
   applications: Application[];
 };
 
+type JourneySummaryInput = {
+  date_applied: string;
+  company_name: string;
+  position?: string;
+  status: string;
+};
+
+type NarrativeState = {
+  key: string;
+  narrative: string | null;
+  error: boolean;
+};
+
 export default function JourneyTimeline({
   applications,
 }: JourneyTimelineProps) {
   const { session } = useAuthStore();
-  const [narrative, setNarrative] = useState<string | null>(null);
-  const [narrativeLoading, setNarrativeLoading] = useState(false);
-  const [narrativeError, setNarrativeError] = useState(false);
+  const accessToken = session?.access_token;
+  const sessionUserId = session?.user.id;
+  const [narrativeState, setNarrativeState] = useState<NarrativeState>({
+    key: "",
+    narrative: null,
+    error: false,
+  });
 
   const timelineEvents = useMemo(() => {
     return [...applications].sort(
@@ -74,27 +91,63 @@ export default function JourneyTimeline({
     );
   }, [applications]);
 
-  useEffect(() => {
-    if (!session?.access_token || applications.length === 0) {
-      setNarrative(null);
-      setNarrativeError(false);
-      return;
-    }
-    setNarrativeLoading(true);
-    setNarrativeError(false);
-    getJourneySummary(
+  const summaryInput = useMemo<JourneySummaryInput[]>(
+    () =>
       applications.map((a) => ({
         date_applied: a.date_applied,
         company_name: a.company_name,
         position: a.position,
         status: a.status,
       })),
-      session.access_token
-    )
-      .then(setNarrative)
-      .catch(() => setNarrativeError(true))
-      .finally(() => setNarrativeLoading(false));
-  }, [session?.access_token, applications]);
+    [applications]
+  );
+
+  const narrativeKey = useMemo(() => {
+    if (!accessToken || !sessionUserId || applications.length === 0) return "";
+    return `${sessionUserId}:${JSON.stringify(summaryInput)}`;
+  }, [accessToken, applications.length, sessionUserId, summaryInput]);
+
+  useEffect(() => {
+    if (!accessToken || !narrativeKey) return;
+
+    let cancelled = false;
+
+    getJourneySummary(summaryInput, accessToken)
+      .then((summary) => {
+        if (!cancelled) {
+          setNarrativeState({
+            key: narrativeKey,
+            narrative: summary,
+            error: false,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setNarrativeState({
+            key: narrativeKey,
+            narrative: null,
+            error: true,
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, narrativeKey, summaryInput]);
+
+  const hasNarrativeRequest = narrativeKey !== "";
+  const narrativeLoading =
+    hasNarrativeRequest && narrativeState.key !== narrativeKey;
+  const narrativeError =
+    hasNarrativeRequest &&
+    narrativeState.key === narrativeKey &&
+    narrativeState.error;
+  const narrative =
+    hasNarrativeRequest && narrativeState.key === narrativeKey
+      ? narrativeState.narrative
+      : null;
 
   if (applications.length === 0) {
     return (

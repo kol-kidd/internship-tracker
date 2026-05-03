@@ -1,3 +1,4 @@
+import type { ChangeEventHandler } from "react";
 import TextField from "@mui/material/TextField";
 
 type CustomInputProps = {
@@ -6,7 +7,7 @@ type CustomInputProps = {
   label: string;
   type: "text" | "password" | "email";
   value: string;
-  onChange: (e: any) => void;
+  onChange: ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>;
   size?: "small" | "medium";
 };
 
