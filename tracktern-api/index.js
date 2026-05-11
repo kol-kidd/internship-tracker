@@ -9,6 +9,7 @@ import { Server } from "socket.io";
 import authRoutes from "./routes/auth.routes.js";
 import applicationsRoutes from "./routes/application.routes.js";
 import journalRoutes from "./routes/journal.routes.js";
+import { geminiModel } from "./config/gemini.js";
 
 const app = express();
 
@@ -32,6 +33,60 @@ app.use("/api/journal", journalRoutes);
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
+app.get("/debug/ai-egress", async (req, res) => {
+  const debugToken = process.env.DEBUG_OUTBOUND_TOKEN;
+  const providedToken = req.get("x-debug-token") || req.query.token;
+
+  if (!debugToken || providedToken !== debugToken) {
+    return res.status(404).json({ error: "Route not found" });
+  }
+
+  try {
+    const ipResponse = await fetch("https://ipinfo.io/json");
+    const ipInfo = await ipResponse.json();
+
+    let gemini = { ok: false, error: null };
+    try {
+      const result = await geminiModel.generateContent("Reply with only: ok");
+      const response = await result.response;
+      gemini = { ok: true, text: response.text().trim() };
+    } catch (error) {
+      gemini = {
+        ok: false,
+        error: error.message,
+        status: error.status,
+        statusText: error.statusText,
+      };
+    }
+
+    console.log("AI egress diagnostic:", {
+      ip: ipInfo.ip,
+      city: ipInfo.city,
+      region: ipInfo.region,
+      country: ipInfo.country,
+      org: ipInfo.org,
+      gemini,
+    });
+
+    res.json({
+      outbound: {
+        ip: ipInfo.ip,
+        city: ipInfo.city,
+        region: ipInfo.region,
+        country: ipInfo.country,
+        org: ipInfo.org,
+      },
+      gemini,
+    });
+  } catch (error) {
+    console.error("AI egress diagnostic failed:", error);
+    res.status(500).json({
+      error: "Failed to run AI egress diagnostic",
+      details: error.message,
+    });
+  }
 });
 
 // Error handling middleware
