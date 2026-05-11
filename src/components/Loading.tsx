@@ -12,7 +12,7 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   open,
   message = "Processing...",
   size = 60,
-  backdropOpacity = 0.7,
+  backdropOpacity = 0.45,
 }) => {
   return (
     <Backdrop
@@ -21,7 +21,6 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
         color: "#fff",
         zIndex: (theme) => theme.zIndex.drawer + 1000,
         backgroundColor: `rgba(0, 0, 0, ${backdropOpacity})`,
-        backdropFilter: "blur(4px)",
       }}
     >
       <Box
@@ -46,7 +45,6 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
               fontWeight: 500,
               color: "white",
               textAlign: "center",
-              textShadow: "0 2px 4px rgba(0,0,0,0.3)",
             }}
           >
             {message}

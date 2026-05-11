@@ -24,9 +24,9 @@ export const COLUMN_COLORS: Record<
     header: "bg-blue-500",
   },
   interviewing: {
-    bg: "bg-purple-50",
-    border: "border-purple-200",
-    header: "bg-purple-500",
+    bg: "bg-sky-50",
+    border: "border-sky-200",
+    header: "bg-sky-600",
   },
   offer: {
     bg: "bg-orange-50",
@@ -43,9 +43,9 @@ export const COLUMN_COLORS: Record<
 export const COLUMN_EMPTY_HINTS: Record<KanbanColumnId, string> = {
   applied: "Add an application to get started",
   interviewing:
-    "Drag a card here once you get an interview invite!",
+    "Move a card here once an interview is scheduled.",
   offer: "Offers will appear here when you receive them",
-  accepted: "Drop here when you accept an offer!",
+  accepted: "Move accepted offers here.",
 };
 
 export function statusToColumnId(status: string): KanbanColumnId {

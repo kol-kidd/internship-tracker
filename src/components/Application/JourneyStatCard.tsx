@@ -12,9 +12,9 @@ export default function JourneyStatCard({
   daysToAccept,
 }: JourneyStatCardProps) {
   return (
-    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5">
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-5">
       <p className="text-base font-semibold text-emerald-800 mb-3">
-        Success! Here’s your journey at a glance.
+        Accepted application summary
       </p>
       <ul className="space-y-2 text-sm text-emerald-700">
         <li className="flex items-center gap-2">

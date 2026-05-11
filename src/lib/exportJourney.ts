@@ -13,7 +13,7 @@ function escapeCsvCell(value: string): string {
 
 export function downloadJourneyCsv(
   applications: Application[],
-  filename = "journey-history.csv"
+  filename = "application-timeline.csv"
 ) {
   const headers = [
     "Company",
@@ -54,7 +54,7 @@ function formatPdfDate(dateStr: string): string {
 // Status colors for visual indicators
 const statusColors: Record<string, [number, number, number]> = {
   applied: [59, 130, 246],      // blue
-  interviewing: [168, 85, 247], // purple
+  interviewing: [11, 115, 217], // blue
   offer_received: [34, 197, 94], // green
   accepted: [34, 197, 94],      // green
   rejected: [239, 68, 68],      // red
@@ -64,7 +64,7 @@ const statusColors: Record<string, [number, number, number]> = {
 export function downloadJourneyPdf(
   applications: Application[],
   narrative: string | null,
-  filename = "internpal-journey.pdf"
+  filename = "internpal-application-timeline.pdf"
 ) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = 210;
@@ -100,9 +100,9 @@ export function downloadJourneyPdf(
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryColor);
-  doc.text("Journey", margin, y);
+  doc.text("Timeline", margin, y);
   doc.setTextColor(...darkText);
-  doc.text(" Report", margin + doc.getTextWidth("Journey"), y);
+  doc.text(" Report", margin + doc.getTextWidth("Timeline"), y);
   y += 8;
 
   // Generation date

@@ -10,12 +10,9 @@ import {
   Save,
   Clock,
   Download,
-  Sparkles,
-  Wand2,
   ChevronDown,
   RefreshCw,
   Tag,
-  Zap,
   FileEdit,
   AlignLeft,
   CalendarRange,
@@ -54,6 +51,7 @@ import {
 } from "@/functions/ai/journalAI";
 import { generateCTUJournalPDF } from "@/lib/exportCTUJournal";
 import { getWeekBounds, isDateInWeekBounds } from "@/lib/weekUtils";
+import { toDateInputValue } from "@/lib/dateInput";
 
 const PDF_LANDSCAPE_MAX_PX = 320;
 const PDF_PORTRAIT_MAX_PX = 180;
@@ -124,7 +122,7 @@ interface JournalEntry {
   updated_at: string;
 }
 
-type MainView = "entries" | "weekly" | "notes" | "gallery" | "reports";
+type MainView = "entries" | "support" | "reports";
 
 type ReportHistoryItem = {
   id: string;
@@ -138,6 +136,9 @@ type ReportHistoryItem = {
 type CompileReportMode = "range" | "internship";
 
 const REPORT_HISTORY_KEY = "internpal_report_history";
+const REPORT_COORDINATOR_KEY = "internpal_report_coordinator_name";
+const REPORT_SUPERVISOR_KEY = "internpal_report_supervisor_name";
+const DEFAULT_COORDINATOR_NAME = "REYNILDA A. CASTRO";
 
 function loadReportHistory(): ReportHistoryItem[] {
   try {
@@ -289,6 +290,9 @@ const LogsPage = () => {
     department: "",
     startDate: "",
     endDate: "",
+    coordinatorName:
+      localStorage.getItem(REPORT_COORDINATOR_KEY) || DEFAULT_COORDINATOR_NAME,
+    supervisorName: localStorage.getItem(REPORT_SUPERVISOR_KEY) || "",
   });
 
   const handleRequiredHoursChange = (value: string) => {
@@ -322,8 +326,8 @@ const LogsPage = () => {
     setCompileForm((form) => ({
       ...form,
       traineeName: form.traineeName || reportName,
-      startDate: range?.start ?? form.startDate,
-      endDate: range?.end ?? form.endDate,
+      startDate: range?.start ? toDateInputValue(range.start) : form.startDate,
+      endDate: range?.end ? toDateInputValue(range.end) : form.endDate,
     }));
     setCompileModalOpen(true);
   };
@@ -471,18 +475,13 @@ const LogsPage = () => {
   }, [user?.id, initSocket]);
 
   useEffect(() => {
-    if (user?.id && mainView === "notes") {
+    if (user?.id && mainView === "support") {
       fetchNotes();
     }
   }, [user?.id, mainView, fetchNotes]);
 
   useEffect(() => {
-    if (
-      user?.id &&
-      (mainView === "gallery" ||
-        mainView === "weekly" ||
-        mainView === "reports")
-    ) {
+    if (user?.id && (mainView === "support" || mainView === "reports")) {
       fetchGallery();
     }
   }, [user?.id, mainView, fetchGallery]);
@@ -590,7 +589,7 @@ const LogsPage = () => {
     setEditingEntry(entry);
     setFormData({
       title: entry.title,
-      date: entry.date,
+      date: toDateInputValue(entry.date),
       content: entry.content,
       mood: entry.mood,
       tags: entry.tags.join(", "),
@@ -674,7 +673,7 @@ const LogsPage = () => {
     const selectedNotes = notes.filter((n) => selectedNoteIds.has(n.id));
     const firstDate =
       selectedNotes.length > 0
-        ? selectedNotes[0].date
+        ? toDateInputValue(selectedNotes[0].date)
         : new Date().toISOString().split("T")[0];
     setMergeDate(firstDate);
     setMergeTitle(`Merged notes (${selectedNoteIds.size})`);
@@ -940,9 +939,13 @@ const LogsPage = () => {
   const sortedInternshipEntries = [...entries].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
-  const internshipStartDate = sortedInternshipEntries[0]?.date ?? "";
+  const internshipStartDate = toDateInputValue(
+    sortedInternshipEntries[0]?.date ?? "",
+  );
   const internshipEndDate =
-    sortedInternshipEntries[sortedInternshipEntries.length - 1]?.date ?? "";
+    toDateInputValue(
+      sortedInternshipEntries[sortedInternshipEntries.length - 1]?.date ?? "",
+    );
   const internshipDateRangeLabel =
     internshipStartDate && internshipEndDate
       ? `${internshipStartDate} to ${internshipEndDate}`
@@ -1116,7 +1119,7 @@ const LogsPage = () => {
         session.access_token,
       );
       setWeeklySummary(summary);
-      toast.success("Weekly summary generated", {
+      toast.success("Weekly draft created", {
         position: "top-right",
         theme: "light",
         transition: Bounce,
@@ -1849,6 +1852,8 @@ const LogsPage = () => {
       department,
       startDate,
       endDate,
+      coordinatorName,
+      supervisorName,
     } = compileForm;
     const isInternshipSummary = compileReportMode === "internship";
     const reportStartDate = isInternshipSummary ? internshipStartDate : startDate;
@@ -1882,6 +1887,11 @@ const LogsPage = () => {
     if (!session?.access_token) return;
     setCompileLoading(true);
     try {
+      localStorage.setItem(
+        REPORT_COORDINATOR_KEY,
+        coordinatorName.trim() || DEFAULT_COORDINATOR_NAME,
+      );
+      localStorage.setItem(REPORT_SUPERVISOR_KEY, supervisorName.trim());
       const result = await compileJournalSummary(
         {
           entries: rangeEntries,
@@ -1902,6 +1912,8 @@ const LogsPage = () => {
         dateRange: { start: reportStartDate, end: reportEndDate },
         activities: result.activities,
         learnings: result.learnings,
+        coordinatorName,
+        supervisorName,
         fileLabel: isInternshipSummary ? "internship_summary" : undefined,
       });
       addReportHistory({
@@ -1947,9 +1959,8 @@ const LogsPage = () => {
         <div className="text-center">
           <div className="relative">
             <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-8 h-8 text-white animate-pulse" />
+              <BookOpen className="w-8 h-8 text-white " />
             </div>
-            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-soft-blue animate-ping" />
           </div>
           <p className="text-text/60">Loading journal entries...</p>
         </div>
@@ -2004,37 +2015,15 @@ const LogsPage = () => {
                   Entries
                 </button>
                 <button
-                  onClick={() => setMainView("weekly")}
+                  onClick={() => setMainView("support")}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    mainView === "weekly"
-                      ? "bg-primary text-white"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  <CalendarRange className="w-3.5 h-3.5" />
-                  Weekly
-                </button>
-                <button
-                  onClick={() => setMainView("notes")}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    mainView === "notes"
+                    mainView === "support"
                       ? "bg-primary text-white"
                       : "text-text-muted hover:text-text"
                   }`}
                 >
                   <StickyNote className="w-3.5 h-3.5" />
-                  Notes Inbox
-                </button>
-                <button
-                  onClick={() => setMainView("gallery")}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    mainView === "gallery"
-                      ? "bg-primary text-white"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  <ImagePlus className="w-3.5 h-3.5" />
-                  Evidence Gallery
+                  Notes & Evidence
                 </button>
                 <button
                   onClick={() => setMainView("reports")}
@@ -2102,7 +2091,7 @@ const LogsPage = () => {
         {/* Main content */}
         <main className="flex-1 flex flex-col min-w-0">
           {/* Top bar: search + export (entries) or title (weekly/notes/gallery) */}
-          <div className="sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-6 py-4 bg-canvas/95 backdrop-blur border-b border-border">
+          <div className="sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-6 py-4 bg-canvas border-b border-border">
             {mainView === "entries" ? (
               <>
                 <div className="flex-1 relative">
@@ -2143,46 +2132,22 @@ const LogsPage = () => {
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                   </div>
                 </div>
-                <button
-                  onClick={() => openExportPdfModal()}
-                  disabled={filteredEntries.length === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                >
-                  <Download className="w-4 h-4" />
-                  Export PDF
-                </button>
-                <button
-                  onClick={() => openCompileReportModal()}
-                  disabled={entries.length === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                >
-                  <FileText className="w-4 h-4" />
-                  Compile Report
-                </button>
               </>
-            ) : mainView === "notes" ? (
+            ) : mainView === "support" ? (
               <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
-                Notes Inbox
-              </h2>
-            ) : mainView === "gallery" ? (
-              <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
-                Evidence Gallery
+                Notes & Evidence
               </h2>
             ) : mainView === "reports" ? (
               <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
                 Reports
               </h2>
-            ) : (
-              <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
-                Weekly Report
-              </h2>
-            )}
+            ) : null}
           </div>
 
           {/* Mobile: view toggle + New Entry + filters (sidebar is hidden) */}
           <div className="lg:hidden px-4 sm:px-6 py-3 border-b border-border bg-canvas space-y-3">
             <div className="flex items-center gap-2">
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1 rounded-lg border border-border p-0.5 flex-1">
+              <div className="grid grid-cols-3 gap-1 rounded-lg border border-border p-0.5 flex-1">
                 <button
                   onClick={() => setMainView("entries")}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -2194,36 +2159,14 @@ const LogsPage = () => {
                   Entries
                 </button>
                 <button
-                  onClick={() => setMainView("weekly")}
+                  onClick={() => setMainView("support")}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    mainView === "weekly"
+                    mainView === "support"
                       ? "bg-primary text-white"
                       : "text-text-muted hover:text-text"
                   }`}
                 >
-                  Weekly
-                </button>
-                <button
-                  onClick={() => setMainView("notes")}
-                  className={`flex items-center justify-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    mainView === "notes"
-                      ? "bg-primary text-white"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  <StickyNote className="w-3.5 h-3.5" />
-                  Notes
-                </button>
-                <button
-                  onClick={() => setMainView("gallery")}
-                  className={`flex items-center justify-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    mainView === "gallery"
-                      ? "bg-primary text-white"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  <ImagePlus className="w-3.5 h-3.5" />
-                  Evidence
+                  Support
                 </button>
                 <button
                   onClick={() => setMainView("reports")}
@@ -2293,7 +2236,7 @@ const LogsPage = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
-            {mainView === "weekly" && (
+            {mainView === "reports" && (
               <div className="max-w-4xl w-full min-w-0 mx-auto space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 pt-2 sm:pt-6">
                   <div>
@@ -2314,7 +2257,7 @@ const LogsPage = () => {
                     </label>
                     <input
                       type="date"
-                      value={reportDate}
+                      value={toDateInputValue(reportDate)}
                       onChange={(e) => setReportDate(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-b rounded-tr border border-border bg-white text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
@@ -2356,8 +2299,8 @@ const LogsPage = () => {
                       type="date"
                       value={
                         weeklyReportMode === "new"
-                          ? weekBounds.start
-                          : selectedWeekDate
+                          ? toDateInputValue(weekBounds.start)
+                          : toDateInputValue(selectedWeekDate)
                       }
                       onChange={(e) => setSelectedWeekDate(e.target.value)}
                       className="min-w-0 flex-1 sm:flex-none sm:w-auto min-h-[44px] px-3 py-2 rounded-xl border border-border bg-canvas text-text text-sm focus:outline-none focus:border-primary touch-manipulation"
@@ -2521,8 +2464,8 @@ const LogsPage = () => {
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-4 h-4 shrink-0" />
-                          <span>Generate summary</span>
+                          <AlignLeft className="w-4 h-4 shrink-0" />
+                          <span>Draft summary</span>
                         </>
                       )}
                     </button>
@@ -2583,7 +2526,7 @@ const LogsPage = () => {
                         <BookOpen className="w-10 h-10 text-primary/40" />
                       </div>
                       <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-soft-blue/10 flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-soft-blue" />
+                        <FileText className="w-4 h-4 text-soft-blue" />
                       </div>
                     </div>
                     <h3 className="text-xl font-semibold text-text mb-2">
@@ -2592,7 +2535,7 @@ const LogsPage = () => {
                     <p className="text-text/60 mb-6 max-w-md mx-auto">
                       {searchQuery || filterMood !== "all"
                         ? "Try adjusting your filters or search query"
-                        : "Start documenting your internship journey today!"}
+                        : "Start documenting your internship work."}
                     </p>
                     {!searchQuery && filterMood === "all" && (
                       <button
@@ -2703,7 +2646,7 @@ const LogsPage = () => {
               </>
             )}
 
-            {mainView === "notes" && (
+            {mainView === "support" && (
               <div className="max-w-3xl mx-auto space-y-6">
                 <div className="bg-canvas rounded-2xl border border-border p-5">
                   <label className="block text-sm font-medium text-text mb-2">
@@ -2719,7 +2662,7 @@ const LogsPage = () => {
                   <div className="flex flex-wrap items-center gap-3">
                     <input
                       type="date"
-                      value={noteFormDate}
+                      value={toDateInputValue(noteFormDate)}
                       onChange={(e) => setNoteFormDate(e.target.value)}
                       className="px-4 py-2 rounded-lg border border-border text-text text-sm focus:outline-none focus:border-primary"
                     />
@@ -2744,7 +2687,7 @@ const LogsPage = () => {
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold text-text">
-                    Notes Inbox ({notes.length})
+                    Notes ({notes.length})
                   </h3>
                   <button
                     type="button"
@@ -2877,7 +2820,7 @@ const LogsPage = () => {
               </div>
             )}
 
-            {mainView === "gallery" && (
+            {mainView === "support" && (
               <div className="max-w-4xl mx-auto space-y-6">
                 {entries.length === 0 ? (
                   <div className="bg-canvas rounded-2xl border border-border p-10 text-center text-text/60 text-sm">
@@ -3065,8 +3008,8 @@ const LogsPage = () => {
                         onClick={() =>
                           setCompileForm((form) => ({
                             ...form,
-                            startDate: weekBounds.start,
-                            endDate: weekBounds.end,
+                            startDate: toDateInputValue(weekBounds.start),
+                            endDate: toDateInputValue(weekBounds.end),
                           }))
                         }
                         className="px-3 py-2 rounded-xl border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors"
@@ -3082,7 +3025,7 @@ const LogsPage = () => {
                         </label>
                         <input
                           type="date"
-                          value={compileForm.startDate}
+                          value={toDateInputValue(compileForm.startDate)}
                           onChange={(e) =>
                             setCompileForm((form) => ({
                               ...form,
@@ -3098,7 +3041,7 @@ const LogsPage = () => {
                         </label>
                         <input
                           type="date"
-                          value={compileForm.endDate}
+                          value={toDateInputValue(compileForm.endDate)}
                           onChange={(e) =>
                             setCompileForm((form) => ({
                               ...form,
@@ -3163,44 +3106,6 @@ const LogsPage = () => {
                           className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Export range
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5">
-                      <div>
-                        <h3 className="text-lg font-bold text-text">
-                          Weekly Report
-                        </h3>
-                        <p className="mt-1 text-sm text-text-muted">
-                          {entriesForSelectedWeek.length} entries,{" "}
-                          {weeklyHours.toFixed(1)}h
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={handleGenerateWeeklySummary}
-                          disabled={
-                            entriesForSelectedWeek.length === 0 ||
-                            weeklySummaryLoading
-                          }
-                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {weeklySummaryLoading ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-4 h-4" />
-                          )}
-                          Summary
-                        </button>
-                        <button
-                          type="button"
-                          onClick={exportWeeklyReportToPDF}
-                          disabled={!weeklySummary || weeklyExportLoading}
-                          className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Export
                         </button>
                       </div>
                     </div>
@@ -3310,8 +3215,8 @@ const LogsPage = () => {
 
           {/* Create/Edit Modal */}
           {isModalOpen && (
-            <div className="fixed inset-0 bg-text/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-canvas rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="fixed inset-0 bg-text/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-canvas rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-sm">
                 <div className="p-6 border-b border-border flex items-center justify-between">
                   <h2 className="text-xl font-bold text-text">
                     {editingEntry ? "Edit Entry" : "New Journal Entry"}
@@ -3347,7 +3252,7 @@ const LogsPage = () => {
                       </label>
                       <input
                         type="date"
-                        value={formData.date}
+                        value={toDateInputValue(formData.date)}
                         onChange={(e) =>
                           setFormData({ ...formData, date: e.target.value })
                         }
@@ -3430,8 +3335,8 @@ const LogsPage = () => {
                             </>
                           ) : (
                             <>
-                              <Wand2 className="w-3 h-3" />
-                              Writing tools
+                              <FileEdit className="w-3 h-3" />
+                              Edit tools
                               <ChevronDown className="w-3 h-3" />
                             </>
                           )}
@@ -3441,7 +3346,7 @@ const LogsPage = () => {
                           <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-border shadow-sm z-10 overflow-hidden">
                             <div className="p-2">
                               <div className="text-xs font-medium text-text/40 px-3 py-1.5 uppercase tracking-wide">
-                                Writing Tools
+                                Editing Tools
                               </div>
                               <button
                                 type="button"
@@ -3449,11 +3354,11 @@ const LogsPage = () => {
                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                               >
                                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                                  <Zap className="w-3.5 h-3.5 text-primary" />
+                                  <FileEdit className="w-3.5 h-3.5 text-primary" />
                                 </div>
                                 <div>
                                   <div className="font-medium">
-                                    Improve Writing
+                                    Improve
                                   </div>
                                   <div className="text-xs text-text/50">
                                     Fix grammar & clarity
@@ -3485,7 +3390,7 @@ const LogsPage = () => {
                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-text hover:bg-accent/30 rounded-lg transition-colors"
                               >
                                 <div className="w-7 h-7 rounded-lg bg-pastel-green flex items-center justify-center">
-                                  <Sparkles className="w-3.5 h-3.5 text-soft-green" />
+                                  <FileText className="w-3.5 h-3.5 text-soft-green" />
                                 </div>
                                 <div>
                                   <div className="font-medium">
@@ -3588,8 +3493,8 @@ const LogsPage = () => {
 
           {/* View Entry Modal */}
           {viewingEntry && (
-            <div className="fixed inset-0 bg-text/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-canvas rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="fixed inset-0 bg-text/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-canvas rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-sm">
                 <div className="p-6 border-b border-border flex items-center justify-between">
                   <h2 className="text-xl font-bold text-text truncate pr-4">
                     {viewingEntry.title}
@@ -3810,8 +3715,8 @@ const LogsPage = () => {
 
         {/* Merge Notes Modal */}
         {mergeModalOpen && (
-          <div className="fixed inset-0 bg-text/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-canvas rounded-2xl max-w-md w-full shadow-2xl p-6">
+          <div className="fixed inset-0 bg-text/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-canvas rounded-2xl max-w-md w-full shadow-sm p-6">
               <h2 className="text-lg font-bold text-text mb-4 flex items-center gap-2">
                 <Merge className="w-5 h-5 text-primary" />
                 Merge to journal
@@ -3839,7 +3744,7 @@ const LogsPage = () => {
                   </label>
                   <input
                     type="date"
-                    value={mergeDate}
+                    value={toDateInputValue(mergeDate)}
                     onChange={(e) => setMergeDate(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-border text-text focus:outline-none focus:border-primary text-sm"
                   />
@@ -3889,8 +3794,8 @@ const LogsPage = () => {
 
         {/* Compile Report (CTU OJT Form 6) modal */}
         {compileModalOpen && (
-          <div className="fixed inset-0 bg-text/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-canvas rounded-2xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl">
+          <div className="fixed inset-0 bg-text/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-canvas rounded-2xl max-w-md w-full max-h-[90vh] flex flex-col shadow-sm">
               <div className="p-6 border-b border-border flex items-center justify-between shrink-0">
                 <h2 className="text-lg font-bold text-text flex items-center gap-2">
                   <FileText className="w-5 h-5 text-primary" />
@@ -4003,6 +3908,42 @@ const LogsPage = () => {
                       className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-text-muted mb-1">
+                        Internship Coordinator
+                      </label>
+                      <input
+                        type="text"
+                        value={compileForm.coordinatorName}
+                        onChange={(e) =>
+                          setCompileForm((f) => ({
+                            ...f,
+                            coordinatorName: e.target.value,
+                          }))
+                        }
+                        placeholder={DEFAULT_COORDINATOR_NAME}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-text-muted mb-1">
+                        Supervisor Printed Name
+                      </label>
+                      <input
+                        type="text"
+                        value={compileForm.supervisorName}
+                        onChange={(e) =>
+                          setCompileForm((f) => ({
+                            ...f,
+                            supervisorName: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. Maria Santos"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-text-muted mb-1">
@@ -4010,7 +3951,7 @@ const LogsPage = () => {
                       </label>
                       <input
                         type="date"
-                        value={compileForm.startDate}
+                        value={toDateInputValue(compileForm.startDate)}
                         disabled={compileReportMode === "internship"}
                         onChange={(e) =>
                           setCompileForm((f) => ({
@@ -4027,7 +3968,7 @@ const LogsPage = () => {
                       </label>
                       <input
                         type="date"
-                        value={compileForm.endDate}
+                        value={toDateInputValue(compileForm.endDate)}
                         disabled={compileReportMode === "internship"}
                         onChange={(e) =>
                           setCompileForm((f) => ({
@@ -4083,8 +4024,8 @@ const LogsPage = () => {
 
         {/* Export PDF modal */}
         {exportPdfModalOpen && (
-          <div className="fixed inset-0 bg-text/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-canvas rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col shadow-2xl">
+          <div className="fixed inset-0 bg-text/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-canvas rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col shadow-sm">
               <div className="p-6 border-b border-border flex items-center justify-between shrink-0">
                 <h2 className="text-lg font-bold text-text flex items-center gap-2">
                   <Download className="w-5 h-5 text-primary" />

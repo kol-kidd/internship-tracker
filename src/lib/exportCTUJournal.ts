@@ -9,6 +9,8 @@ export interface CTUJournalParams {
   activities: string[];
   learnings: string[];
   fileLabel?: string;
+  coordinatorName?: string;
+  supervisorName?: string;
 }
 
 type Rect = {
@@ -238,6 +240,8 @@ export function createCTUJournalPDF(params: CTUJournalParams): jsPDF {
     dateRange,
     activities,
     learnings,
+    coordinatorName,
+    supervisorName,
   } = params;
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -304,14 +308,23 @@ export function createCTUJournalPDF(params: CTUJournalParams): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.text("Industry Training Supervisor Remarks:", TEMPLATE.labelX, 538);
 
+  const supervisorPrintedName = (supervisorName || "").trim().toUpperCase();
+  if (supervisorPrintedName) {
+    doc.setFont("helvetica", "bold");
+    doc.text(supervisorPrintedName, 430, 637, { align: "center" });
+  }
+  doc.setFont("helvetica", "normal");
   doc.line(353.9, 642, 506, 642);
   doc.setFont("helvetica", "normal");
   doc.text("Signature Over Printed Name", 362.9, 654.3);
 
+  const coordinatorPrintedName = (
+    coordinatorName || "REYNILDA A. CASTRO"
+  ).trim().toUpperCase();
   doc.setFont("helvetica", "bold");
   doc.text("Noted by:", TEMPLATE.labelX, 683.8);
   doc.setFont("helvetica", "bold");
-  doc.text("REYNILDA A. CASTRO", 413, 713.4, { align: "center" });
+  doc.text(coordinatorPrintedName, 413, 713.4, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.text("Internship Coordinator", 413, 727.8, { align: "center" });
 

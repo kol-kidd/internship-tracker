@@ -39,7 +39,7 @@ export default function Card({
       case "applied":
         return "bg-primary/5 text-primary";
       case "interviewing":
-        return "bg-purple-500/5 text-[#af52de]";
+        return "bg-info/5 text-info";
       case "offer":
         return "bg-success/5 text-success";
       case "accepted":
@@ -52,10 +52,10 @@ export default function Card({
   };
 
   return (
-    <div className="group relative rounded-[2rem] glass border border-border/40 p-6 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500">
+    <div className="group relative rounded-xl bg-canvas border border-border p-5 hover:border-primary/20 transition-colors">
       <div className="flex justify-between items-start mb-6">
         <div
-          className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusStyles(status)}`}
+          className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyles(status)}`}
         >
           {status}
         </div>
@@ -77,10 +77,10 @@ export default function Card({
 
       <div className="space-y-4">
         <div>
-          <h3 className="text-xl font-black text-text tracking-tight line-clamp-1">
+          <h3 className="text-lg font-semibold text-text tracking-tight line-clamp-1">
             {company_name}
           </h3>
-          <p className="text-sm font-bold text-text-muted">
+          <p className="text-sm text-text-muted">
             {position || "Internship Role"}
           </p>
         </div>
@@ -105,7 +105,7 @@ export default function Card({
         )}
       </div>
 
-      <button className="absolute bottom-6 right-6 p-2 rounded-xl bg-black/5 text-text-muted hover:bg-primary hover:text-white transition-all transform group-hover:scale-110">
+      <button className="absolute bottom-5 right-5 p-2 rounded-lg bg-surface text-text-muted hover:bg-primary hover:text-white transition-colors">
         <MoreHorizontal size={18} />
       </button>
     </div>

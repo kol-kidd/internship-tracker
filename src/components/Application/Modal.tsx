@@ -112,20 +112,19 @@ export default function Modal(props: ModalProps) {
       maxWidth="sm"
       PaperProps={{
         sx: {
-          borderRadius: "2.5rem",
+          borderRadius: "1rem",
           overflow: "hidden",
           backgroundImage: "none",
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
-          backdropFilter: "blur(20px)",
-          border: "1px solid rgba(0, 0, 0, 0.05)",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.1)",
+          backgroundColor: "var(--color-canvas)",
+          border: "1px solid var(--color-border)",
+          boxShadow: "0 8px 18px rgba(16, 24, 40, 0.08)",
         },
       }}
     >
-      <div className="p-8 space-y-8">
+      <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h2 className="text-2xl font-black tracking-tight">
+            <h2 className="text-xl font-semibold tracking-tight">
               {props.isUpdate ? "Edit Details" : "New Application"}
             </h2>
             <p className="text-sm font-medium text-text-muted">
@@ -145,7 +144,7 @@ export default function Modal(props: ModalProps) {
         <DialogContent className="space-y-6 !p-0">
           {!props.isUpdate && (
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+              <label className="text-xs font-medium text-text-muted">
                 Application Date
               </label>
               <div className="relative">
@@ -159,7 +158,7 @@ export default function Modal(props: ModalProps) {
                   sx={{
                     width: "100%",
                     "& .MuiOutlinedInput-root": {
-                      borderRadius: "1.25rem",
+                      borderRadius: "0.75rem",
                       paddingLeft: "2.5rem",
                       backgroundColor: "rgba(0,0,0,0.03)",
                       border: "none",
@@ -173,43 +172,43 @@ export default function Modal(props: ModalProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+              <label className="text-xs font-medium text-text-muted">
                 Company Name
               </label>
               <input
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="e.g. Apple"
-                className="w-full px-5 py-4 rounded-2xl bg-black/5 border-none text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-surface border border-border text-sm focus:ring-2 focus:ring-primary/10 transition-colors outline-none"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+              <label className="text-xs font-medium text-text-muted">
                 Position / Role
               </label>
               <input
                 value={position}
                 onChange={(e) => setPosition(e.target.value)}
                 placeholder="e.g. Software Intern"
-                className="w-full px-5 py-4 rounded-2xl bg-black/5 border-none text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-surface border border-border text-sm focus:ring-2 focus:ring-primary/10 transition-colors outline-none"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+            <label className="text-xs font-medium text-text-muted">
               Location / Address
             </label>
             <input
               value={companyAddress}
               onChange={(e) => setCompanyAddress(e.target.value)}
               placeholder="e.g. Cupertino, CA"
-              className="w-full px-5 py-4 rounded-2xl bg-black/5 border-none text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+              className="w-full px-4 py-3 rounded-lg bg-surface border border-border text-sm focus:ring-2 focus:ring-primary/10 transition-colors outline-none"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-text-muted">
+            <label className="text-xs font-medium text-text-muted">
               Stipend Status
             </label>
             <div className="flex gap-2">
@@ -219,7 +218,7 @@ export default function Modal(props: ModalProps) {
                   onClick={() => setStipend(s as "paid" | "unpaid")}
                   className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
                     stipend === s
-                      ? "bg-text text-white shadow-lg shadow-black/10 scale-95"
+                      ? "bg-primary text-white"
                       : "bg-black/5 text-text-muted hover:bg-black/10"
                   }`}
                 >
@@ -233,19 +232,19 @@ export default function Modal(props: ModalProps) {
         <div className="flex gap-4 pt-4">
           <button
             onClick={handleClose}
-            className="flex-1 py-4 rounded-2xl bg-black/5 text-text-muted text-sm font-bold hover:bg-black/10 transition-all"
+            className="flex-1 py-3 rounded-lg bg-surface text-text-muted text-sm font-semibold hover:bg-border transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={loading}
-            className="flex-[2] py-4 rounded-2xl bg-text text-white text-sm font-bold hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-black/10 disabled:opacity-50"
+            className="flex-[2] py-3 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors disabled:opacity-50"
           >
             {loading
-              ? "Optimizing..."
+              ? "Saving..."
               : props.isUpdate
-                ? "Verify Changes"
+                ? "Update Application"
                 : "Create Application"}
           </button>
         </div>

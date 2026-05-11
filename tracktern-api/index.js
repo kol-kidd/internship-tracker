@@ -14,15 +14,36 @@ import { geminiModel } from "./config/gemini.js";
 const app = express();
 
 const normalizeOrigin = (origin) => origin?.replace(/\/+$/, "");
-const frontendOrigin = normalizeOrigin(
-  process.env.FRONTEND_URL || "http://localhost:5173"
-);
+const defaultFrontendOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://internpal.vercel.app",
+];
+const configuredFrontendOrigins = (
+  process.env.FRONTEND_URLS ||
+  process.env.FRONTEND_URL ||
+  ""
+)
+  .split(",")
+  .map((origin) => normalizeOrigin(origin.trim()))
+  .filter(Boolean);
+const allowedFrontendOrigins = [
+  ...new Set([...configuredFrontendOrigins, ...defaultFrontendOrigins]),
+];
+const corsOrigin = (origin, callback) => {
+  if (!origin || allowedFrontendOrigins.includes(normalizeOrigin(origin))) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error(`Origin not allowed by CORS: ${origin}`));
+};
 
 // Middleware
 app.use(helmet());
 app.use(
   cors({
-    origin: frontendOrigin,
+    origin: corsOrigin,
     credentials: true,
   })
 );
@@ -114,7 +135,7 @@ const server = http.createServer(app);
 // Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: frontendOrigin,
+    origin: allowedFrontendOrigins,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   },
@@ -124,10 +145,13 @@ io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
 
   // User joins their personal room
-  socket.on("join-user", (userId) => {
+  const joinUserRoom = (userId) => {
     console.log(`User ${userId} joined room`);
     socket.join(userId);
-  });
+  };
+
+  socket.on("join-user", joinUserRoom);
+  socket.on("join-room", joinUserRoom);
 
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
@@ -139,5 +163,5 @@ export { io };
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

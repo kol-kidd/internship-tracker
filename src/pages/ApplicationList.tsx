@@ -54,39 +54,32 @@ type StatusType =
 interface StatusConfig {
   color: string;
   label: string;
-  gradient: string;
 }
 
 const statusConfig: Record<StatusType, StatusConfig> = {
   applied: {
     color: "bg-primary/5 text-primary border-primary/10",
     label: "Applied",
-    gradient: "from-[#0071e3] to-[#00c6fb]",
   },
   interviewing: {
-    color: "bg-purple-500/5 text-[#af52de] border-purple-500/10",
+    color: "bg-info/5 text-info border-info/10",
     label: "Interviewing",
-    gradient: "from-[#af52de] to-[#ff2d55]",
   },
   offer: {
     color: "bg-success/5 text-success border-success/10",
     label: "Offer",
-    gradient: "from-[#28cd41] to-[#58d68d]",
   },
   rejected: {
     color: "bg-error/5 text-error border-error/10",
     label: "Rejected",
-    gradient: "from-[#ff3b30] to-[#ff9500]",
   },
   accepted: {
     color: "bg-success/10 text-success border-success/20",
     label: "Accepted",
-    gradient: "from-[#28cd41] to-[#0071e3]",
   },
   withdrawn: {
     color: "bg-black/5 text-text-muted border-black/10",
     label: "Withdrawn",
-    gradient: "from-[#8e8e93] to-[#c7c7cc]",
   },
 };
 
@@ -351,7 +344,7 @@ export default function ApplicationList() {
         }
       }
       downloadJourneyPdf(applications, narrative);
-      toast.success("Journey report downloaded", {
+      toast.success("Timeline report downloaded", {
         position: "top-right",
         theme: "light",
         transition: Bounce,
@@ -371,7 +364,7 @@ export default function ApplicationList() {
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-16 h-16 rounded-[2rem] bg-primary flex items-center justify-center mx-auto mb-4 animate-bounce">
+            <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4 ">
               <Briefcase className="w-8 h-8 text-white" />
             </div>
           </div>
@@ -392,13 +385,13 @@ export default function ApplicationList() {
       <div className="flex flex-col min-h-screen bg-surface">
         {/* Main content */}
         <main className="flex-1 flex flex-col min-w-0">
-          <div className="sticky top-0 z-10 glass border-b border-border/50 px-6 py-6 space-y-6">
+          <div className="sticky top-0 z-10 bg-canvas border-b border-border px-6 py-6 space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-1">
-                <h1 className="text-3xl font-black text-text tracking-tighter">
+                <h1 className="text-3xl font-semibold text-text tracking-tight">
                   Applications
                 </h1>
-                <p className="text-sm font-medium text-text-muted">
+                <p className="text-sm text-text-muted">
                   Manage and track your career opportunities.
                 </p>
               </div>
@@ -406,7 +399,7 @@ export default function ApplicationList() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleModal()}
-                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-text text-white text-sm font-bold hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-black/10"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
                 >
                   <Plus size={18} />
                   <span>New Application</span>
@@ -422,22 +415,22 @@ export default function ApplicationList() {
                   placeholder="Search companies, roles, or locations..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 rounded-2xl border border-border/50 bg-surface/50 text-sm font-medium text-text placeholder-text-muted/50 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                  className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-border bg-surface text-sm text-text placeholder-text-muted/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-colors"
                 />
               </div>
 
-              <div className="flex items-center gap-2 p-1 bg-black/5 rounded-2xl">
+              <div className="flex items-center gap-2 p-1 bg-surface rounded-lg">
                 {[
                   { id: "board", icon: LayoutGrid, label: "Board" },
                   { id: "list", icon: List, label: "List" },
-                  { id: "journey", icon: History, label: "Journey" },
+                  { id: "journey", icon: History, label: "Timeline" },
                 ].map((mode) => (
                   <button
                     key={mode.id}
                     onClick={() =>
                       setViewMode(mode.id as "board" | "list" | "journey")
                     }
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold transition-colors ${
                       viewMode === mode.id
                         ? "bg-canvas text-text shadow-sm"
                         : "text-text-muted hover:text-text"
@@ -450,29 +443,34 @@ export default function ApplicationList() {
               </div>
 
               <div className="flex items-center gap-3 ml-auto">
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-border/50 bg-canvas text-sm font-bold text-text-muted hover:text-text cursor-pointer transition-colors group">
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-canvas text-sm font-semibold text-text-muted hover:text-text hover:bg-surface cursor-pointer transition-colors group"
+                >
                   <Download
                     size={16}
                     className="group-hover:translate-y-0.5 transition-transform"
                   />
-                  <span onClick={handleDownloadPdf}>PDF Report</span>
-                </div>
-                <div
+                  <span>PDF Report</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => downloadJourneyCsv(applications)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-border/50 bg-canvas text-sm font-bold text-text-muted hover:text-text cursor-pointer transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-canvas text-sm font-semibold text-text-muted hover:text-text hover:bg-surface cursor-pointer transition-colors"
                 >
                   <Download size={16} />
                   <span>CSV</span>
-                </div>
+                </button>
               </div>
             </div>
 
             <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar px-6">
               <button
                 onClick={() => setStatusFilter("all")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
+                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
                   statusFilter === "all"
-                    ? "bg-primary text-white shadow-lg shadow-primary/20"
+                    ? "bg-primary text-white"
                     : "bg-black/5 text-text-muted hover:bg-black/10 hover:text-text"
                 }`}
               >
@@ -482,9 +480,9 @@ export default function ApplicationList() {
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
                     statusFilter === status
-                      ? "bg-primary text-white shadow-lg shadow-primary/20"
+                      ? "bg-primary text-white"
                       : "bg-black/5 text-text-muted hover:bg-black/10 hover:text-text"
                   }`}
                 >
@@ -496,13 +494,13 @@ export default function ApplicationList() {
 
           <div className="flex-1 overflow-y-auto p-8 lg:p-12">
             {hasAcceptedApplication && !tipDismissed && (
-              <div className="mb-8 rounded-[2rem] glass border border-success/20 bg-success/5 p-6 flex items-start gap-4 animate-in fade-in slide-in-from-top-4 duration-700">
-                <div className="w-12 h-12 rounded-2xl bg-success/10 flex items-center justify-center shrink-0">
+              <div className="mb-8 rounded-xl border border-success/20 bg-success/5 p-5 flex items-start gap-4">
+                <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
                   <CheckCircle2 className="w-6 h-6 text-success" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-lg font-bold text-text mb-1">
-                    Congratulations on your offer!
+                    Accepted application found
                   </p>
                   <p className="text-sm font-medium text-text-muted mb-4">
                     Consider marking your other active applications as withdrawn
@@ -511,7 +509,7 @@ export default function ApplicationList() {
                   <div className="flex items-center gap-4">
                     <button
                       onClick={handleMarkAllWithdrawnClick}
-                      className="px-5 py-2.5 rounded-xl bg-success text-white text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all shadow-lg shadow-success/10"
+                      className="px-4 py-2 rounded-lg bg-success text-white text-xs font-semibold hover:opacity-90 transition-colors"
                     >
                       Mark others as withdrawn
                     </button>
@@ -536,18 +534,18 @@ export default function ApplicationList() {
               <div className="mb-12">
                 <div className="flex items-center gap-3 mb-6">
                   <Trophy className="text-warning" size={24} />
-                  <h2 className="text-2xl font-black tracking-tight">
-                    Active Milestone
+                    <h2 className="text-2xl font-semibold tracking-tight">
+                    Accepted Application
                   </h2>
                 </div>
-                <div className="rounded-[2.5rem] glass border border-warning/20 p-8">
+                <div className="rounded-2xl border border-warning/20 bg-canvas p-6">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                     <div className="space-y-4">
                       <div>
-                        <span className="px-3 py-1 rounded-full bg-warning/10 text-warning text-[10px] font-black uppercase tracking-widest">
-                          Goal Achieved
+                        <span className="px-3 py-1 rounded-full bg-warning/10 text-warning text-[10px] font-bold uppercase tracking-widest">
+                          Accepted
                         </span>
-                        <h3 className="text-3xl font-black mt-2">
+                        <h3 className="text-3xl font-bold mt-2">
                           {acceptedApplication.company_name}
                         </h3>
                         <p className="text-lg font-bold text-text-muted">
@@ -573,7 +571,7 @@ export default function ApplicationList() {
             )}
 
             {viewMode === "board" && (
-              <div className="space-y-8 animate-in fade-in duration-700">
+              <div className="space-y-8">
                 <KanbanBoard
                   applications={filteredAndSortedApps}
                   onStatusChange={handleStatusUpdate}
@@ -584,7 +582,7 @@ export default function ApplicationList() {
             )}
 
             {viewMode === "list" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in duration-700">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredAndSortedApps.map((app) => (
                   <Card
                     key={app.id}
@@ -606,7 +604,7 @@ export default function ApplicationList() {
                 ))}
                 {filteredAndSortedApps.length === 0 && (
                   <div className="col-span-full py-20 text-center">
-                    <div className="w-20 h-20 rounded-[2rem] bg-black/5 flex items-center justify-center mx-auto mb-6">
+                    <div className="w-20 h-20 rounded-xl bg-black/5 flex items-center justify-center mx-auto mb-6">
                       <Search className="w-10 h-10 text-text-muted opacity-30" />
                     </div>
                     <h3 className="text-xl font-bold text-text">
@@ -621,7 +619,7 @@ export default function ApplicationList() {
             )}
 
             {viewMode === "journey" && (
-              <div className="animate-in fade-in duration-700">
+              <div>
                 <JourneyTimeline applications={applications} />
               </div>
             )}

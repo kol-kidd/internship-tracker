@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Calendar, Sparkles, MapPin } from "lucide-react";
+import { Calendar, FileText, MapPin } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import type { Application } from "@/store/applicationStore";
 import { getJourneySummary } from "@/functions/ai/journalAI";
@@ -41,7 +41,7 @@ function statusStyles(status: string): string {
     case "applied":
       return "bg-blue-500/10 text-blue-700 border-blue-200";
     case "interviewing":
-      return "bg-purple-500/10 text-purple-700 border-purple-200";
+      return "bg-info/10 text-info border-info/20";
     case "offer":
       return "bg-orange-500/10 text-orange-700 border-orange-200";
     case "accepted":
@@ -157,7 +157,7 @@ export default function JourneyTimeline({
         </div>
         <p className="text-text font-semibold">No applications yet</p>
         <p className="text-sm text-text-muted mt-1">
-          Add applications to see your journey timeline
+          Add applications to see your timeline.
         </p>
       </div>
     );
@@ -170,7 +170,7 @@ export default function JourneyTimeline({
           narrativeLoading
             ? "border-primary/30 bg-primary/5"
             : narrative
-            ? "border-primary/20 bg-gradient-to-br from-primary/5 to-transparent"
+            ? "border-primary/20 bg-primary/5"
             : narrativeError
             ? "border-border bg-canvas"
             : "border-border bg-canvas"
@@ -178,10 +178,10 @@ export default function JourneyTimeline({
       >
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-primary" />
+            <FileText className="w-4 h-4 text-primary" />
           </div>
           <h2 className="text-base font-semibold text-text">
-            Your journey at a glance
+            Application summary
           </h2>
         </div>
         {narrativeLoading && (
@@ -208,7 +208,7 @@ export default function JourneyTimeline({
         </h2>
         <div className="relative pl-8">
           <div
-            className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-primary/30 via-primary/20 to-primary/10 rounded-full"
+            className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-border rounded-full"
             aria-hidden
           />
           <ul className="space-y-4">

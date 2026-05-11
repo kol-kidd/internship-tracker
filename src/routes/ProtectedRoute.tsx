@@ -9,7 +9,6 @@ export default function ProtectedRoute({
 }) {
   const { user, loading } = useAuthStore();
 
-  // ⏳ Wait for auth hydration
   if (loading) {
     return <div className="p-8">Loading...</div>;
   }

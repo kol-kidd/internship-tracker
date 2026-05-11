@@ -23,14 +23,14 @@ export default function WinnerCard({
   const days = daysUntilStart ?? daysUntil(application.start_date);
 
   return (
-    <div className="rounded-2xl border-2 border-amber-400 bg-linear-to-br from-amber-50 to-canvas p-6 shadow-lg ring-2 ring-amber-200/60">
+    <div className="rounded-2xl border-2 border-amber-400 bg-linear-to-br from-amber-50 to-canvas p-6 shadow-sm ring-2 ring-amber-200/60">
       <div className="flex items-start gap-4">
         <div className="w-14 h-14 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
           <Trophy className="w-7 h-7 text-white" strokeWidth={2} />
         </div>
         <div className="flex-1 min-w-0">
           <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-1 rounded-lg mb-2">
-            Goal Achieved
+            Accepted
           </span>
           <h2 className="text-xl font-bold text-text truncate flex items-center gap-2">
             <Building2 className="w-5 h-5 text-amber-600 shrink-0" />

@@ -1,39 +1,38 @@
 @import "tailwindcss";
 
 @theme {
-  /* Apple-inspired Premium Palette */
+  /* InternPal product palette */
   --color-canvas: #ffffff;
-  --color-surface: #f5f5f7; /* Apple's lighter gray */
+  --color-surface: #f6f7f9;
   --color-surface-alt: #ffffff;
-  --color-border: rgba(0, 0, 0, 0.08);
-  --color-border-subtle: rgba(0, 0, 0, 0.04);
+  --color-border: #e4e7ec;
+  --color-border-subtle: #eef1f5;
 
-  --color-primary: #0071e3; /* Apple SF Blue */
-  --color-primary-hover: #0077ed;
-  --color-accent: #64d2ff;
-  --color-soft-blue: #3b82f6;
+  --color-primary: #0b73d9;
+  --color-primary-hover: #075fb5;
+  --color-accent: #dbeafe;
+  --color-soft-blue: #2563eb;
 
-  --color-text: #1d1d1f; /* Apple's standard text */
-  --color-text-muted: #86868b; /* Apple's muted text */
-  --color-text-subtle: #a1a1a6;
+  --color-text: #172033;
+  --color-text-muted: #687083;
+  --color-text-subtle: #98a2b3;
 
-  --color-sidebar: rgba(255, 255, 255, 0.82); /* Glassmorphic sidebar */
-  --color-sidebar-border: rgba(0, 0, 0, 0.08);
-  --color-sidebar-text: #1d1d1f;
-  --color-sidebar-text-muted: #86868b;
+  --color-sidebar: #ffffff;
+  --color-sidebar-border: #e4e7ec;
+  --color-sidebar-text: #172033;
+  --color-sidebar-text-muted: #687083;
 
-  /* Semantic Colors */
-  --color-success: #28cd41;
-  --color-warning: #ff9f0a;
-  --color-error: #ff3b30;
-  --color-info: #0071e3;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #0b73d9;
 
-  /* UI/UX Pro Max Effects */
+  /* Simple product elevation */
   --shadow-premium:
-    0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.08);
   --shadow-premium-hover:
-    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --blur-premium: 20px;
+    0 8px 18px rgba(16, 24, 40, 0.08);
+  --blur-premium: 0px;
 
   /* Typography */
   --font-family-sans:
@@ -49,6 +48,6 @@
 
 @layer components {
   .glass {
-    @apply backdrop-blur-[var(--blur-premium)] bg-white/70 border border-white/20;
+    @apply bg-canvas border border-border;
   }
 }

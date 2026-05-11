@@ -12,7 +12,7 @@ import {
   MessageSquare,
   Trophy,
   ArrowRight,
-  Sparkles,
+  FileEdit,
   Calendar,
 } from "lucide-react";
 
@@ -171,22 +171,22 @@ export default function Dashboard() {
         title="Dashboard"
         description="View your applications, interviews, offers, and journal progress."
       />
-      <div className="space-y-8 animate-in fade-in duration-1000">
+      <div className="space-y-8">
         {/* Top Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <h1 className="text-4xl font-extrabold text-text tracking-tight">
+            <h1 className="text-3xl font-semibold text-text tracking-tight">
               Overview
             </h1>
-            <p className="text-text-muted font-medium">
-              Keep track of your career journey in one place.
+            <p className="text-text-muted">
+              Track applications and journal progress in one place.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={handleModal}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-text text-white text-sm font-bold hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-black/10"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
             >
               <Plus size={18} />
               <span>Add Application</span>
@@ -194,38 +194,38 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Bento Grid Layout */}
+        {/* Main Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-6">
           {/* Stats Cards */}
           {stats.map((stat, i) => (
             <div
               key={i}
-              className="group p-6 rounded-[2.5rem] bg-canvas border border-border/50 hover:border-primary/20 transition-all duration-300 hover:shadow-premium hover:-translate-y-1"
+              className="p-5 rounded-xl bg-canvas border border-border hover:border-primary/20 transition-colors"
             >
               <div
-                className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
+                className={`w-10 h-10 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center mb-4`}
               >
                 <stat.icon size={24} strokeWidth={2.5} />
               </div>
-              <p className="text-sm font-bold text-text-muted uppercase tracking-widest mb-1 opacity-60">
+              <p className="text-sm font-medium text-text-muted mb-1">
                 {stat.label}
               </p>
               <div className="flex items-end gap-2">
-                <h3 className="text-3xl font-black text-text tracking-tighter">
+                <h3 className="text-2xl font-semibold text-text tracking-tight">
                   {loading ? "..." : stat.value}
                 </h3>
-                <span className="text-[11px] font-bold text-text-muted mb-1.5 opacity-80 uppercase">
+                <span className="text-xs font-medium text-text-muted mb-1">
                   {stat.description}
                 </span>
               </div>
             </div>
           ))}
 
-          {/* Large Hero Card - Recent Activity */}
-          <div className="md:col-span-3 lg:col-span-2 rounded-[2.5rem] bg-canvas border border-border/50 flex flex-col overflow-hidden shadow-sm">
-            <div className="p-8 border-b border-border/50 flex items-center justify-between">
+          {/* Recent Activity */}
+          <div className="md:col-span-3 lg:col-span-2 rounded-2xl bg-canvas border border-border/50 flex flex-col overflow-hidden shadow-sm">
+            <div className="p-6 border-b border-border/50 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-extrabold text-text tracking-tight">
+                <h2 className="text-xl font-semibold text-text tracking-tight">
                   Recent Applications
                 </h2>
                 <p className="text-sm font-medium text-text-muted">
@@ -243,7 +243,7 @@ export default function Dashboard() {
 
             <div className="p-6">
               {loading ? (
-                <div className="space-y-4 animate-pulse">
+                <div className="space-y-4 ">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="h-16 bg-surface rounded-2xl" />
                   ))}
@@ -256,10 +256,10 @@ export default function Dashboard() {
                       <div
                         key={index}
                         onClick={() => navigate("/applications")}
-                        className="group flex items-center justify-between p-4 rounded-3xl hover:bg-surface transition-all cursor-pointer border border-transparent hover:border-border/50"
+                        className="group flex items-center justify-between p-4 rounded-xl hover:bg-surface transition-colors cursor-pointer border border-transparent hover:border-border/50"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                             <Building2 size={24} />
                           </div>
                           <div>
@@ -273,7 +273,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <span
-                          className="px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider"
+                          className="px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider"
                           style={{
                             backgroundColor: statusData.color.bg,
                             color: statusData.color.text,
@@ -298,28 +298,28 @@ export default function Dashboard() {
           </div>
 
           {/* Journal Stats Card */}
-          <div className="md:col-span-1 lg:col-span-1 rounded-[2.5rem] bg-canvas border border-border/50 p-8 flex flex-col justify-between shadow-sm group border-b-primary/10">
+          <div className="md:col-span-1 lg:col-span-1 rounded-2xl bg-canvas border border-border/50 p-6 flex flex-col justify-between shadow-sm">
             <div className="space-y-6">
-              <div className="w-14 h-14 rounded-[1.2rem] bg-info/10 flex items-center justify-center text-info mb-8 group-hover:rotate-6 transition-transform">
+              <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center text-info">
                 <Calendar size={28} />
               </div>
-              <h2 className="text-2xl font-black text-text tracking-tighter leading-none">
+              <h2 className="text-xl font-semibold text-text tracking-tight">
                 Journal Records
               </h2>
               <div className="space-y-4 mt-8">
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-surface/50">
-                  <span className="text-xs font-bold text-text-muted uppercase tracking-widest">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-surface">
+                  <span className="text-xs font-medium text-text-muted">
                     Entries
                   </span>
-                  <span className="text-lg font-black text-text">
+                  <span className="text-lg font-semibold text-text">
                     {entries.length}
                   </span>
                 </div>
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-surface/50">
-                  <span className="text-xs font-bold text-text-muted uppercase tracking-widest">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-surface">
+                  <span className="text-xs font-medium text-text-muted">
                     Logged Time
                   </span>
-                  <span className="text-lg font-black text-text">
+                  <span className="text-lg font-semibold text-text">
                     {totalHoursLogged.toFixed(1)}h
                   </span>
                 </div>
@@ -327,7 +327,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => navigate("/logs")}
-              className="w-full mt-8 py-4 rounded-2xl border border-border text-xs font-black uppercase tracking-widest text-text hover:bg-black/5 transition-all flex items-center justify-center gap-2"
+              className="w-full mt-8 py-3 rounded-lg border border-border text-sm font-semibold text-text hover:bg-surface transition-colors flex items-center justify-center gap-2"
             >
               Go to Journal
             </button>
@@ -336,27 +336,27 @@ export default function Dashboard() {
           {/* Journal tools card */}
           <div
             onClick={() => navigate("/logs")}
-            className="md:col-span-4 lg:col-span-1 rounded-[2.5rem] bg-text p-8 text-white relative overflow-hidden cursor-pointer group shadow-xl"
+            className="md:col-span-4 lg:col-span-1 rounded-2xl bg-canvas border border-border/50 p-6 text-text cursor-pointer group shadow-sm"
           >
-            <div className="relative z-10 h-full flex flex-col justify-between">
+            <div className="h-full flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-6">
-                  <Sparkles size={20} className="text-primary animate-pulse" />
-                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
-                    Journal Tools
+                  <FileEdit size={20} className="text-primary" />
+                  <span className="text-xs font-semibold text-primary">
+                    Journal tools
                   </span>
                 </div>
-                <h2 className="text-2xl font-black tracking-tight mb-4">
+                <h2 className="text-xl font-semibold tracking-tight mb-4">
                   Clean up entries faster.
                 </h2>
-                <p className="text-sm font-medium text-white/60 leading-relaxed max-w-[200px]">
+                <p className="text-sm text-text-muted leading-relaxed max-w-[220px]">
                   Improve wording, suggest tags, and prepare summaries from
                   your logs.
                 </p>
               </div>
 
               <div className="mt-8 flex items-center justify-between">
-                <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                <span className="text-xs font-medium text-text-muted">
                   Review before saving
                 </span>
                 <ArrowRight
@@ -366,9 +366,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Aesthetic Background Orbs */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl pointer-events-none group-hover:scale-150 transition-transform duration-700" />
-            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
           </div>
         </div>
       </div>
