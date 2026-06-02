@@ -32,7 +32,7 @@ function to24(hour12: number, minute: number, period: "AM" | "PM"): string {
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
-const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
 export default function TimePickerInput({
   value,

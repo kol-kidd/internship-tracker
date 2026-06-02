@@ -14,6 +14,8 @@ import { Bounce, ToastContainer } from "react-toastify";
 import ApplicationList from "./pages/ApplicationList";
 import LogsPage from "./pages/Logs";
 import Landing from "./pages/Landing";
+import Profile from "./pages/Profile";
+import Leaderboard from "./pages/Leaderboard";
 
 function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
@@ -90,6 +92,26 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <LogsPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Profile />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/leaderboard"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Leaderboard />
               </Layout>
             </ProtectedRoute>
           }

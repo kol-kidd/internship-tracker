@@ -2,6 +2,27 @@ import { supabase } from '../config/supabase.js';
 import { io } from "../index.js";
 import { geminiModel } from '../config/gemini.js';
 import genAI from '../config/gemini.js';
+import { recomputeUserHours } from '../services/hours.js';
+import { sendCompletionEmail } from '../services/email.js';
+
+/**
+ * Recomputes hours after an entry change. If the user just crossed their goal,
+ * emit a realtime event and send the completion email. Best-effort; never
+ * blocks/breaks the journal response.
+ */
+async function syncHoursAndNotify(userId) {
+  try {
+    const { profile, justCompleted } = await recomputeUserHours(userId);
+    if (justCompleted && profile) {
+      io.to(userId).emit("hours-completed", {
+        hours_completed_at: profile.hours_completed_at,
+      });
+      await sendCompletionEmail(profile);
+    }
+  } catch (err) {
+    console.error("syncHoursAndNotify error:", err?.message || err);
+  }
+}
 
 // Higher token limit model for compilation (monthly entries can be large)
 const geminiCompileModel = genAI.getGenerativeModel({
@@ -156,6 +177,8 @@ export const addEntry = async (req, res) => {
       message: 'Entry created successfully'
     });
 
+    syncHoursAndNotify(userId);
+
   } catch (error) {
     console.error('Add Entry Error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -204,6 +227,8 @@ export const updateEntry = async (req, res) => {
       message: 'Entry updated successfully'
     });
 
+    syncHoursAndNotify(userId);
+
   } catch (error) {
     console.error('Update Entry Error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -242,9 +267,23 @@ export const deleteEntry = async (req, res) => {
       deletedEntry: data[0]
     });
 
+    syncHoursAndNotify(userId);
+
   } catch (error) {
     console.error('Delete Entry Error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/** POST /api/journal/sync-hours — backfills total_hours for the current user.
+ *  Safe to call on login; no-ops if hours are already up to date. */
+export const syncHours = async (req, res) => {
+  try {
+    const { profile } = await recomputeUserHours(req.user.id);
+    res.json({ total_hours: profile?.total_hours ?? 0 });
+  } catch (err) {
+    console.error('syncHours error:', err);
+    res.status(500).json({ error: 'Failed to sync hours' });
   }
 };
 

@@ -176,6 +176,9 @@ router.get('/gallery', journalGalleryController.getGallery);
 router.post('/gallery', validateAddGalleryImage, journalGalleryController.addGalleryImage);
 router.delete('/gallery/:id', validateGalleryImageId, journalGalleryController.deleteGalleryImage);
 
+// Hours sync (backfill on login)
+router.post('/sync-hours', journalController.syncHours);
+
 // AI enhancement routes (must be before /:id routes)
 router.post('/ai/enhance', validateEnhanceRequest, journalController.enhanceEntry);
 router.post('/ai/suggest-tags', journalController.suggestTags);

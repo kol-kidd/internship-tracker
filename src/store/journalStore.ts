@@ -115,6 +115,15 @@ export const useJournalStore = create<JournalState>((set, get) => ({
       }));
     });
 
+    // Server signals that the user just crossed their required-hours goal.
+    // Decoupled via a window event so Layout can fire confetti + certificate
+    // without the journal store importing UI concerns.
+    socket.on("hours-completed", (payload: { hours_completed_at: string }) => {
+      window.dispatchEvent(
+        new CustomEvent("internpal:hours-completed", { detail: payload }),
+      );
+    });
+
     set({ socket });
   },
 

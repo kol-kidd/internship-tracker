@@ -1,5 +1,6 @@
 import CustomButton from "@/components/Buttons";
 import CustomInput from "@/components/Input";
+import SchoolFields, { type AcademicInfo } from "@/components/SchoolFields";
 import SEO from "@/components/SEO";
 import AppLogo from "@/components/AppLogo";
 import { signInWithGoogle } from "@/functions/auth/googleAuth";
@@ -14,6 +15,12 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [academic, setAcademic] = useState<AcademicInfo>({
+    school: "",
+    school_id: null,
+    course: "",
+    program: "",
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -68,8 +75,13 @@ export default function Register() {
         return;
       }
 
-      // Create or update profile
-      await createOrUpdateProfile(data.user, fullName.trim());
+      // Create or update profile (with academic info if provided)
+      await createOrUpdateProfile(data.user, fullName.trim(), {
+        school: academic.school || null,
+        school_id: academic.school_id,
+        course: academic.course || null,
+        program: academic.program || null,
+      });
 
       if (data.session) {
         // Logged in automatically
@@ -216,6 +228,13 @@ export default function Register() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
+              </div>
+
+              <div className="pt-1">
+                <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+                  Academic info
+                </p>
+                <SchoolFields value={academic} onChange={setAcademic} />
               </div>
 
               <div className="flex items-start gap-2 text-sm">

@@ -52,6 +52,14 @@ import {
 import { generateCTUJournalPDF } from "@/lib/exportCTUJournal";
 import { getWeekBounds, isDateInWeekBounds } from "@/lib/weekUtils";
 import { toDateInputValue } from "@/lib/dateInput";
+import {
+  calculateEntryHours as calculateHours,
+  getLatestTimedEntry,
+  getTotalLoggedHours,
+  hasInvalidTimeRange,
+  toLocalDateInputValue,
+} from "@/lib/hours";
+import { useSearchParams } from "react-router-dom";
 
 const PDF_LANDSCAPE_MAX_PX = 320;
 const PDF_PORTRAIT_MAX_PX = 180;
@@ -159,6 +167,20 @@ function saveReportHistory(items: ReportHistoryItem[]) {
   }
 }
 
+function createBlankFormData(date = toLocalDateInputValue()) {
+  const { timeIn, timeOut } = getDefaultTimes();
+  return {
+    title: "",
+    date,
+    content: "",
+    mood: "neutral",
+    tags: "",
+    time_in: timeIn,
+    time_out: timeOut,
+    break_time: "",
+  };
+}
+
 const LogsPage = () => {
   const { user, session } = useAuthStore();
   const {
@@ -180,19 +202,10 @@ const LogsPage = () => {
   const [selectedEntryTitle, setSelectedEntryTitle] = useState("");
   const [viewingEntry, setViewingEntry] = useState<JournalEntry | null>(null);
 
-  const [formData, setFormData] = useState(() => {
-    const { timeIn, timeOut } = getDefaultTimes();
-    return {
-      title: "",
-      date: new Date().toISOString().split("T")[0],
-      content: "",
-      mood: "neutral",
-      tags: "",
-      time_in: timeIn,
-      time_out: timeOut,
-      break_time: "",
-    };
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const newEntryRequest = searchParams.get("new");
+
+  const [formData, setFormData] = useState(() => createBlankFormData());
 
   // Writing tool state
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -499,6 +512,68 @@ const LogsPage = () => {
     if (name && !reportName) setReportName(name);
   }, [user?.user_metadata?.full_name, user?.email, reportName]);
 
+  useEffect(() => {
+    if (newEntryRequest !== "today") return;
+
+    const timer = window.setTimeout(() => {
+      setEditingEntry(null);
+      setFormData(createBlankFormData(toLocalDateInputValue()));
+      setOriginalContent(null);
+      setShowWritingTools(false);
+      setIsModalOpen(true);
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        next.delete("new");
+        return next;
+      }, { replace: true });
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [newEntryRequest, setSearchParams]);
+
+  const latestTimedEntry = getLatestTimedEntry(entries);
+  const formEntryHours = calculateHours(
+    formData.time_in,
+    formData.time_out,
+    formData.break_time,
+  );
+  const formHasTimeRange = Boolean(formData.time_in && formData.time_out);
+  const formHasInvalidTimeRange = hasInvalidTimeRange(
+    formData.time_in,
+    formData.time_out,
+    formData.break_time,
+  );
+
+  const applyLastLogTime = () => {
+    if (!latestTimedEntry) return;
+
+    setFormData((current) => ({
+      ...current,
+      time_in: latestTimedEntry.time_in ?? "",
+      time_out: latestTimedEntry.time_out ?? "",
+      break_time:
+        latestTimedEntry.break_time == null
+          ? ""
+          : String(latestTimedEntry.break_time),
+    }));
+  };
+
+  const applyStandardDay = () => {
+    setFormData((current) => ({
+      ...current,
+      time_in: "08:00",
+      time_out: "17:00",
+      break_time: "60",
+    }));
+  };
+
+  const applyNoBreak = () => {
+    setFormData((current) => ({
+      ...current,
+      break_time: "0",
+    }));
+  };
+
   const handleSubmit = async () => {
     if (!formData.title || !formData.content || !formData.date) {
       toast.error("Please fill in all required fields", {
@@ -510,6 +585,15 @@ const LogsPage = () => {
     }
 
     if (!user?.id) return;
+
+    if (formHasInvalidTimeRange) {
+      toast.error("Time out must be later than time in after break time.", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
 
     try {
       setSaving(true);
@@ -547,11 +631,16 @@ const LogsPage = () => {
           break_time: formData.break_time ? Number(formData.break_time) : null,
         });
 
-        toast.success("Entry created successfully", {
+        toast.success(
+          formEntryHours > 0
+            ? `Entry saved. +${formEntryHours.toFixed(1)}h logged.`
+            : "Entry created successfully",
+          {
           position: "top-right",
           theme: "light",
           transition: Bounce,
-        });
+          },
+        );
       }
 
       resetForm();
@@ -568,17 +657,7 @@ const LogsPage = () => {
   };
 
   const resetForm = () => {
-    const { timeIn, timeOut } = getDefaultTimes();
-    setFormData({
-      title: "",
-      date: new Date().toISOString().split("T")[0],
-      content: "",
-      mood: "neutral",
-      tags: "",
-      time_in: timeIn,
-      time_out: timeOut,
-      break_time: "",
-    });
+    setFormData(createBlankFormData());
     setEditingEntry(null);
     setIsModalOpen(false);
     setOriginalContent(null);
@@ -868,20 +947,6 @@ const LogsPage = () => {
     }
   };
 
-  const calculateHours = (
-    timeIn: string,
-    timeOut: string,
-    breakTime?: number | null,
-  ) => {
-    if (!timeIn || !timeOut) return 0;
-    const [inHour, inMin] = timeIn.split(":").map(Number);
-    const [outHour, outMin] = timeOut.split(":").map(Number);
-    const breakMinutes = breakTime || 0;
-    const totalMinutes =
-      outHour * 60 + outMin - (inHour * 60 + inMin) - breakMinutes;
-    return Math.max(0, totalMinutes / 60);
-  };
-
   const formatTime = (time: string) => {
     if (!time) return "";
     const [hour] = time.split(":").map(Number);
@@ -908,17 +973,7 @@ const LogsPage = () => {
     return `${displayHour}:${String(min).padStart(2, "0")} ${period}`;
   };
 
-  const totalHoursLogged = entries.reduce((total, entry) => {
-    if (entry.time_in && entry.time_out) {
-      const hours = calculateHours(
-        entry.time_in,
-        entry.time_out,
-        entry.break_time,
-      );
-      return total + hours;
-    }
-    return total;
-  }, 0);
+  const totalHoursLogged = getTotalLoggedHours(entries);
 
   const hoursRemaining = Math.max(0, requiredHours - totalHoursLogged);
   const progressPercent =
@@ -3314,6 +3369,48 @@ const LogsPage = () => {
                     </div>
                   </div>
 
+                  <div className="rounded-xl border border-border bg-surface p-3">
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={applyLastLogTime}
+                        disabled={!latestTimedEntry}
+                        className="px-3 py-1.5 rounded-lg border border-border bg-canvas text-xs font-semibold text-text hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Last log
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyStandardDay}
+                        className="px-3 py-1.5 rounded-lg border border-border bg-canvas text-xs font-semibold text-text hover:bg-accent/30 transition-colors"
+                      >
+                        8:00 AM - 5:00 PM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyNoBreak}
+                        className="px-3 py-1.5 rounded-lg border border-border bg-canvas text-xs font-semibold text-text hover:bg-accent/30 transition-colors"
+                      >
+                        No break
+                      </button>
+                    </div>
+                    <p
+                      className={`text-sm font-medium ${
+                        formHasInvalidTimeRange
+                          ? "text-error"
+                          : formEntryHours > 0
+                            ? "text-success"
+                            : "text-text-muted"
+                      }`}
+                    >
+                      {formHasInvalidTimeRange
+                        ? "Time range needs adjustment before saving."
+                        : formHasTimeRange
+                          ? `This entry adds ${formEntryHours.toFixed(1)} hours.`
+                          : "No hours will be added."}
+                    </p>
+                  </div>
+
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-text">
@@ -3473,7 +3570,7 @@ const LogsPage = () => {
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={handleSubmit}
-                      disabled={saving}
+                      disabled={saving || formHasInvalidTimeRange}
                       className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover transition-all disabled:opacity-50"
                     >
                       <Save className="w-4 h-4" />

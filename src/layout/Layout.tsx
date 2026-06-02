@@ -6,17 +6,36 @@ import {
   LayoutPanelLeft,
   NotebookText,
   ClipboardClock,
+  UserRound,
+  Trophy,
 } from "lucide-react";
 import { signOut } from "@/functions/auth/signOut";
 import { useAuthStore } from "@/store/authStore";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppStore } from "@/store/applicationStore";
 import { useJournalStore } from "@/store/journalStore";
+import { useProfileStore } from "@/store/profileStore";
+import { api } from "@/functions/data/apiClient";
+import {
+  getInitial,
+  getProfileDisplayName,
+  getProfileIndicator,
+} from "@/lib/profileIdentity";
+import ProfileCompletionModal from "@/components/ProfileCompletionModal";
+import CertificateModal from "@/components/CertificateModal";
+import type { CertificateData } from "@/components/Certificate";
+import {
+  celebrateCompletion,
+  hasCelebrated,
+  markCelebrated,
+} from "@/lib/celebrate";
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/applications": "Applications",
   "/logs": "Journal",
+  "/profile": "Profile",
+  "/leaderboard": "Leaderboard",
 };
 
 interface LayoutProps {
@@ -36,19 +55,96 @@ const Layout = ({ children }: LayoutProps) => {
     if (hour < 18) return "Good afternoon";
     return "Good evening";
   })();
-  const firstName = user?.user_metadata?.full_name?.split(" ")[0] ?? "there";
+  const authName = user?.user_metadata?.full_name ?? user?.email ?? null;
 
   const { fetchApplications, initSocket } = useAppStore();
 
-  const { fetchEntries } = useJournalStore();
+  const { fetchEntries, initSocket: initJournalSocket } = useJournalStore();
+
+  const { profile, fetchProfile, subscribeToProfile } = useProfileStore();
+  const indicatorName = getProfileIndicator(profile, authName);
+  const displayName = getProfileDisplayName(profile, authName);
+  const [profileCompletionDismissed, setProfileCompletionDismissed] =
+    useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
+  const showCompletionModal =
+    !!profile && (!profile.school || !profile.course) && !profileCompletionDismissed;
 
   useEffect(() => {
-    if (user?.id) {
-      fetchApplications();
-      fetchEntries();
-      initSocket();
-    }
-  }, [user?.id, fetchApplications, fetchEntries, initSocket]);
+    if (!user?.id) return;
+
+    const unsubscribeProfile = subscribeToProfile(user.id);
+
+    fetchApplications();
+    fetchEntries();
+    initSocket();
+    // Fetch profile then backfill total_hours from existing journal entries.
+    // This ensures the leaderboard/profile shows correct hours even for entries
+    // logged before the hours-sync feature was added.
+    fetchProfile(user.id).then(() => {
+      api.post("/journal/sync-hours").then(({ data }) => {
+        if (typeof data?.total_hours === "number") {
+          // Refresh profile store with the newly computed total.
+          fetchProfile(user.id, { showLoading: false });
+        }
+      }).catch(() => { /* non-critical */ });
+    });
+
+    return unsubscribeProfile;
+  }, [
+    user?.id,
+    fetchApplications,
+    fetchEntries,
+    initSocket,
+    fetchProfile,
+    subscribeToProfile,
+  ]);
+
+  // Real-time completion event from the backend.
+  useEffect(() => {
+    const handler = () => {
+      // Re-fetch so the certificate has fresh hours/date, then celebrate.
+      fetchProfile().then(() => {
+        if (user?.id) {
+          // Force-celebrate on the live event regardless of the "seen" flag.
+          markCelebrated(user.id);
+          celebrateCompletion();
+          setShowCertificate(true);
+        }
+      });
+    };
+    window.addEventListener("internpal:hours-completed", handler);
+    return () =>
+      window.removeEventListener("internpal:hours-completed", handler);
+  }, [fetchProfile, user?.id]);
+
+  // Fallback: if profile loads already-completed and we haven't celebrated.
+  useEffect(() => {
+    if (!user?.id || !profile?.hours_completed_at) return;
+    if (hasCelebrated(user.id)) return;
+
+    const timer = window.setTimeout(() => {
+      if (!user?.id || hasCelebrated(user.id)) return;
+      markCelebrated(user.id);
+      celebrateCompletion();
+      setShowCertificate(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [user?.id, profile?.hours_completed_at]);
+
+  // Ensure the journal socket (which carries hours-completed) is connected.
+  useEffect(() => {
+    if (user?.id) initJournalSocket();
+  }, [user?.id, initJournalSocket]);
+
+  const certificateData: CertificateData = {
+    name: profile?.full_name || user?.user_metadata?.full_name || "Intern",
+    school: profile?.school ?? null,
+    course: profile?.course ?? null,
+    hours: profile?.required_hours ?? profile?.total_hours ?? 0,
+    date: profile?.hours_completed_at ?? "",
+  };
 
   const sidebar = [
     {
@@ -68,6 +164,18 @@ const Layout = ({ children }: LayoutProps) => {
       title: "Journal",
       path: "/logs",
       icon: <ClipboardClock className="w-4 h-4" />,
+    },
+    {
+      key: 3,
+      title: "Leaderboard",
+      path: "/leaderboard",
+      icon: <Trophy className="w-4 h-4" />,
+    },
+    {
+      key: 4,
+      title: "Profile",
+      path: "/profile",
+      icon: <UserRound className="w-4 h-4" />,
     },
   ];
 
@@ -162,19 +270,22 @@ const Layout = ({ children }: LayoutProps) => {
 
         {/* User / Logout Section */}
         <div className="p-4 mt-auto border-t border-border">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-surface mb-4">
+          <button
+            onClick={() => handleNavClick("/profile")}
+            className="flex items-center gap-3 p-3 rounded-lg bg-surface mb-4 w-full text-left hover:bg-black/5 transition-colors cursor-pointer"
+          >
             <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary">
-              {firstName[0]}
+              {getInitial(displayName)}
             </div>
             <div className="min-w-0 overflow-hidden">
               <p className="text-sm font-semibold text-text truncate leading-none mb-1">
-                {user?.user_metadata?.full_name}
+                {displayName}
               </p>
               <p className="text-[11px] text-text-muted truncate opacity-80">
                 Logged in
               </p>
             </div>
-          </div>
+          </button>
 
           <button
             onClick={handleLogout}
@@ -203,7 +314,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {pageTitle}
               </span>
               <h2 className="text-lg font-semibold text-text tracking-tight flex items-center gap-2">
-                {greeting}, {firstName}
+                {greeting}, {indicatorName}
               </h2>
             </div>
           </div>
@@ -226,6 +337,24 @@ const Layout = ({ children }: LayoutProps) => {
           </div>
         </main>
       </div>
+
+      <ProfileCompletionModal
+        open={showCompletionModal}
+        onClose={() => setProfileCompletionDismissed(true)}
+        initial={{
+          nickname: profile?.nickname ?? "",
+          school: profile?.school ?? "",
+          course: profile?.course ?? "",
+          program: profile?.program ?? "",
+          required_hours: profile?.required_hours ?? null,
+        }}
+      />
+
+      <CertificateModal
+        open={showCertificate}
+        onClose={() => setShowCertificate(false)}
+        data={certificateData}
+      />
     </div>
   );
 };

@@ -1,20 +1,38 @@
 import { useState } from "react";
 import dayjs from "dayjs";
-import { useAppStore } from "@/store/applicationStore";
-import { useJournalStore } from "@/store/journalStore";
-import { useNavigate } from "react-router-dom";
-import Modal from "@/components/Application/Modal";
-import SEO from "@/components/SEO";
 import {
+  AlertTriangle,
+  ArrowRight,
+  Award,
   Briefcase,
   Building2,
+  CalendarCheck,
+  CheckCircle2,
   Clock,
-  MessageSquare,
-  Trophy,
-  ArrowRight,
   FileEdit,
-  Calendar,
+  MessageSquare,
+  Plus,
+  Trophy,
+  UserRound,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import Modal from "@/components/Application/Modal";
+import CertificateModal from "@/components/CertificateModal";
+import type { CertificateData } from "@/components/Certificate";
+import SEO from "@/components/SEO";
+import { useAppStore } from "@/store/applicationStore";
+import { useAuthStore } from "@/store/authStore";
+import { useJournalStore } from "@/store/journalStore";
+import { useProfileStore } from "@/store/profileStore";
+import { DEFAULT_REQUIRED_HOURS } from "@/lib/academicPresets";
+import {
+  countIncompleteTimeEntries,
+  formatLogDate,
+  getLatestValidLogDate,
+  getTotalLoggedHours,
+  hasEntryOnDate,
+  toLocalDateInputValue,
+} from "@/lib/hours";
 
 type StatusType =
   | "applied"
@@ -87,10 +105,13 @@ const getStatusConfig = (status: string): StatusConfig => {
 
 export default function Dashboard() {
   const [open, setOpen] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
   const navigate = useNavigate();
 
+  const { user } = useAuthStore();
   const { applications, loading } = useAppStore();
   const { entries } = useJournalStore();
+  const { profile } = useProfileStore();
 
   const applicationsCount = applications.length;
   const inProgressCount = applications.filter(
@@ -103,6 +124,19 @@ export default function Dashboard() {
     (app) => app.status.toLowerCase() === "offer",
   ).length;
 
+  const today = toLocalDateInputValue();
+  const fallbackTotalHours = getTotalLoggedHours(entries);
+  const totalHoursLogged = profile?.total_hours ?? fallbackTotalHours;
+  const requiredHours = profile?.required_hours ?? DEFAULT_REQUIRED_HOURS;
+  const progressPercent =
+    requiredHours > 0 ? Math.min(100, (totalHoursLogged / requiredHours) * 100) : 0;
+  const hoursRemaining = Math.max(0, requiredHours - totalHoursLogged);
+  const latestLogDate = getLatestValidLogDate(entries);
+  const incompleteLogCount = countIncompleteTimeEntries(entries);
+  const hasTodayLog = hasEntryOnDate(entries, today);
+  const completed = Boolean(profile?.hours_completed_at);
+  const setupIncomplete = !profile?.school || !profile?.course;
+
   const recentApplicationsSorted = [...applications]
     .sort((a, b) => {
       const aAccepted = a.status.toLowerCase() === "accepted";
@@ -114,21 +148,6 @@ export default function Dashboard() {
       );
     })
     .slice(0, 5);
-
-  const totalHoursLogged = entries.reduce((total, entry) => {
-    if (entry.time_in && entry.time_out) {
-      const [inHour, inMin] = entry.time_in.split(":").map(Number);
-      const [outHour, outMin] = entry.time_out.split(":").map(Number);
-      const breakMins = entry.break_time || 0;
-      const mins = outHour * 60 + outMin - (inHour * 60 + inMin) - breakMins;
-      return total + mins / 60;
-    }
-    return total;
-  }, 0);
-
-  const handleModal = () => {
-    setOpen(!open);
-  };
 
   const stats = [
     {
@@ -165,41 +184,163 @@ export default function Dashboard() {
     },
   ];
 
+  const certificateData: CertificateData = {
+    name: profile?.full_name || user?.user_metadata?.full_name || "Intern",
+    school: profile?.school ?? null,
+    course: profile?.course ?? null,
+    hours: profile?.required_hours ?? totalHoursLogged,
+    date: profile?.hours_completed_at ?? "",
+  };
+
+  const handlePrimaryProgressAction = () => {
+    if (completed) {
+      setShowCertificate(true);
+      return;
+    }
+
+    navigate("/logs?new=today");
+  };
+
   return (
     <>
       <SEO
         title="Dashboard"
-        description="View your applications, interviews, offers, and journal progress."
+        description="View your internship progress, applications, and journal activity."
       />
-      <div className="space-y-8">
-        {/* Top Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-semibold text-text tracking-tight">
-              Overview
-            </h1>
-            <p className="text-text-muted">
-              Track applications and journal progress in one place.
-            </p>
+      <div className="space-y-6">
+        <section className="bg-canvas border border-border rounded-2xl p-6 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">
+                <CalendarCheck className="w-4 h-4" />
+                Today's Internship Focus
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-semibold text-text tracking-tight">
+                {completed ? "Your required hours are complete." : "Log today and keep your hours moving."}
+              </h1>
+              <p className="text-sm text-text-muted mt-2 max-w-2xl">
+                {completed
+                  ? `Completed on ${formatLogDate(profile?.hours_completed_at)}. Your certificate is ready.`
+                  : `${hoursRemaining.toFixed(1)} hours left before your certificate unlocks.`}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
+              <button
+                onClick={handlePrimaryProgressAction}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
+              >
+                {completed ? <Award className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                {completed ? "View Certificate" : "Log today's hours"}
+              </button>
+              <button
+                onClick={() => setOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-border text-text text-sm font-semibold hover:bg-surface transition-colors"
+              >
+                <Briefcase className="w-4 h-4" />
+                Add Application
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="mt-6">
+            <div className="flex items-end justify-between mb-2">
+              <p className="text-3xl font-bold text-text">
+                {totalHoursLogged.toFixed(1)}
+                <span className="text-base font-medium text-text-muted">
+                  {" "}
+                  / {requiredHours} hrs
+                </span>
+              </p>
+              <p className="text-sm font-semibold text-primary">
+                {progressPercent.toFixed(0)}%
+              </p>
+            </div>
+            <div className="h-3 rounded-full bg-surface overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs font-medium text-text-muted mb-1">
+                Latest valid log
+              </p>
+              <p className="text-sm font-semibold text-text">
+                {formatLogDate(latestLogDate)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs font-medium text-text-muted mb-1">
+                Today
+              </p>
+              <p className="text-sm font-semibold text-text flex items-center gap-1.5">
+                {hasTodayLog ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-success" />
+                    Log started
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-4 h-4 text-primary" />
+                    No dated log yet
+                  </>
+                )}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs font-medium text-text-muted mb-1">
+                Incomplete logs
+              </p>
+              <p className="text-sm font-semibold text-text flex items-center gap-1.5">
+                {incompleteLogCount > 0 ? (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-warning" />
+                    {incompleteLogCount} need time
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-success" />
+                    All timed
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {setupIncomplete && (
+          <section className="bg-canvas border border-primary/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <UserRound className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-text">
+                  Complete your academic profile
+                </p>
+                <p className="text-xs text-text-muted mt-1">
+                  Add your school and course so certificates and leaderboards use the right details.
+                </p>
+              </div>
+            </div>
             <button
-              onClick={handleModal}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
+              onClick={() => navigate("/profile")}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
             >
-              <Plus size={18} />
-              <span>Add Application</span>
+              Complete Profile
+              <ArrowRight className="w-4 h-4" />
             </button>
-          </div>
-        </div>
+          </section>
+        )}
 
-        {/* Main Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-6">
-          {/* Stats Cards */}
-          {stats.map((stat, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {stats.map((stat) => (
             <div
-              key={i}
+              key={stat.label}
               className="p-5 rounded-xl bg-canvas border border-border hover:border-primary/20 transition-colors"
             >
               <div
@@ -220,9 +361,10 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
+        </div>
 
-          {/* Recent Activity */}
-          <div className="md:col-span-3 lg:col-span-2 rounded-2xl bg-canvas border border-border/50 flex flex-col overflow-hidden shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <section className="lg:col-span-2 rounded-2xl bg-canvas border border-border/50 flex flex-col overflow-hidden shadow-sm">
             <div className="p-6 border-b border-border/50 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-text tracking-tight">
@@ -235,7 +377,7 @@ export default function Dashboard() {
               <button
                 onClick={() => navigate("/applications")}
                 className="p-2 w-10 h-10 flex items-center justify-center rounded-xl hover:bg-black/5 text-text-muted hover:text-text transition-colors"
-                title="View All"
+                title="View all applications"
               >
                 <ArrowRight size={20} />
               </button>
@@ -243,37 +385,37 @@ export default function Dashboard() {
 
             <div className="p-6">
               {loading ? (
-                <div className="space-y-4 ">
+                <div className="space-y-4">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="h-16 bg-surface rounded-2xl" />
                   ))}
                 </div>
               ) : applications.length > 0 ? (
                 <div className="space-y-4">
-                  {recentApplicationsSorted.map((app, index) => {
+                  {recentApplicationsSorted.map((app) => {
                     const statusData = getStatusConfig(app.status);
                     return (
-                      <div
-                        key={index}
+                      <button
+                        key={app.id}
                         onClick={() => navigate("/applications")}
-                        className="group flex items-center justify-between p-4 rounded-xl hover:bg-surface transition-colors cursor-pointer border border-transparent hover:border-border/50"
+                        className="group flex items-center justify-between p-4 rounded-xl hover:bg-surface transition-colors cursor-pointer border border-transparent hover:border-border/50 w-full text-left"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                             <Building2 size={24} />
                           </div>
-                          <div>
-                            <p className="font-bold text-text leading-tight group-hover:text-primary transition-colors">
+                          <div className="min-w-0">
+                            <p className="font-bold text-text leading-tight group-hover:text-primary transition-colors truncate">
                               {app.company_name}
                             </p>
-                            <p className="text-xs font-medium text-text-muted tracking-wide">
-                              {app.position || "Developer"} •{" "}
+                            <p className="text-xs font-medium text-text-muted tracking-wide truncate">
+                              {app.position || "Developer"} -{" "}
                               {dayjs(app.date_applied).format("MMM DD, YYYY")}
                             </p>
                           </div>
                         </div>
                         <span
-                          className="px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider"
+                          className="px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider shrink-0"
                           style={{
                             backgroundColor: statusData.color.bg,
                             color: statusData.color.text,
@@ -282,31 +424,49 @@ export default function Dashboard() {
                         >
                           {statusData.label}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               ) : (
-                <div className="py-12 flex flex-col items-center justify-center text-center opacity-50">
+                <div className="py-12 flex flex-col items-center justify-center text-center">
                   <Briefcase size={48} className="mb-4 text-text-muted" />
                   <p className="text-sm font-bold uppercase tracking-widest text-text-muted">
                     No applications found
                   </p>
+                  <button
+                    onClick={() => setOpen(true)}
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Application
+                  </button>
                 </div>
               )}
             </div>
-          </div>
+          </section>
 
-          {/* Journal Stats Card */}
-          <div className="md:col-span-1 lg:col-span-1 rounded-2xl bg-canvas border border-border/50 p-6 flex flex-col justify-between shadow-sm">
-            <div className="space-y-6">
-              <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center text-info">
-                <Calendar size={28} />
+          <section
+            onClick={() => navigate("/logs")}
+            className="rounded-2xl bg-canvas border border-border/50 p-6 text-text cursor-pointer group shadow-sm"
+          >
+            <div className="h-full flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-6">
+                  <FileEdit size={20} className="text-primary" />
+                  <span className="text-xs font-semibold text-primary">
+                    Journal tools
+                  </span>
+                </div>
+                <h2 className="text-xl font-semibold tracking-tight mb-4">
+                  Clean up entries faster.
+                </h2>
+                <p className="text-sm text-text-muted leading-relaxed max-w-[260px]">
+                  Improve wording, suggest tags, and prepare summaries from your logs.
+                </p>
               </div>
-              <h2 className="text-xl font-semibold text-text tracking-tight">
-                Journal Records
-              </h2>
-              <div className="space-y-4 mt-8">
+
+              <div className="mt-8 space-y-3">
                 <div className="flex items-center justify-between p-3 rounded-lg bg-surface">
                   <span className="text-xs font-medium text-text-muted">
                     Entries
@@ -320,59 +480,30 @@ export default function Dashboard() {
                     Logged Time
                   </span>
                   <span className="text-lg font-semibold text-text">
-                    {totalHoursLogged.toFixed(1)}h
+                    {fallbackTotalHours.toFixed(1)}h
                   </span>
+                </div>
+                <div className="flex items-center justify-between pt-3">
+                  <span className="text-xs font-medium text-text-muted">
+                    Review before saving
+                  </span>
+                  <ArrowRight
+                    size={20}
+                    className="group-hover:translate-x-2 transition-transform"
+                  />
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => navigate("/logs")}
-              className="w-full mt-8 py-3 rounded-lg border border-border text-sm font-semibold text-text hover:bg-surface transition-colors flex items-center justify-center gap-2"
-            >
-              Go to Journal
-            </button>
-          </div>
-
-          {/* Journal tools card */}
-          <div
-            onClick={() => navigate("/logs")}
-            className="md:col-span-4 lg:col-span-1 rounded-2xl bg-canvas border border-border/50 p-6 text-text cursor-pointer group shadow-sm"
-          >
-            <div className="h-full flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-6">
-                  <FileEdit size={20} className="text-primary" />
-                  <span className="text-xs font-semibold text-primary">
-                    Journal tools
-                  </span>
-                </div>
-                <h2 className="text-xl font-semibold tracking-tight mb-4">
-                  Clean up entries faster.
-                </h2>
-                <p className="text-sm text-text-muted leading-relaxed max-w-[220px]">
-                  Improve wording, suggest tags, and prepare summaries from
-                  your logs.
-                </p>
-              </div>
-
-              <div className="mt-8 flex items-center justify-between">
-                <span className="text-xs font-medium text-text-muted">
-                  Review before saving
-                </span>
-                <ArrowRight
-                  size={20}
-                  className="group-hover:translate-x-2 transition-transform"
-                />
-              </div>
-            </div>
-
-          </div>
+          </section>
         </div>
       </div>
 
-      <Modal open={open} handleModal={handleModal} />
+      <Modal open={open} handleModal={() => setOpen((current) => !current)} />
+      <CertificateModal
+        open={showCertificate}
+        onClose={() => setShowCertificate(false)}
+        data={certificateData}
+      />
     </>
   );
 }
-
-import { Plus } from "lucide-react";

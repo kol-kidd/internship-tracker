@@ -9,6 +9,8 @@ import { Server } from "socket.io";
 import authRoutes from "./routes/auth.routes.js";
 import applicationsRoutes from "./routes/application.routes.js";
 import journalRoutes from "./routes/journal.routes.js";
+import groupsRoutes from "./routes/groups.routes.js";
+import schoolsRoutes from "./routes/schools.routes.js";
 import { geminiModel } from "./config/gemini.js";
 
 const app = express();
@@ -55,6 +57,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/applications", applicationsRoutes);
 app.use("/api/journal", journalRoutes);
+app.use("/api/groups", groupsRoutes);
+app.use("/api/schools", schoolsRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
