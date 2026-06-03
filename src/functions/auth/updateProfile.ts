@@ -18,33 +18,10 @@ export async function createOrUpdateProfile(
 ) {
   const email = user.email ?? "";
   const trimmedName = fullName?.trim();
-  let existingFullName: string | null = null;
 
-  if (options?.preserveExistingName) {
-    const { data: existingProfile, error: existingError } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.id)
-      .maybeSingle();
+  const addAcademicFields = (payload: Record<string, unknown>) => {
+    if (!academic) return payload;
 
-    if (existingError) {
-      console.error("Profile lookup error:", existingError.message);
-    } else {
-      existingFullName =
-        typeof existingProfile?.full_name === "string" &&
-        existingProfile.full_name.trim()
-          ? existingProfile.full_name.trim()
-          : null;
-    }
-  }
-
-  const payload: Record<string, unknown> = {
-    id: user.id,
-    email,
-    full_name: existingFullName ?? (trimmedName ? trimmedName : email),
-  };
-
-  if (academic) {
     if (academic.nickname !== undefined) payload.nickname = academic.nickname?.trim() || null;
     if (academic.school !== undefined) payload.school = academic.school?.trim() || null;
     if (academic.school_id !== undefined) payload.school_id = academic.school_id ?? null;
@@ -53,7 +30,41 @@ export async function createOrUpdateProfile(
     if (academic.required_hours !== undefined && academic.required_hours != null) {
       payload.required_hours = academic.required_hours;
     }
+
+    return payload;
+  };
+
+  if (options?.preserveExistingName) {
+    const { data: existingProfile, error: existingError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("Profile lookup error:", existingError.message);
+      return null;
+    }
+
+    if (existingProfile) {
+      const updatePayload = addAcademicFields({ email });
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(updatePayload)
+        .eq("id", user.id)
+        .select()
+        .single();
+
+      if (error) console.error("Profile Update Error:", error.message);
+      return data;
+    }
   }
+
+  const payload = addAcademicFields({
+    id: user.id,
+    email,
+    full_name: trimmedName ? trimmedName : email,
+  });
 
   const { data, error } = await supabase
     .from("profiles")
