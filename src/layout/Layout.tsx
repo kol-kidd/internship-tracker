@@ -219,7 +219,7 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   return (
-    <div className="app-shell-root h-screen flex overflow-hidden bg-surface font-sans">
+    <div className="app-shell-root flex overflow-hidden bg-surface font-sans">
       {/* Mobile Overlay */}
       {isMobileSidebarOpen && (
         <div
@@ -355,7 +355,7 @@ const Layout = ({ children }: LayoutProps) => {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden relative">
         {/* Header */}
         <header className="app-topbar min-h-[72px] flex items-center justify-between gap-4 px-4 sm:px-6 shrink-0 z-20 bg-canvas/95 border-b border-border backdrop-blur">
           <div className="flex items-center gap-4 min-w-0">
@@ -392,7 +392,7 @@ const Layout = ({ children }: LayoutProps) => {
         </header>
 
         {/* Main Content Area */}
-        <main className="app-main flex-1 overflow-y-auto bg-surface relative">
+        <main className="app-main flex-1 min-h-0 overflow-y-auto bg-surface relative">
           <div className="max-w-[1560px] mx-auto p-4 sm:p-6 md:p-8">
             {children}
           </div>

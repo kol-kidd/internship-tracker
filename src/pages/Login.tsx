@@ -38,6 +38,8 @@ export default function Login() {
         await createOrUpdateProfile(
           data.session.user,
           data.session.user.user_metadata.full_name,
+          undefined,
+          { preserveExistingName: true },
         );
 
         navigate("/dashboard");

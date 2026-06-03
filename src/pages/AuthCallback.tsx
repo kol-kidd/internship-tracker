@@ -40,6 +40,8 @@ export default function AuthCallback() {
           await createOrUpdateProfile(
             session.user,
             session.user.user_metadata?.full_name || "",
+            undefined,
+            { preserveExistingName: true },
           );
           navigate("/dashboard");
         } else {
@@ -65,6 +67,8 @@ export default function AuthCallback() {
         createOrUpdateProfile(
           session.user,
           session.user.user_metadata?.full_name || "",
+          undefined,
+          { preserveExistingName: true },
         );
         navigate("/dashboard");
       }

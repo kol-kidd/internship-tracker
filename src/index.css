@@ -184,6 +184,8 @@
   }
 
   .app-shell-root {
+    height: 100vh;
+    height: 100dvh;
     background: var(--color-surface);
   }
 
@@ -196,6 +198,7 @@
   }
 
   .app-main {
+    overscroll-behavior: contain;
     background:
       linear-gradient(
         180deg,

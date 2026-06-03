@@ -45,6 +45,7 @@ export default function Profile() {
   const [themeSaving, setThemeSaving] = useState(false);
   const [themeError, setThemeError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showCertificate, setShowCertificate] = useState(false);
 
   useEffect(() => {
@@ -75,7 +76,10 @@ export default function Profile() {
   }, [profile, requiredHours]);
 
   const handleSave = async () => {
-    await updateProfile({
+    setSaved(false);
+    setSaveError(null);
+
+    const result = await updateProfile({
       full_name: fullName || null,
       nickname: nickname || null,
       school: academic.school || null,
@@ -85,6 +89,14 @@ export default function Profile() {
       required_hours: requiredHours,
       theme_preference: themePreference,
     });
+
+    if (!result) {
+      setSaveError(
+        useProfileStore.getState().error ?? "Could not save your profile.",
+      );
+      return;
+    }
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -372,6 +384,9 @@ export default function Profile() {
               <span className="text-sm text-success font-medium">Saved!</span>
             )}
           </div>
+          {saveError && (
+            <p className="mt-3 text-sm font-medium text-error">{saveError}</p>
+          )}
         </div>
       </div>
 
