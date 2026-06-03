@@ -33,6 +33,7 @@ interface NotesState {
     noteIds: number[];
     title?: string;
     date?: string;
+    application_id?: number | null;
     deleteNotesAfterMerge?: boolean;
   }) => Promise<{ entryId: number }>;
   clearNotes: () => void;

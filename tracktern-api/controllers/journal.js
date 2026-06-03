@@ -61,6 +61,62 @@ function normalizeCompileList(items) {
     .slice(0, 5);
 }
 
+async function resolveAcceptedApplicationId(userId, rawApplicationId) {
+  if (rawApplicationId === undefined) {
+    return { provided: false };
+  }
+
+  if (rawApplicationId === null || rawApplicationId === '') {
+    return { provided: true, applicationId: null };
+  }
+
+  const applicationId = Number(rawApplicationId);
+  if (!Number.isInteger(applicationId) || applicationId <= 0) {
+    return {
+      provided: true,
+      error: {
+        status: 400,
+        body: { error: 'application_id must be a positive integer or null' },
+      },
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('applications')
+    .select('id, status')
+    .eq('id', applicationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Resolve Journal Application Error:', error);
+    return {
+      provided: true,
+      error: {
+        status: 500,
+        body: {
+          error: 'Failed to validate internship',
+          details: error.message,
+        },
+      },
+    };
+  }
+
+  if (!data || String(data.status).toLowerCase() !== 'accepted') {
+    return {
+      provided: true,
+      error: {
+        status: 400,
+        body: {
+          error: 'Journal entries can only be linked to your accepted internships',
+        },
+      },
+    };
+  }
+
+  return { provided: true, applicationId };
+}
+
 export const getEntries = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -145,12 +201,33 @@ export const getEntryById = async (req, res) => {
 export const addEntry = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, date, content, mood, tags, time_in, time_out, break_time } = req.body;
+    const {
+      title,
+      date,
+      content,
+      mood,
+      tags,
+      time_in,
+      time_out,
+      break_time,
+      application_id,
+    } = req.body;
+
+    const resolvedApplication = await resolveAcceptedApplicationId(
+      userId,
+      application_id,
+    );
+    if (resolvedApplication.error) {
+      return res
+        .status(resolvedApplication.error.status)
+        .json(resolvedApplication.error.body);
+    }
 
     const { data, error } = await supabase
       .from('journal_entries')
       .insert({
         user_id: userId,
+        application_id: resolvedApplication.applicationId ?? null,
         title,
         date,
         content,
@@ -189,7 +266,17 @@ export const updateEntry = async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-    const { title, date, content, mood, tags, time_in, time_out, break_time } = req.body;
+    const {
+      title,
+      date,
+      content,
+      mood,
+      tags,
+      time_in,
+      time_out,
+      break_time,
+      application_id,
+    } = req.body;
 
     const updateData = {};
     if (title !== undefined) updateData.title = title;
@@ -200,6 +287,18 @@ export const updateEntry = async (req, res) => {
     if (time_in !== undefined) updateData.time_in = time_in;
     if (time_out !== undefined) updateData.time_out = time_out;
     if (break_time !== undefined) updateData.break_time = break_time;
+    if (application_id !== undefined) {
+      const resolvedApplication = await resolveAcceptedApplicationId(
+        userId,
+        application_id,
+      );
+      if (resolvedApplication.error) {
+        return res
+          .status(resolvedApplication.error.status)
+          .json(resolvedApplication.error.body);
+      }
+      updateData.application_id = resolvedApplication.applicationId;
+    }
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -221,16 +320,72 @@ export const updateEntry = async (req, res) => {
       });
     }
 
+    const shouldSyncHours =
+      date !== undefined ||
+      time_in !== undefined ||
+      time_out !== undefined ||
+      break_time !== undefined;
+
     io.to(userId).emit("journal-entry-updated", data);
     res.json({
       entry: data,
       message: 'Entry updated successfully'
     });
 
-    syncHoursAndNotify(userId);
+    if (shouldSyncHours) {
+      syncHoursAndNotify(userId);
+    }
 
   } catch (error) {
     console.error('Update Entry Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const bulkAssignEntries = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { entryIds, application_id } = req.body;
+    const uniqueEntryIds = [...new Set(entryIds.map((entryId) => Number(entryId)))];
+
+    const resolvedApplication = await resolveAcceptedApplicationId(
+      userId,
+      application_id,
+    );
+    if (resolvedApplication.error) {
+      return res
+        .status(resolvedApplication.error.status)
+        .json(resolvedApplication.error.body);
+    }
+
+    const { data, error } = await supabase
+      .from('journal_entries')
+      .update({
+        application_id: resolvedApplication.applicationId ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+      .in('id', uniqueEntryIds)
+      .select();
+
+    if (error) {
+      console.error('Bulk Assign Entries Error:', error);
+      return res.status(500).json({
+        error: 'Failed to assign journal entries',
+        details: error.message,
+      });
+    }
+
+    (data ?? []).forEach((entry) => {
+      io.to(userId).emit("journal-entry-updated", entry);
+    });
+
+    res.json({
+      entries: data ?? [],
+      message: 'Journal entries assigned successfully',
+    });
+  } catch (error) {
+    console.error('Bulk Assign Entries Error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

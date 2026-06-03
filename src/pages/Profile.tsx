@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Award, Clock, Mail, Save, UserRound } from "lucide-react";
+import {
+  AlertTriangle,
+  Award,
+  Check,
+  Clock,
+  Mail,
+  Palette,
+  Save,
+  UserRound,
+} from "lucide-react";
 import SEO from "@/components/SEO";
 import SchoolFields, { type AcademicInfo } from "@/components/SchoolFields";
 import CertificateModal from "@/components/CertificateModal";
@@ -8,6 +17,12 @@ import { useProfileStore } from "@/store/profileStore";
 import { useAuthStore } from "@/store/authStore";
 import { DEFAULT_REQUIRED_HOURS } from "@/lib/academicPresets";
 import { getInitial, getProfileDisplayName } from "@/lib/profileIdentity";
+import {
+  applyTheme,
+  getStoredTheme,
+  THEME_OPTIONS,
+  type ThemePreference,
+} from "@/lib/theme";
 
 export default function Profile() {
   const { user } = useAuthStore();
@@ -24,6 +39,11 @@ export default function Profile() {
   );
   const [fullName, setFullName] = useState("");
   const [nickname, setNickname] = useState("");
+  const [themePreference, setThemePreference] = useState<ThemePreference>(() =>
+    getStoredTheme(),
+  );
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
 
@@ -40,6 +60,8 @@ export default function Profile() {
         program: profile.program ?? "",
       });
       setRequiredHours(profile.required_hours ?? DEFAULT_REQUIRED_HOURS);
+      setThemePreference(profile.theme_preference);
+      applyTheme(profile.theme_preference);
     }, 0);
 
     return () => window.clearTimeout(timer);
@@ -61,9 +83,31 @@ export default function Profile() {
       course: academic.course || null,
       program: academic.program || null,
       required_hours: requiredHours,
+      theme_preference: themePreference,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleThemeSelect = async (theme: ThemePreference) => {
+    const previousTheme = themePreference;
+    setThemePreference(theme);
+    applyTheme(theme);
+    setThemeError(null);
+    setThemeSaving(true);
+
+    const result = await updateProfile({ theme_preference: theme });
+
+    if (result) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      setThemePreference(previousTheme);
+      applyTheme(previousTheme);
+      setThemeError("Could not save your theme. Please try again.");
+    }
+
+    setThemeSaving(false);
   };
 
   const certificateName =
@@ -156,6 +200,79 @@ export default function Profile() {
               <Award className="w-4 h-4" />
               View Certificate
             </button>
+          )}
+        </div>
+
+        {/* Appearance */}
+        <div className="bg-canvas rounded-2xl border border-border p-6">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-sm font-semibold text-text flex items-center gap-2">
+                <Palette className="w-4 h-4 text-primary" />
+                Appearance
+              </h2>
+              <p className="mt-1 text-xs text-text-muted">
+                Choose a theme for your workspace.
+              </p>
+            </div>
+            {themeSaving && (
+              <span className="text-xs font-medium text-text-muted">
+                Saving...
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {THEME_OPTIONS.map((theme) => {
+              const selected = themePreference === theme.id;
+
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => handleThemeSelect(theme.id)}
+                  disabled={themeSaving}
+                  className={`text-left rounded-xl border p-4 transition-colors ${
+                    selected
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-surface hover:border-primary/30"
+                  } disabled:cursor-not-allowed disabled:opacity-70`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-text">
+                        {theme.label}
+                      </p>
+                      <p className="mt-1 text-xs text-text-muted">
+                        {theme.description}
+                      </p>
+                    </div>
+                    <span
+                      className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 ${
+                        selected
+                          ? "bg-primary text-white border-primary"
+                          : "border-border bg-canvas"
+                      }`}
+                    >
+                      {selected && <Check className="w-3.5 h-3.5" />}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    {theme.swatches.map((swatch) => (
+                      <span
+                        key={swatch}
+                        className="h-7 flex-1 rounded-lg border border-border"
+                        style={{ backgroundColor: swatch }}
+                      />
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {themeError && (
+            <p className="mt-3 text-xs font-medium text-error">{themeError}</p>
           )}
         </div>
 

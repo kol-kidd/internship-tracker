@@ -21,6 +21,10 @@ const validateAddEntry = [
   body('content').trim().notEmpty().withMessage('Content is required'),
   body('mood').optional().trim(),
   body('tags').optional().isArray(),
+  body('application_id')
+    .optional({ nullable: true })
+    .custom((value) => value === '' || (Number.isInteger(Number(value)) && Number(value) > 0))
+    .withMessage('application_id must be a positive integer or null'),
   handleValidationErrors
 ];
 
@@ -31,6 +35,28 @@ const validateUpdateEntry = [
   body('content').optional().trim().notEmpty(),
   body('mood').optional().trim(),
   body('tags').optional().isArray(),
+  body('application_id')
+    .optional({ nullable: true })
+    .custom((value) => value === '' || (Number.isInteger(Number(value)) && Number(value) > 0))
+    .withMessage('application_id must be a positive integer or null'),
+  handleValidationErrors
+];
+
+const validateBulkAssignEntries = [
+  body('entryIds')
+    .isArray({ min: 1 })
+    .withMessage('entryIds array with at least one id is required'),
+  body('entryIds.*')
+    .custom((value) => Number.isInteger(Number(value)) && Number(value) > 0)
+    .withMessage('Each entry id must be a positive integer'),
+  body('application_id')
+    .custom((value, { req }) =>
+      Object.prototype.hasOwnProperty.call(req.body, 'application_id'),
+    )
+    .withMessage('application_id is required')
+    .bail()
+    .custom((value) => value === null || value === '' || (Number.isInteger(Number(value)) && Number(value) > 0))
+    .withMessage('application_id must be a positive integer or null'),
   handleValidationErrors
 ];
 
@@ -126,6 +152,10 @@ const validateMergeNotes = [
   body('title').optional().trim(),
   body('date').optional().isISO8601(),
   body('deleteNotesAfterMerge').optional().isBoolean(),
+  body('application_id')
+    .optional({ nullable: true })
+    .custom((value) => value === '' || (Number.isInteger(Number(value)) && Number(value) > 0))
+    .withMessage('application_id must be a positive integer or null'),
   handleValidationErrors,
 ];
 
@@ -188,6 +218,7 @@ router.post('/ai/compile-summary', validateCompileSummaryRequest, journalControl
 
 // CRUD routes
 router.get('/', journalController.getEntries);
+router.patch('/bulk-assign', validateBulkAssignEntries, journalController.bulkAssignEntries);
 router.get('/:id', validateEntryId, journalController.getEntryById);
 router.post('/', validateAddEntry, journalController.addEntry);
 router.put('/:id', validateUpdateEntry, journalController.updateEntry);

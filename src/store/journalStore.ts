@@ -6,6 +6,7 @@ import { io, Socket } from "socket.io-client";
 interface JournalEntry {
   id: number;
   user_id: string;
+  application_id: number | null;
   title: string;
   date: string;
   content: string;
@@ -29,6 +30,7 @@ interface JournalState {
   fetchEntries: () => Promise<void>;
   addEntry: (entry: Omit<JournalEntry, "id" | "user_id" | "created_at" | "updated_at">) => Promise<void>;
   updateEntry: (entryId: number, entry: Partial<Omit<JournalEntry, "id" | "user_id" | "created_at">>) => Promise<void>;
+  bulkAssignEntries: (entryIds: number[], applicationId: number | null) => Promise<void>;
   deleteEntry: (entryId: number) => Promise<void>;
   clearEntries: () => void;
 }
@@ -177,6 +179,38 @@ export const useJournalStore = create<JournalState>((set, get) => ({
           e.id === entryId ? res.data.entry : e
         ),
         loading: false,
+      }));
+    } catch (err: unknown) {
+      set({ error: getApiErrorMessage(err), loading: false });
+      throw err;
+    }
+  },
+
+  bulkAssignEntries: async (entryIds, applicationId) => {
+    if (entryIds.length === 0) return;
+
+    set({ loading: true, error: null });
+    try {
+      const res = await api.patch("/journal/bulk-assign", {
+        entryIds,
+        application_id: applicationId,
+      });
+      const updatedEntries = (res.data.entries ?? []) as JournalEntry[];
+      const updatedById = new Map(
+        updatedEntries.map((entry) => [entry.id, entry]),
+      );
+      const latestUpdatedAt = updatedEntries.reduce<string | undefined>(
+        (latest, entry) =>
+          !latest || entry.updated_at > latest ? entry.updated_at : latest,
+        undefined,
+      );
+
+      set((state) => ({
+        entries: state.entries.map((entry) =>
+          updatedById.get(entry.id) ?? entry
+        ),
+        loading: false,
+        lastModified: latestUpdatedAt ?? state.lastModified,
       }));
     } catch (err: unknown) {
       set({ error: getApiErrorMessage(err), loading: false });

@@ -9,16 +9,25 @@ import AuthCallback from "./pages/AuthCallback";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { useAuthStore } from "./store/authStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Bounce, ToastContainer } from "react-toastify";
 import ApplicationList from "./pages/ApplicationList";
 import LogsPage from "./pages/Logs";
 import Landing from "./pages/Landing";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
+import { useProfileStore } from "./store/profileStore";
+import {
+  applyTheme,
+  getStoredTheme,
+  isDarkTheme,
+  subscribeToThemePreference,
+} from "./lib/theme";
 
 function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
+  const profileTheme = useProfileStore((state) => state.profile?.theme_preference);
+  const [activeTheme, setActiveTheme] = useState(() => getStoredTheme());
 
   useEffect(() => {
     const cleanup = initAuth();
@@ -27,6 +36,18 @@ function App() {
       cleanup?.();
     };
   }, [initAuth]);
+
+  useEffect(() => subscribeToThemePreference(setActiveTheme), []);
+
+  useEffect(() => {
+    if (!profileTheme) return;
+
+    const timer = window.setTimeout(() => {
+      setActiveTheme(applyTheme(profileTheme, { emit: false }));
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [profileTheme]);
 
   return (
     <>
@@ -125,7 +146,7 @@ function App() {
         newestOnTop={false}
         closeOnClick={false}
         rtl={false}
-        theme="light"
+        theme={isDarkTheme(activeTheme) ? "dark" : "light"}
         transition={Bounce}
       />
     </>

@@ -10,11 +10,15 @@ import {
   History,
   Trophy,
   Download,
+  Calendar,
+  MapPin,
+  Edit2,
+  Trash2,
+  ChevronDown,
 } from "lucide-react";
 
 import SEO from "@/components/SEO";
 import { useAppStore } from "@/store/applicationStore";
-import Card from "@/components/Application/Card";
 import Modal from "@/components/Application/Modal";
 import KanbanBoard from "@/components/Application/KanbanBoard";
 import JourneyTimeline from "@/components/Application/JourneyTimeline";
@@ -83,6 +87,97 @@ const statusConfig: Record<StatusType, StatusConfig> = {
   },
 };
 
+const statusOptions = Object.entries(statusConfig) as [
+  StatusType,
+  StatusConfig,
+][];
+
+function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function ApplicationListItem({
+  app,
+  onEdit,
+  onDelete,
+  onStatusUpdate,
+  disabled,
+}: {
+  app: Application;
+  onEdit: () => void;
+  onDelete: () => void;
+  onStatusUpdate: (status: string) => void;
+  disabled: boolean;
+}) {
+  const status = app.status.toLowerCase() as StatusType;
+  const config = statusConfig[status] ?? statusConfig.applied;
+
+  return (
+    <article className="rounded-xl border border-border bg-canvas p-4 transition-colors hover:border-primary/20">
+      <div className="flex flex-col gap-4 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_88px] sm:items-center">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-text truncate">
+            {app.company_name}
+          </h3>
+          <p className="mt-1 text-sm text-text-muted truncate">
+            {app.position || "Internship Role"}
+          </p>
+        </div>
+
+        <div className="min-w-0 space-y-1 text-xs text-text-muted">
+          <p className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="w-3.5 h-3.5 shrink-0 opacity-60" />
+            <span className="truncate">{app.company_address}</span>
+          </p>
+          <p className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 shrink-0 opacity-60" />
+            <span>Applied {formatDate(app.date_applied)}</span>
+          </p>
+        </div>
+
+        <div className="relative">
+          <select
+            value={status}
+            onChange={(event) => onStatusUpdate(event.target.value)}
+            disabled={disabled}
+            className={`w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-xs font-semibold capitalize focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60 ${config.color}`}
+          >
+            {statusOptions.map(([value, option]) => (
+              <option key={value} value={value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-current opacity-60" />
+        </div>
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-primary/30 hover:text-primary"
+            aria-label={`Edit ${app.company_name}`}
+          >
+            <Edit2 className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-error/30 hover:text-error"
+            aria-label={`Delete ${app.company_name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function ApplicationList() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -102,7 +197,7 @@ export default function ApplicationList() {
     Boolean(localStorage.getItem(ACCEPTED_TIP_DISMISSED_KEY)),
   );
   const [viewMode, setViewMode] = useState<"board" | "list" | "journey">(
-    "board",
+    "list",
   );
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -130,10 +225,13 @@ export default function ApplicationList() {
     let filtered = [...applications];
 
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (app: Application) =>
-          app.position?.toLowerCase().includes(searchQuery.toLowerCase()) ??
-          false,
+          app.company_name.toLowerCase().includes(query) ||
+          app.company_address.toLowerCase().includes(query) ||
+          app.status.toLowerCase().includes(query) ||
+          (app.position?.toLowerCase().includes(query) ?? false),
       );
     }
 
@@ -385,114 +483,106 @@ export default function ApplicationList() {
       <div className="flex flex-col min-h-screen bg-surface">
         {/* Main content */}
         <main className="flex-1 flex flex-col min-w-0">
-          <div className="sticky top-0 z-10 bg-canvas border-b border-border px-6 py-6 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="sticky top-0 z-10 border-b border-border bg-canvas px-4 py-4 sm:px-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-1">
-                <h1 className="text-3xl font-semibold text-text tracking-tight">
+                <h1 className="text-2xl font-semibold text-text tracking-tight">
                   Applications
                 </h1>
                 <p className="text-sm text-text-muted">
-                  Manage and track your career opportunities.
+                  {applications.length} total opportunities
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="relative w-full lg:w-80">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted opacity-60" />
+                  <input
+                    type="text"
+                    placeholder="Search applications..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface py-2.5 pl-10 pr-4 text-sm text-text placeholder-text-muted/60 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
+                  />
+                </div>
+
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex sm:items-center">
+                  <div className="relative">
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="h-10 w-full appearance-none rounded-lg border border-border bg-surface px-3 pr-8 text-sm font-medium text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 sm:w-44"
+                    >
+                      <option value="all">All ({applications.length})</option>
+                      {statusOptions.map(([status, config]) => (
+                        <option key={status} value={status}>
+                          {config.label} ({statusCounts[status] || 0})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                  </div>
+
+                  <div className="flex h-10 items-center gap-1 rounded-lg bg-surface p-1">
+                    {[
+                      { id: "list", icon: List, label: "List" },
+                      { id: "board", icon: LayoutGrid, label: "Board" },
+                      { id: "journey", icon: History, label: "Timeline" },
+                    ].map((mode) => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() =>
+                          setViewMode(mode.id as "board" | "list" | "journey")
+                        }
+                        className={`inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-3 ${
+                          viewMode === mode.id
+                            ? "bg-canvas text-text shadow-sm"
+                            : "text-text-muted hover:text-text"
+                        }`}
+                        aria-label={`Show ${mode.label}`}
+                        title={mode.label}
+                      >
+                        <mode.icon size={15} />
+                        <span className="hidden sm:inline">{mode.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-canvas px-3 text-sm font-semibold text-text-muted transition-colors hover:bg-surface hover:text-text"
+                    aria-label="Download PDF report"
+                  >
+                    <Download size={16} />
+                    <span className="hidden sm:inline">PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadJourneyCsv(applications)}
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-canvas px-3 text-sm font-semibold text-text-muted transition-colors hover:bg-surface hover:text-text"
+                    aria-label="Download CSV"
+                  >
+                    <Download size={16} />
+                    <span className="hidden sm:inline">CSV</span>
+                  </button>
+                </div>
+
                 <button
                   onClick={() => handleModal()}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
                 >
                   <Plus size={18} />
                   <span>New Application</span>
                 </button>
               </div>
             </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex-1 min-w-[300px] relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted opacity-50" />
-                <input
-                  type="text"
-                  placeholder="Search companies, roles, or locations..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-border bg-surface text-sm text-text placeholder-text-muted/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-colors"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 p-1 bg-surface rounded-lg">
-                {[
-                  { id: "board", icon: LayoutGrid, label: "Board" },
-                  { id: "list", icon: List, label: "List" },
-                  { id: "journey", icon: History, label: "Timeline" },
-                ].map((mode) => (
-                  <button
-                    key={mode.id}
-                    onClick={() =>
-                      setViewMode(mode.id as "board" | "list" | "journey")
-                    }
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold transition-colors ${
-                      viewMode === mode.id
-                        ? "bg-canvas text-text shadow-sm"
-                        : "text-text-muted hover:text-text"
-                    }`}
-                  >
-                    <mode.icon size={16} />
-                    <span>{mode.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-3 ml-auto">
-                <button
-                  type="button"
-                  onClick={handleDownloadPdf}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-canvas text-sm font-semibold text-text-muted hover:text-text hover:bg-surface cursor-pointer transition-colors group"
-                >
-                  <Download
-                    size={16}
-                    className="group-hover:translate-y-0.5 transition-transform"
-                  />
-                  <span>PDF Report</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadJourneyCsv(applications)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-canvas text-sm font-semibold text-text-muted hover:text-text hover:bg-surface cursor-pointer transition-colors"
-                >
-                  <Download size={16} />
-                  <span>CSV</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar px-6">
-              <button
-                onClick={() => setStatusFilter("all")}
-                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                  statusFilter === "all"
-                    ? "bg-primary text-white"
-                    : "bg-black/5 text-text-muted hover:bg-black/10 hover:text-text"
-                }`}
-              >
-                All ({applications.length})
-              </button>
-              {Object.entries(statusConfig).map(([status, config]) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                    statusFilter === status
-                      ? "bg-primary text-white"
-                      : "bg-black/5 text-text-muted hover:bg-black/10 hover:text-text"
-                  }`}
-                >
-                  {config.label} ({statusCounts[status] || 0})
-                </button>
-              ))}
-            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-8 lg:p-12">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
             {hasAcceptedApplication && !tipDismissed && (
               <div className="mb-8 rounded-xl border border-success/20 bg-success/5 p-5 flex items-start gap-4">
                 <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
@@ -582,11 +672,12 @@ export default function ApplicationList() {
             )}
 
             {viewMode === "list" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="space-y-3">
                 {filteredAndSortedApps.map((app) => (
-                  <Card
+                  <ApplicationListItem
                     key={app.id}
-                    {...app}
+                    app={app}
+                    disabled={isUpdating}
                     onDelete={() => handleDeleteClick(app.id, app.company_name)}
                     onEdit={() =>
                       handleEditApplication(
@@ -603,7 +694,7 @@ export default function ApplicationList() {
                   />
                 ))}
                 {filteredAndSortedApps.length === 0 && (
-                  <div className="col-span-full py-20 text-center">
+                  <div className="py-20 text-center">
                     <div className="w-20 h-20 rounded-xl bg-black/5 flex items-center justify-center mx-auto mb-6">
                       <Search className="w-10 h-10 text-text-muted opacity-30" />
                     </div>

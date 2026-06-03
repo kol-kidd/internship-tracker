@@ -6,6 +6,62 @@ function parseLastModified(header) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+async function resolveAcceptedApplicationId(userId, rawApplicationId) {
+  if (rawApplicationId === undefined) {
+    return { provided: false };
+  }
+
+  if (rawApplicationId === null || rawApplicationId === '') {
+    return { provided: true, applicationId: null };
+  }
+
+  const applicationId = Number(rawApplicationId);
+  if (!Number.isInteger(applicationId) || applicationId <= 0) {
+    return {
+      provided: true,
+      error: {
+        status: 400,
+        body: { error: 'application_id must be a positive integer or null' },
+      },
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('applications')
+    .select('id, status')
+    .eq('id', applicationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Resolve Note Merge Application Error:', error);
+    return {
+      provided: true,
+      error: {
+        status: 500,
+        body: {
+          error: 'Failed to validate internship',
+          details: error.message,
+        },
+      },
+    };
+  }
+
+  if (!data || String(data.status).toLowerCase() !== 'accepted') {
+    return {
+      provided: true,
+      error: {
+        status: 400,
+        body: {
+          error: 'Journal entries can only be linked to your accepted internships',
+        },
+      },
+    };
+  }
+
+  return { provided: true, applicationId };
+}
+
 export const getNotes = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -170,7 +226,7 @@ export const deleteNote = async (req, res) => {
 export const mergeNotes = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { noteIds, title, date, deleteNotesAfterMerge } = req.body;
+    const { noteIds, title, date, deleteNotesAfterMerge, application_id } = req.body;
 
     if (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
       return res.status(400).json({
@@ -214,11 +270,21 @@ export const mergeNotes = async (req, res) => {
 
     const entryDate = date || notes[0]?.date || new Date().toISOString().split('T')[0];
     const entryTitle = title?.trim() || `Merged notes (${notes.length})`;
+    const resolvedApplication = await resolveAcceptedApplicationId(
+      userId,
+      application_id,
+    );
+    if (resolvedApplication.error) {
+      return res
+        .status(resolvedApplication.error.status)
+        .json(resolvedApplication.error.body);
+    }
 
     const { data: entry, error: insertError } = await supabase
       .from('journal_entries')
       .insert({
         user_id: userId,
+        application_id: resolvedApplication.applicationId ?? null,
         title: entryTitle,
         date: entryDate,
         content: mergedContent,

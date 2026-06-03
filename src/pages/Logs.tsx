@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   BookOpen,
   Plus,
@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FolderOpen,
+  Building2,
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import TimePickerInput from "@/components/TimePickerInput";
@@ -33,6 +34,7 @@ import { getDefaultTimes } from "@/components/timePickerUtils";
 import { jsPDF } from "jspdf";
 import { useAuthStore } from "@/store/authStore";
 import { useJournalStore } from "@/store/journalStore";
+import { useAppStore, type Application } from "@/store/applicationStore";
 import { useNotesStore } from "@/store/notesStore";
 import {
   useGalleryStore,
@@ -118,6 +120,7 @@ function loadImageAsResizedDataUrl(url: string): Promise<{
 interface JournalEntry {
   id: number;
   user_id: string;
+  application_id: number | null;
   title: string;
   date: string;
   content: string;
@@ -131,6 +134,7 @@ interface JournalEntry {
 }
 
 type MainView = "entries" | "support" | "reports";
+type JournalScope = "all" | "unassigned" | `application-${number}`;
 
 type ReportHistoryItem = {
   id: string;
@@ -147,6 +151,8 @@ const REPORT_HISTORY_KEY = "internpal_report_history";
 const REPORT_COORDINATOR_KEY = "internpal_report_coordinator_name";
 const REPORT_SUPERVISOR_KEY = "internpal_report_supervisor_name";
 const DEFAULT_COORDINATOR_NAME = "REYNILDA A. CASTRO";
+const ALL_JOURNALS_SCOPE: JournalScope = "all";
+const UNASSIGNED_JOURNALS_SCOPE: JournalScope = "unassigned";
 
 function loadReportHistory(): ReportHistoryItem[] {
   try {
@@ -167,9 +173,13 @@ function saveReportHistory(items: ReportHistoryItem[]) {
   }
 }
 
-function createBlankFormData(date = toLocalDateInputValue()) {
+function createBlankFormData(
+  date = toLocalDateInputValue(),
+  applicationId: number | null = null,
+) {
   const { timeIn, timeOut } = getDefaultTimes();
   return {
+    application_id: applicationId ?? "",
     title: "",
     date,
     content: "",
@@ -183,6 +193,7 @@ function createBlankFormData(date = toLocalDateInputValue()) {
 
 const LogsPage = () => {
   const { user, session } = useAuthStore();
+  const { applications } = useAppStore();
   const {
     entries,
     loading,
@@ -190,6 +201,7 @@ const LogsPage = () => {
     fetchEntries,
     addEntry,
     updateEntry,
+    bulkAssignEntries,
     deleteEntry,
   } = useJournalStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -234,6 +246,12 @@ const LogsPage = () => {
     new Date().toISOString().slice(0, 10),
   );
   const [mainView, setMainView] = useState<MainView>("entries");
+  const [selectedJournalScope, setSelectedJournalScope] =
+    useState<JournalScope>(ALL_JOURNALS_SCOPE);
+  const [bulkAssignApplicationId, setBulkAssignApplicationId] = useState<
+    number | ""
+  >("");
+  const [bulkAssigning, setBulkAssigning] = useState(false);
 
   const {
     notes,
@@ -308,6 +326,58 @@ const LogsPage = () => {
     supervisorName: localStorage.getItem(REPORT_SUPERVISOR_KEY) || "",
   });
 
+  const acceptedApplications = useMemo(
+    () =>
+      applications.filter(
+        (application) => application.status.toLowerCase() === "accepted",
+      ),
+    [applications],
+  );
+
+  const applicationById = useMemo(
+    () =>
+      new Map<number, Application>(
+        applications.map((application) => [application.id, application]),
+      ),
+    [applications],
+  );
+
+  const activeApplicationId =
+    selectedJournalScope.startsWith("application-")
+      ? Number(selectedJournalScope.replace("application-", ""))
+      : null;
+
+  const activeApplication =
+    activeApplicationId != null
+      ? applicationById.get(activeApplicationId) ?? null
+      : null;
+
+  const journalScopeLabel =
+    selectedJournalScope === ALL_JOURNALS_SCOPE
+      ? "All internships"
+      : selectedJournalScope === UNASSIGNED_JOURNALS_SCOPE
+        ? "Unassigned"
+        : activeApplication
+          ? `${activeApplication.company_name}${activeApplication.position ? ` - ${activeApplication.position}` : ""}`
+          : "Selected internship";
+
+  const formatApplicationLabel = (application: Application) =>
+    `${application.company_name}${application.position ? ` - ${application.position}` : ""}`;
+
+  const getEntryApplicationLabel = (entry: JournalEntry) => {
+    if (entry.application_id == null) return "Unassigned";
+    const application = applicationById.get(entry.application_id);
+    return application ? formatApplicationLabel(application) : "Archived internship";
+  };
+
+  const openNewEntry = useCallback((date = toLocalDateInputValue()) => {
+    setEditingEntry(null);
+    setFormData(createBlankFormData(date, activeApplicationId));
+    setOriginalContent(null);
+    setShowWritingTools(false);
+    setIsModalOpen(true);
+  }, [activeApplicationId]);
+
   const handleRequiredHoursChange = (value: string) => {
     const hours = Number(value) || 0;
     setRequiredHours(hours);
@@ -339,6 +409,9 @@ const LogsPage = () => {
     setCompileForm((form) => ({
       ...form,
       traineeName: form.traineeName || reportName,
+      industryPartner:
+        form.industryPartner || activeApplication?.company_name || "",
+      department: form.department || activeApplication?.position || "",
       startDate: range?.start ? toDateInputValue(range.start) : form.startDate,
       endDate: range?.end ? toDateInputValue(range.end) : form.endDate,
     }));
@@ -494,10 +567,10 @@ const LogsPage = () => {
   }, [user?.id, mainView, fetchNotes]);
 
   useEffect(() => {
-    if (user?.id && (mainView === "support" || mainView === "reports")) {
+    if (user?.id && entries.length > 0) {
       fetchGallery();
     }
-  }, [user?.id, mainView, fetchGallery]);
+  }, [user?.id, entries.length, fetchGallery]);
 
   useEffect(() => {
     if (viewingEntry?.id) {
@@ -513,14 +586,20 @@ const LogsPage = () => {
   }, [user?.user_metadata?.full_name, user?.email, reportName]);
 
   useEffect(() => {
+    if (!selectedJournalScope.startsWith("application-")) return;
+    if (
+      activeApplicationId == null ||
+      !acceptedApplications.some((application) => application.id === activeApplicationId)
+    ) {
+      setSelectedJournalScope(ALL_JOURNALS_SCOPE);
+    }
+  }, [activeApplicationId, acceptedApplications, selectedJournalScope]);
+
+  useEffect(() => {
     if (newEntryRequest !== "today") return;
 
     const timer = window.setTimeout(() => {
-      setEditingEntry(null);
-      setFormData(createBlankFormData(toLocalDateInputValue()));
-      setOriginalContent(null);
-      setShowWritingTools(false);
-      setIsModalOpen(true);
+      openNewEntry(toLocalDateInputValue());
       setSearchParams((current) => {
         const next = new URLSearchParams(current);
         next.delete("new");
@@ -529,7 +608,7 @@ const LogsPage = () => {
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [newEntryRequest, setSearchParams]);
+  }, [newEntryRequest, openNewEntry, setSearchParams]);
 
   const latestTimedEntry = getLatestTimedEntry(entries);
   const formEntryHours = calculateHours(
@@ -601,9 +680,12 @@ const LogsPage = () => {
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean);
+      const applicationId =
+        formData.application_id === "" ? null : Number(formData.application_id);
 
       if (editingEntry) {
         await updateEntry(editingEntry.id, {
+          application_id: applicationId,
           title: formData.title,
           date: formData.date,
           content: formData.content,
@@ -621,6 +703,7 @@ const LogsPage = () => {
         });
       } else {
         await addEntry({
+          application_id: applicationId,
           title: formData.title,
           date: formData.date,
           content: formData.content,
@@ -667,6 +750,7 @@ const LogsPage = () => {
   const handleEdit = (entry: JournalEntry) => {
     setEditingEntry(entry);
     setFormData({
+      application_id: entry.application_id ?? "",
       title: entry.title,
       date: toDateInputValue(entry.date),
       content: entry.content,
@@ -710,6 +794,43 @@ const LogsPage = () => {
       setSaving(false);
       setSelectedEntryId(null);
       setSelectedEntryTitle("");
+    }
+  };
+
+  const handleBulkAssignVisibleEntries = async () => {
+    if (bulkAssignApplicationId === "" || bulkAssignableEntries.length === 0) {
+      return;
+    }
+
+    const targetApplication = applicationById.get(bulkAssignApplicationId);
+    const entryIds = bulkAssignableEntries.map((entry) => entry.id);
+
+    try {
+      setBulkAssigning(true);
+      await bulkAssignEntries(entryIds, bulkAssignApplicationId);
+      setSelectedJournalScope(
+        `application-${bulkAssignApplicationId}` as JournalScope,
+      );
+      setBulkAssignApplicationId("");
+      toast.success(
+        `${entryIds.length} journal ${
+          entryIds.length === 1 ? "entry" : "entries"
+        } assigned${targetApplication ? ` to ${targetApplication.company_name}` : ""}.`,
+        {
+          position: "top-right",
+          theme: "light",
+          transition: Bounce,
+        },
+      );
+    } catch (error) {
+      console.error("Bulk assign entries error:", error);
+      toast.error("Failed to assign journal entries", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setBulkAssigning(false);
     }
   };
 
@@ -767,6 +888,7 @@ const LogsPage = () => {
         noteIds: Array.from(selectedNoteIds),
         title: mergeTitle.trim() || undefined,
         date: mergeDate,
+        application_id: activeApplicationId,
         deleteNotesAfterMerge,
       });
       setMergeModalOpen(false);
@@ -974,6 +1096,19 @@ const LogsPage = () => {
   };
 
   const totalHoursLogged = getTotalLoggedHours(entries);
+  const scopedEntries = entries.filter((entry) => {
+    if (selectedJournalScope === ALL_JOURNALS_SCOPE) return true;
+    if (selectedJournalScope === UNASSIGNED_JOURNALS_SCOPE) {
+      return entry.application_id == null;
+    }
+    return activeApplicationId != null && entry.application_id === activeApplicationId;
+  });
+  const scopedEntryIds = new Set(scopedEntries.map((entry) => entry.id));
+  const scopedGalleryImages = galleryImages.filter(
+    (image) =>
+      image.journal_entry_id != null && scopedEntryIds.has(image.journal_entry_id),
+  );
+  const scopedTotalHoursLogged = getTotalLoggedHours(scopedEntries);
 
   const hoursRemaining = Math.max(0, requiredHours - totalHoursLogged);
   const progressPercent =
@@ -981,17 +1116,23 @@ const LogsPage = () => {
       ? Math.min(100, (totalHoursLogged / requiredHours) * 100)
       : 0;
 
-  const filteredEntries = entries.filter((entry) => {
+  const filteredEntries = scopedEntries.filter((entry) => {
+    const internshipLabel = getEntryApplicationLabel(entry).toLowerCase();
     const matchesSearch =
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      internshipLabel.includes(searchQuery.toLowerCase()) ||
       entry.tags.some((tag) =>
         tag.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     const matchesMood = filterMood === "all" || entry.mood === filterMood;
     return matchesSearch && matchesMood;
   });
-  const sortedInternshipEntries = [...entries].sort(
+  const bulkAssignableEntries =
+    selectedJournalScope === UNASSIGNED_JOURNALS_SCOPE
+      ? filteredEntries.filter((entry) => entry.application_id == null)
+      : [];
+  const sortedInternshipEntries = [...scopedEntries].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
   const internshipStartDate = toDateInputValue(
@@ -1045,7 +1186,7 @@ const LogsPage = () => {
     },
   };
 
-  const moodCounts = entries.reduce(
+  const moodCounts = scopedEntries.reduce(
     (acc, entry) => {
       acc[entry.mood] = (acc[entry.mood] || 0) + 1;
       return acc;
@@ -1054,11 +1195,11 @@ const LogsPage = () => {
   );
 
   const weekBounds = getWeekBounds(new Date(selectedWeekDate));
-  const entriesForSelectedWeek = entries.filter((e) =>
+  const entriesForSelectedWeek = scopedEntries.filter((e) =>
     isDateInWeekBounds(e.date, weekBounds),
   );
   const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
-  const galleryByEntryId = galleryImages.reduce(
+  const galleryByEntryId = scopedGalleryImages.reduce(
     (map, image) => {
       if (image.journal_entry_id != null) {
         const list = map.get(image.journal_entry_id) ?? [];
@@ -1078,20 +1219,20 @@ const LogsPage = () => {
     (total, entry) => total + (galleryByEntryId.get(entry.id)?.length ?? 0),
     0,
   );
-  const entriesMissingTime = entries.filter(
+  const entriesMissingTime = scopedEntries.filter(
     (entry) => !entry.time_in || !entry.time_out,
   );
-  const entriesMissingTags = entries.filter((entry) => entry.tags.length === 0);
-  const lowDetailEntries = entries.filter((entry) => {
+  const entriesMissingTags = scopedEntries.filter((entry) => entry.tags.length === 0);
+  const lowDetailEntries = scopedEntries.filter((entry) => {
     const words = entry.content.trim().split(/\s+/).filter(Boolean);
     return words.length > 0 && words.length < 25;
   });
-  const entriesMissingEvidence = entries.filter(
+  const entriesMissingEvidence = scopedEntries.filter(
     (entry) => (galleryByEntryId.get(entry.id)?.length ?? 0) === 0,
   );
   const selectedRangeEntries =
     compileForm.startDate && compileForm.endDate
-      ? entries.filter((entry) => {
+      ? scopedEntries.filter((entry) => {
           const date = new Date(entry.date);
           const start = new Date(compileForm.startDate);
           const end = new Date(compileForm.endDate);
@@ -1136,9 +1277,7 @@ const LogsPage = () => {
   ];
 
   const handleGenerateWeeklySummary = async () => {
-    const entriesToSummarize = entries.filter((e) =>
-      isDateInWeekBounds(e.date, weekBounds),
-    );
+    const entriesToSummarize = entriesForSelectedWeek;
     if (entriesToSummarize.length === 0 || !session?.access_token) {
       if (entriesToSummarize.length === 0) {
         toast.error(
@@ -1206,6 +1345,7 @@ const LogsPage = () => {
     setWeeklyLogSaving(true);
     try {
       await addEntry({
+        application_id: activeApplicationId,
         title,
         date: weekBounds.start,
         content: weeklyLogContent.trim(),
@@ -1924,7 +2064,7 @@ const LogsPage = () => {
     }
     const rangeEntries = isInternshipSummary
       ? sortedInternshipEntries
-      : entries.filter((e) => {
+      : scopedEntries.filter((e) => {
           const start = new Date(reportStartDate);
           const end = new Date(reportEndDate);
           end.setHours(23, 59, 59, 999);
@@ -1974,7 +2114,7 @@ const LogsPage = () => {
       addReportHistory({
         type: isInternshipSummary ? "Internship Summary" : "CTU Form 6",
         title: isInternshipSummary
-          ? "Whole Internship Summary"
+          ? `${journalScopeLabel} Summary`
           : "CTU OJT Form 6",
         range: `${reportStartDate} to ${reportEndDate}`,
         entryCount: rangeEntries.length,
@@ -2046,12 +2186,43 @@ const LogsPage = () => {
             </div>
 
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => openNewEntry()}
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors mb-4"
             >
               <Plus className="w-4 h-4" />
               New Entry
             </button>
+
+            <div className="mb-6 pb-6 border-b border-border">
+              <label className="flex items-center gap-2 text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
+                <Building2 className="w-3.5 h-3.5" />
+                Internship
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedJournalScope}
+                  onChange={(e) =>
+                    setSelectedJournalScope(e.target.value as JournalScope)
+                  }
+                  className="w-full appearance-none bg-surface border border-border rounded-xl px-3 py-2.5 pr-8 text-sm font-medium text-text focus:outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value={ALL_JOURNALS_SCOPE}>All internships</option>
+                  {acceptedApplications.map((application) => (
+                    <option
+                      key={application.id}
+                      value={`application-${application.id}`}
+                    >
+                      {formatApplicationLabel(application)}
+                    </option>
+                  ))}
+                  <option value={UNASSIGNED_JOURNALS_SCOPE}>Unassigned</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+              </div>
+              <p className="mt-2 text-xs text-text-muted">
+                New entries use this internship when one is selected.
+              </p>
+            </div>
 
             <div className="mb-6 pb-6 border-b border-border">
               <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
@@ -2096,13 +2267,13 @@ const LogsPage = () => {
 
             <div className="space-y-3 mb-6 pb-6 border-b border-border">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-text-muted">Entries</span>
+                <span className="text-text-muted">Scope entries</span>
                 <span className="font-semibold text-text">
-                  {entries.length}
+                  {scopedEntries.length}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-text-muted">Hours logged</span>
+                <span className="text-text-muted">Total logged</span>
                 <span className="font-semibold text-text">
                   {totalHoursLogged.toFixed(1)}h
                 </span>
@@ -2176,7 +2347,9 @@ const LogsPage = () => {
                       onChange={(e) => setFilterMood(e.target.value)}
                       className="appearance-none bg-surface border border-border rounded-lg px-3 py-2.5 pr-8 text-sm font-medium text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
                     >
-                      <option value="all">All Moods ({entries.length})</option>
+                      <option value="all">
+                        All Moods ({scopedEntries.length})
+                      </option>
                       {Object.entries(moodConfig).map(([mood, config]) => (
                         <option key={mood} value={mood}>
                           {moodEmojis[mood]} {config.label} (
@@ -2236,12 +2409,36 @@ const LogsPage = () => {
                 </button>
               </div>
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => openNewEntry()}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 New
               </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-text-muted shrink-0" />
+              <div className="relative flex-1">
+                <select
+                  value={selectedJournalScope}
+                  onChange={(e) =>
+                    setSelectedJournalScope(e.target.value as JournalScope)
+                  }
+                  className="w-full appearance-none bg-surface border border-border rounded-lg px-3 py-2 pr-9 text-sm font-medium text-text focus:outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value={ALL_JOURNALS_SCOPE}>All internships</option>
+                  {acceptedApplications.map((application) => (
+                    <option
+                      key={application.id}
+                      value={`application-${application.id}`}
+                    >
+                      {formatApplicationLabel(application)}
+                    </option>
+                  ))}
+                  <option value={UNASSIGNED_JOURNALS_SCOPE}>Unassigned</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+              </div>
             </div>
             {mainView === "entries" && (
               <div className="flex items-center gap-2">
@@ -2252,7 +2449,9 @@ const LogsPage = () => {
                     onChange={(e) => setFilterMood(e.target.value)}
                     className="w-full appearance-none bg-surface border border-border rounded-lg px-3 py-2 pr-9 text-sm font-medium text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
                   >
-                    <option value="all">All Moods ({entries.length})</option>
+                    <option value="all">
+                      All Moods ({scopedEntries.length})
+                    </option>
                     {Object.entries(moodConfig).map(([mood, config]) => (
                       <option key={mood} value={mood}>
                         {moodEmojis[mood]} {config.label}
@@ -2269,7 +2468,7 @@ const LogsPage = () => {
                 <span className="font-semibold text-text">
                   {entries.length}
                 </span>{" "}
-                entries
+                total entries
               </span>
               <span className="text-border">|</span>
               <span>
@@ -2574,6 +2773,73 @@ const LogsPage = () => {
 
             {mainView === "entries" && (
               <>
+                {selectedJournalScope === UNASSIGNED_JOURNALS_SCOPE &&
+                  bulkAssignableEntries.length > 0 && (
+                    <div className="mb-4 rounded-2xl border border-border bg-canvas p-4">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-text">
+                            Assign existing unassigned logs
+                          </p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            Move {bulkAssignableEntries.length} visible{" "}
+                            {bulkAssignableEntries.length === 1
+                              ? "entry"
+                              : "entries"}{" "}
+                            to one accepted internship.
+                          </p>
+                        </div>
+
+                        {acceptedApplications.length > 0 ? (
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <div className="relative min-w-0 sm:w-72">
+                              <select
+                                value={bulkAssignApplicationId}
+                                onChange={(e) =>
+                                  setBulkAssignApplicationId(
+                                    e.target.value === ""
+                                      ? ""
+                                      : Number(e.target.value),
+                                  )
+                                }
+                                className="w-full appearance-none rounded-xl border border-border bg-surface px-3 py-2.5 pr-9 text-sm font-medium text-text focus:border-primary focus:outline-none"
+                              >
+                                <option value="">Choose internship</option>
+                                {acceptedApplications.map((application) => (
+                                  <option
+                                    key={application.id}
+                                    value={application.id}
+                                  >
+                                    {formatApplicationLabel(application)}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleBulkAssignVisibleEntries}
+                              disabled={
+                                bulkAssigning ||
+                                bulkAssignApplicationId === "" ||
+                                bulkAssignableEntries.length === 0
+                              }
+                              className="inline-flex min-h-[42px] items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {bulkAssigning
+                                ? "Assigning..."
+                                : "Assign visible logs"}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-xs font-medium text-text-muted">
+                            Mark an application as accepted first.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                 {filteredEntries.length === 0 ? (
                   <div className="bg-canvas rounded-2xl border border-border p-12 text-center">
                     <div className="relative inline-block mb-6">
@@ -2590,11 +2856,11 @@ const LogsPage = () => {
                     <p className="text-text/60 mb-6 max-w-md mx-auto">
                       {searchQuery || filterMood !== "all"
                         ? "Try adjusting your filters or search query"
-                        : "Start documenting your internship work."}
+                        : `Start documenting work for ${journalScopeLabel}.`}
                     </p>
                     {!searchQuery && filterMood === "all" && (
                       <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => openNewEntry()}
                         className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover transition-all"
                       >
                         <Plus className="w-4 h-4" />
@@ -2615,6 +2881,12 @@ const LogsPage = () => {
                             <h3 className="font-semibold text-text truncate group-hover:text-primary transition-colors">
                               {entry.title}
                             </h3>
+                            <p className="mt-1 flex items-center gap-1 text-xs text-text-muted truncate">
+                              <Building2 className="w-3 h-3 shrink-0" />
+                              <span className="truncate">
+                                {getEntryApplicationLabel(entry)}
+                              </span>
+                            </p>
                           </div>
                           <span
                             className={`shrink-0 ml-2 px-2 py-1 rounded-lg text-xs font-medium ${
@@ -2877,10 +3149,10 @@ const LogsPage = () => {
 
             {mainView === "support" && (
               <div className="max-w-4xl mx-auto space-y-6">
-                {entries.length === 0 ? (
+                {scopedEntries.length === 0 ? (
                   <div className="bg-canvas rounded-2xl border border-border p-10 text-center text-text/60 text-sm">
-                    Create a journal entry first, then add proof-of-work images
-                    and link them to that entry.
+                    Create a journal entry for {journalScopeLabel}, then add
+                    proof-of-work images and link them to that entry.
                   </div>
                 ) : (
                   <>
@@ -2917,7 +3189,7 @@ const LogsPage = () => {
                             className="w-40 sm:w-52 px-3 py-2 rounded-lg border border-border text-sm text-text focus:outline-none focus:border-primary bg-surface"
                           >
                             <option value="">Select entry</option>
-                            {entries.slice(0, 50).map((entry) => (
+                            {scopedEntries.slice(0, 50).map((entry) => (
                               <option key={entry.id} value={entry.id}>
                                 {entry.title} —{" "}
                                 {new Date(entry.date).toLocaleDateString()}
@@ -2953,16 +3225,16 @@ const LogsPage = () => {
                       </p>
                     </div>
 
-                    {galleryLoading && galleryImages.length === 0 ? (
+                    {galleryLoading && scopedGalleryImages.length === 0 ? (
                       <p className="text-text/60 text-sm">Loading gallery...</p>
-                    ) : galleryImages.length === 0 ? (
+                    ) : scopedGalleryImages.length === 0 ? (
                       <div className="bg-canvas rounded-2xl border border-border p-10 text-center text-text/60 text-sm">
                         No images yet. Upload a photo or screenshot as proof of
-                        work for the day.
+                        work for {journalScopeLabel}.
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        {galleryImages.map((img) => (
+                        {scopedGalleryImages.map((img) => (
                           <div
                             key={img.id}
                             className="bg-canvas rounded-xl border border-border overflow-hidden group relative"
@@ -3013,13 +3285,13 @@ const LogsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="rounded-2xl border border-border bg-canvas p-5">
                     <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
-                      Journal
+                      Journal scope
                     </p>
                     <p className="mt-2 text-2xl font-bold text-text">
-                      {entries.length}
+                      {scopedEntries.length}
                     </p>
                     <p className="text-sm text-text-muted">
-                      {totalHoursLogged.toFixed(1)}h logged
+                      {scopedTotalHoursLogged.toFixed(1)}h logged
                     </p>
                   </div>
                   <div className="rounded-2xl border border-border bg-canvas p-5">
@@ -3141,14 +3413,14 @@ const LogsPage = () => {
                           Journal PDF
                         </h3>
                         <p className="mt-1 text-sm text-text-muted">
-                          {entries.length} entries available
+                          {scopedEntries.length} entries available
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => openExportPdfModal(entries)}
-                          disabled={entries.length === 0}
+                          onClick={() => openExportPdfModal(scopedEntries)}
+                          disabled={scopedEntries.length === 0}
                           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Download className="w-4 h-4" />
@@ -3171,7 +3443,8 @@ const LogsPage = () => {
                           Internship Summary
                         </h3>
                         <p className="mt-1 text-sm text-text-muted">
-                          {entries.length} entries, {totalHoursLogged.toFixed(1)}h
+                          {scopedEntries.length} entries,{" "}
+                          {scopedTotalHoursLogged.toFixed(1)}h
                         </p>
                         <p className="mt-1 text-xs text-text-muted">
                           {internshipDateRangeLabel}
@@ -3188,7 +3461,7 @@ const LogsPage = () => {
                             "internship",
                           )
                         }
-                        disabled={entries.length === 0}
+                        disabled={scopedEntries.length === 0}
                         className="w-fit flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FileText className="w-4 h-4" />
@@ -3298,6 +3571,38 @@ const LogsPage = () => {
                       placeholder="What happened today?"
                       className="w-full px-4 py-3 rounded-xl border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-2">
+                      Internship
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={formData.application_id}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            application_id:
+                              e.target.value === ""
+                                ? ""
+                                : Number(e.target.value),
+                          })
+                        }
+                        className="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-border bg-canvas text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                      >
+                        <option value="">Unassigned</option>
+                        {acceptedApplications.map((application) => (
+                          <option key={application.id} value={application.id}>
+                            {formatApplicationLabel(application)}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                    </div>
+                    <p className="mt-2 text-xs text-text-muted">
+                      Accepted applications appear here as internship companies.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -3617,6 +3922,10 @@ const LogsPage = () => {
 
                 <div className="p-6">
                   <div className="flex flex-wrap items-center gap-4 mb-6">
+                    <div className="flex items-center gap-2 text-text/60">
+                      <Building2 className="w-4 h-4" />
+                      <span>{getEntryApplicationLabel(viewingEntry)}</span>
+                    </div>
                     <div className="flex items-center gap-2 text-text/60">
                       <Calendar className="w-4 h-4" />
                       <span>
@@ -4086,7 +4395,7 @@ const LogsPage = () => {
                   disabled={
                     compileLoading ||
                     (compileReportMode === "internship"
-                      ? entries.length === 0
+                      ? scopedEntries.length === 0
                       : !compileForm.startDate || !compileForm.endDate)
                   }
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"

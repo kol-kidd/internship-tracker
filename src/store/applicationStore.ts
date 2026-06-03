@@ -30,10 +30,12 @@ interface AppState {
   loading: boolean;
   error: string | null;
   socket: Socket | null;
+  hasFetched: boolean;
+  lastFetchedAt: number | null;
 
   initSocket: () => void;
 
-  fetchApplications: () => Promise<void>;
+  fetchApplications: (options?: { force?: boolean; showLoading?: boolean }) => Promise<void>;
   addApplication: (data: {
     companyName: string;
     companyAddress: string;
@@ -71,6 +73,8 @@ const api = axios.create({
   },
 });
 
+const APPLICATION_CACHE_MS = 5 * 60 * 1000;
+
 api.interceptors.request.use(async (config) => {
   const {
     data: { session },
@@ -90,6 +94,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   loading: false,
   error: null,
   socket: null, 
+  hasFetched: false,
+  lastFetchedAt: null,
 
   initSocket: async () => {
     if (get().socket) return; 
@@ -113,6 +119,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     socket.on("application-added", (app: Application) => {
       set((state) => ({
         applications: [app, ...state.applications],
+        hasFetched: true,
+        lastFetchedAt: Date.now(),
       }));
     });
 
@@ -121,6 +129,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         applications: state.applications.map((a) =>
           a.id === app.id ? app : a
         ),
+        hasFetched: true,
+        lastFetchedAt: Date.now(),
       }));
     });
 
@@ -129,12 +139,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         applications: state.applications.map((a) =>
           a.id === app.id ? app : a
         ),
+        hasFetched: true,
+        lastFetchedAt: Date.now(),
       }));
     });
 
     socket.on("application-deleted", (id: number) => {
       set((state) => ({
         applications: state.applications.filter((a) => a.id !== id),
+        hasFetched: true,
+        lastFetchedAt: Date.now(),
       }));
     });
 
@@ -142,11 +156,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Fetch all applications
-  fetchApplications: async () => {
-    set({ loading: true, error: null });
+  fetchApplications: async (options = {}) => {
+    const state = get();
+    const cacheIsFresh =
+      state.hasFetched &&
+      state.lastFetchedAt != null &&
+      Date.now() - state.lastFetchedAt < APPLICATION_CACHE_MS;
+
+    if (!options.force && cacheIsFresh) return;
+
+    set({
+      loading: options.showLoading ?? state.applications.length === 0,
+      error: null,
+    });
     try {
       const res = await api.get("/applications");
-      set({ applications: res.data.applications, loading: false });
+      set({
+        applications: res.data.applications,
+        loading: false,
+        hasFetched: true,
+        lastFetchedAt: Date.now(),
+      });
     } catch (err: unknown) {
       set({ error: getApiErrorMessage(err), loading: false });
     }
@@ -160,6 +190,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((state) => ({
         applications: [res.data.application, ...state.applications],
         loading: false,
+        hasFetched: true,
+        lastFetchedAt: Date.now(),
       }));
     } catch (err: unknown) {
       set({ error: getApiErrorMessage(err), loading: false });
@@ -176,6 +208,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           a.id === id ? res.data.application : a
         ),
         loading: false,
+        hasFetched: true,
+        lastFetchedAt: Date.now(),
       }));
     } catch (err: unknown) {
       set({ error: getApiErrorMessage(err), loading: false });
@@ -193,6 +227,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           a.id === id ? res.data.application : a
         ),
         loading: false,
+        hasFetched: true,
+        lastFetchedAt: Date.now(),
       }));
     } catch (err: unknown) {
       const message = getApiErrorMessage(err);
@@ -209,6 +245,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((state) => ({
         applications: state.applications.filter((a) => a.id !== id),
         loading: false,
+        hasFetched: true,
+        lastFetchedAt: Date.now(),
       }));
     } catch (err: unknown) {
       set({ error: getApiErrorMessage(err), loading: false });
@@ -217,6 +255,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Clear all applications
   clearApplications: () => {
-    set({ applications: [], loading: false, error: null });
+    set({
+      applications: [],
+      loading: false,
+      error: null,
+      hasFetched: false,
+      lastFetchedAt: null,
+    });
   },
 }));

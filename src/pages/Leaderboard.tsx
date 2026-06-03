@@ -33,6 +33,20 @@ interface RankSummary {
   hoursToNext: number | null;
 }
 
+const LEADERBOARD_CACHE_MS = 5 * 60 * 1000;
+const schoolLeaderboardCache = new Map<
+  string,
+  { rows: LeaderboardRow[]; fetchedAt: number }
+>();
+const myGroupsCache = new Map<
+  string,
+  { groups: Group[]; fetchedAt: number }
+>();
+const groupLeaderboardCache = new Map<
+  number,
+  { rows: LeaderboardRow[]; fetchedAt: number }
+>();
+
 function rankAccent(rank: number) {
   if (rank === 0) return "text-yellow-500";
   if (rank === 1) return "text-gray-400";
@@ -209,6 +223,7 @@ export default function Leaderboard() {
   const { profile } = useProfileStore();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("school");
+  const userId = user?.id;
 
   // School leaderboard
   const [schoolRows, setSchoolRows] = useState<LeaderboardRow[]>([]);
@@ -225,17 +240,34 @@ export default function Leaderboard() {
 
   const schoolId = profile?.school_id ?? null;
   const schoolName = profile?.school ?? null;
+  const schoolCacheKey = schoolId
+    ? `id:${schoolId}`
+    : schoolName
+      ? `name:${schoolName.toLowerCase()}`
+      : null;
 
   // School leaderboard query — uses school_id for canonical grouping
   // (avoids "CTU Danao" != "Cebu Technological University - Danao Campus" mismatch)
-  const loadSchoolLeaderboard = useCallback(async () => {
+  const loadSchoolLeaderboard = useCallback(async (options = { force: false }) => {
     if (!schoolId && !schoolName) {
       setSchoolRows([]);
       setSchoolLoading(false);
       return;
     }
 
-    setSchoolLoading(true);
+    const cached = schoolCacheKey
+      ? schoolLeaderboardCache.get(schoolCacheKey)
+      : null;
+    const cacheIsFresh =
+      cached && Date.now() - cached.fetchedAt < LEADERBOARD_CACHE_MS;
+
+    if (!options.force && cacheIsFresh) {
+      setSchoolRows(cached.rows);
+      setSchoolLoading(false);
+      return;
+    }
+
+    setSchoolLoading(!cached);
 
     const query = supabase
       .from("profiles")
@@ -246,9 +278,18 @@ export default function Leaderboard() {
       ? await query.eq("school_id", schoolId)
       : await query.ilike("school", schoolName ?? "");
 
-    if (!error) setSchoolRows((data as LeaderboardRow[]) ?? []);
+    if (!error) {
+      const rows = (data as LeaderboardRow[]) ?? [];
+      if (schoolCacheKey) {
+        schoolLeaderboardCache.set(schoolCacheKey, {
+          rows,
+          fetchedAt: Date.now(),
+        });
+      }
+      setSchoolRows(rows);
+    }
     setSchoolLoading(false);
-  }, [schoolId, schoolName]);
+  }, [schoolCacheKey, schoolId, schoolName]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -283,7 +324,7 @@ export default function Leaderboard() {
             if (!touchedCurrentSchool) return;
           }
 
-          void loadSchoolLeaderboard();
+          void loadSchoolLeaderboard({ force: true });
         },
       )
       .subscribe();
@@ -294,9 +335,28 @@ export default function Leaderboard() {
   }, [loadSchoolLeaderboard, schoolId, schoolName]);
 
   // Load my groups
-  const loadGroups = useCallback(async () => {
+  const loadGroups = useCallback(async (options = { force: false }) => {
+    if (!userId) return;
+
+    const cached = myGroupsCache.get(userId);
+    const cacheIsFresh =
+      cached && Date.now() - cached.fetchedAt < LEADERBOARD_CACHE_MS;
+
+    if (!options.force && cacheIsFresh) {
+      setGroups(cached.groups);
+      setActiveGroup((current) => {
+        if (current && cached.groups.some((group) => group.id === current.id)) {
+          return current;
+        }
+
+        return cached.groups[0] ?? null;
+      });
+      return;
+    }
+
     try {
       const mine = await getMyGroups();
+      myGroupsCache.set(userId, { groups: mine, fetchedAt: Date.now() });
       setGroups(mine);
       setActiveGroup((current) => {
         if (current && mine.some((group) => group.id === current.id)) {
@@ -308,7 +368,7 @@ export default function Leaderboard() {
     } catch (err) {
       setGroupError(err instanceof Error ? err.message : "Failed to load groups");
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (tab !== "groups") return;
@@ -327,14 +387,28 @@ export default function Leaderboard() {
     [groupRows],
   );
 
-  const loadGroupLeaderboard = useCallback(async () => {
+  const loadGroupLeaderboard = useCallback(async (options = { force: false }) => {
     if (!activeGroupId) {
       setGroupRows([]);
       return;
     }
 
+    const cached = groupLeaderboardCache.get(activeGroupId);
+    const cacheIsFresh =
+      cached && Date.now() - cached.fetchedAt < LEADERBOARD_CACHE_MS;
+
+    if (!options.force && cacheIsFresh) {
+      setGroupRows(cached.rows);
+      return;
+    }
+
     try {
-      setGroupRows(await getGroupLeaderboard(activeGroupId));
+      const rows = await getGroupLeaderboard(activeGroupId);
+      groupLeaderboardCache.set(activeGroupId, {
+        rows,
+        fetchedAt: Date.now(),
+      });
+      setGroupRows(rows);
     } catch (err) {
       setGroupError(err instanceof Error ? err.message : "Failed to load");
     }
@@ -366,7 +440,7 @@ export default function Leaderboard() {
             (payload.old as { id?: string }).id;
 
           if (!changedProfileId || !groupMemberIds.has(changedProfileId)) return;
-          void loadGroupLeaderboard();
+          void loadGroupLeaderboard({ force: true });
         },
       )
       .on(
@@ -378,8 +452,8 @@ export default function Leaderboard() {
           filter: `group_id=eq.${activeGroupId}`,
         },
         () => {
-          void loadGroups();
-          void loadGroupLeaderboard();
+          void loadGroups({ force: true });
+          void loadGroupLeaderboard({ force: true });
         },
       )
       .subscribe();
@@ -395,7 +469,7 @@ export default function Leaderboard() {
     try {
       const g = await createGroup(groupName.trim());
       setGroupName("");
-      await loadGroups();
+      await loadGroups({ force: true });
       setActiveGroup(g);
     } catch (err) {
       setGroupError(err instanceof Error ? err.message : "Failed to create group");
@@ -408,7 +482,7 @@ export default function Leaderboard() {
     try {
       const g = await joinGroup(joinCode.trim());
       setJoinCode("");
-      await loadGroups();
+      await loadGroups({ force: true });
       setActiveGroup(g);
     } catch (err) {
       setGroupError(err instanceof Error ? err.message : "Failed to join group");
@@ -491,11 +565,11 @@ export default function Leaderboard() {
               <>
                 <LeaderboardSummaryCard
                   rows={schoolRows}
-                  meId={user?.id}
+                  meId={userId}
                   label="To next rank"
                 />
                 <div className="bg-surface rounded-2xl p-1">
-                  <LeaderboardList rows={schoolRows} meId={user?.id} />
+                  <LeaderboardList rows={schoolRows} meId={userId} />
                 </div>
               </>
             )}
@@ -600,7 +674,7 @@ export default function Leaderboard() {
                 {groupRows.length > 0 && (
                   <LeaderboardSummaryCard
                     rows={groupRows}
-                    meId={user?.id}
+                    meId={userId}
                     label="To next rank"
                   />
                 )}
@@ -612,7 +686,7 @@ export default function Leaderboard() {
                       message="Members will appear here after they join the group and log internship hours."
                     />
                   ) : (
-                    <LeaderboardList rows={groupRows} meId={user?.id} />
+                    <LeaderboardList rows={groupRows} meId={userId} />
                   )}
                 </div>
               </>

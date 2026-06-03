@@ -38,6 +38,9 @@ const routeTitles: Record<string, string> = {
   "/leaderboard": "Leaderboard",
 };
 
+const HOURS_SYNC_CACHE_MS = 5 * 60 * 1000;
+const lastHoursSyncByUser = new Map<string, number>();
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -75,17 +78,21 @@ const Layout = ({ children }: LayoutProps) => {
 
     const unsubscribeProfile = subscribeToProfile(user.id);
 
-    fetchApplications();
+    fetchApplications({ showLoading: false });
     fetchEntries();
     initSocket();
     // Fetch profile then backfill total_hours from existing journal entries.
     // This ensures the leaderboard/profile shows correct hours even for entries
     // logged before the hours-sync feature was added.
-    fetchProfile(user.id).then(() => {
+    fetchProfile(user.id, { showLoading: false }).then(() => {
+      const lastSyncAt = lastHoursSyncByUser.get(user.id) ?? 0;
+      if (Date.now() - lastSyncAt < HOURS_SYNC_CACHE_MS) return;
+
+      lastHoursSyncByUser.set(user.id, Date.now());
       api.post("/journal/sync-hours").then(({ data }) => {
         if (typeof data?.total_hours === "number") {
           // Refresh profile store with the newly computed total.
-          fetchProfile(user.id, { showLoading: false });
+          fetchProfile(user.id, { showLoading: false, force: true });
         }
       }).catch(() => { /* non-critical */ });
     });
