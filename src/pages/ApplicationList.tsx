@@ -117,7 +117,7 @@ function ApplicationListItem({
   const config = statusConfig[status] ?? statusConfig.applied;
 
   return (
-    <article className="rounded-xl border border-border bg-canvas p-4 transition-colors hover:border-primary/20">
+    <article className="app-data-row p-4">
       <div className="flex flex-col gap-4 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_88px] sm:items-center">
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-text truncate">
@@ -265,6 +265,11 @@ export default function ApplicationList() {
       {},
     );
   }, [applications]);
+
+  const activeCount =
+    (statusCounts.applied || 0) +
+    (statusCounts.interviewing || 0) +
+    (statusCounts.offer || 0);
 
   const acceptedApplication = useMemo(
     () => applications.find((app) => app.status.toLowerCase() === "accepted"),
@@ -480,21 +485,28 @@ export default function ApplicationList() {
         title="Applications"
         description="Track and manage all your internship applications. Filter by status, search companies, and stay organized."
       />
-      <div className="flex flex-col min-h-screen bg-surface">
+      <div className="app-route-frame flex flex-col">
         {/* Main content */}
         <main className="flex-1 flex flex-col min-w-0">
-          <div className="sticky top-0 z-10 border-b border-border bg-canvas px-4 py-4 sm:px-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-1">
-                <h1 className="text-2xl font-semibold text-text tracking-tight">
-                  Applications
-                </h1>
-                <p className="text-sm text-text-muted">
-                  {applications.length} total opportunities
-                </p>
+          <div className="app-page-titlebar sticky top-0 z-10 px-4 py-4 sm:px-6">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Briefcase className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-2xl font-semibold text-text tracking-tight">
+                      Applications
+                    </h1>
+                    <p className="text-sm text-text-muted">
+                      {applications.length} total opportunities, {activeCount} active
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="app-toolbar flex flex-col gap-3 p-2 lg:flex-row lg:items-center">
                 <div className="relative w-full lg:w-80">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted opacity-60" />
                   <input
@@ -502,7 +514,7 @@ export default function ApplicationList() {
                     placeholder="Search applications..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-surface py-2.5 pl-10 pr-4 text-sm text-text placeholder-text-muted/60 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
+                    className="h-10 w-full rounded-xl border border-border bg-canvas py-2.5 pl-10 pr-4 text-sm text-text placeholder-text-muted/60 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
                   />
                 </div>
 
@@ -511,7 +523,7 @@ export default function ApplicationList() {
                     <select
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value)}
-                      className="h-10 w-full appearance-none rounded-lg border border-border bg-surface px-3 pr-8 text-sm font-medium text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 sm:w-44"
+                      className="h-10 w-full appearance-none rounded-xl border border-border bg-canvas px-3 pr-8 text-sm font-medium text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 sm:w-44"
                     >
                       <option value="all">All ({applications.length})</option>
                       {statusOptions.map(([status, config]) => (
@@ -523,7 +535,7 @@ export default function ApplicationList() {
                     <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
                   </div>
 
-                  <div className="flex h-10 items-center gap-1 rounded-lg bg-surface p-1">
+                  <div className="app-segment flex h-10 items-center gap-1">
                     {[
                       { id: "list", icon: List, label: "List" },
                       { id: "board", icon: LayoutGrid, label: "Board" },
@@ -535,7 +547,7 @@ export default function ApplicationList() {
                         onClick={() =>
                           setViewMode(mode.id as "board" | "list" | "journey")
                         }
-                        className={`inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-3 ${
+                        className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-3 ${
                           viewMode === mode.id
                             ? "bg-canvas text-text shadow-sm"
                             : "text-text-muted hover:text-text"
@@ -554,7 +566,7 @@ export default function ApplicationList() {
                   <button
                     type="button"
                     onClick={handleDownloadPdf}
-                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-canvas px-3 text-sm font-semibold text-text-muted transition-colors hover:bg-surface hover:text-text"
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-canvas px-3 text-sm font-semibold text-text-muted transition-colors hover:bg-surface hover:text-text"
                     aria-label="Download PDF report"
                   >
                     <Download size={16} />
@@ -563,7 +575,7 @@ export default function ApplicationList() {
                   <button
                     type="button"
                     onClick={() => downloadJourneyCsv(applications)}
-                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-canvas px-3 text-sm font-semibold text-text-muted transition-colors hover:bg-surface hover:text-text"
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-canvas px-3 text-sm font-semibold text-text-muted transition-colors hover:bg-surface hover:text-text"
                     aria-label="Download CSV"
                   >
                     <Download size={16} />
@@ -573,7 +585,7 @@ export default function ApplicationList() {
 
                 <button
                   onClick={() => handleModal()}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
                 >
                   <Plus size={18} />
                   <span>New Application</span>
@@ -583,9 +595,36 @@ export default function ApplicationList() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="app-metric-card p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
+                  Active Search
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-text">
+                  {activeCount}
+                </p>
+              </div>
+              <div className="app-metric-card p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
+                  Interviews
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-text">
+                  {statusCounts.interviewing || 0}
+                </p>
+              </div>
+              <div className="app-metric-card p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
+                  Accepted
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-text">
+                  {statusCounts.accepted || 0}
+                </p>
+              </div>
+            </div>
+
             {hasAcceptedApplication && !tipDismissed && (
-              <div className="mb-8 rounded-xl border border-success/20 bg-success/5 p-5 flex items-start gap-4">
-                <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+              <div className="app-callout mb-8 p-5 flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
                   <CheckCircle2 className="w-6 h-6 text-success" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -599,7 +638,7 @@ export default function ApplicationList() {
                   <div className="flex items-center gap-4">
                     <button
                       onClick={handleMarkAllWithdrawnClick}
-                      className="px-4 py-2 rounded-lg bg-success text-white text-xs font-semibold hover:opacity-90 transition-colors"
+                      className="px-4 py-2 rounded-xl bg-success text-white text-xs font-semibold hover:opacity-90 transition-colors"
                     >
                       Mark others as withdrawn
                     </button>
@@ -621,14 +660,14 @@ export default function ApplicationList() {
             )}
 
             {hasAcceptedApplication && acceptedApplication && (
-              <div className="mb-12">
-                <div className="flex items-center gap-3 mb-6">
+              <div className="mb-10">
+                <div className="flex items-center gap-3 mb-4">
                   <Trophy className="text-warning" size={24} />
-                    <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-2xl font-semibold tracking-tight">
                     Accepted Application
                   </h2>
                 </div>
-                <div className="rounded-2xl border border-warning/20 bg-canvas p-6">
+                <div className="app-hero-panel p-6">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                     <div className="space-y-4">
                       <div>
@@ -694,9 +733,9 @@ export default function ApplicationList() {
                   />
                 ))}
                 {filteredAndSortedApps.length === 0 && (
-                  <div className="py-20 text-center">
-                    <div className="w-20 h-20 rounded-xl bg-black/5 flex items-center justify-center mx-auto mb-6">
-                      <Search className="w-10 h-10 text-text-muted opacity-30" />
+                  <div className="app-empty-state py-20 text-center">
+                    <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                      <Search className="w-10 h-10 text-primary/40" />
                     </div>
                     <h3 className="text-xl font-bold text-text">
                       No matches found

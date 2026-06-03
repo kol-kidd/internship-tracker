@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
+  CalendarCheck,
+  ChevronRight,
   Menu,
   X,
   LogOut,
@@ -16,6 +18,7 @@ import { useAppStore } from "@/store/applicationStore";
 import { useJournalStore } from "@/store/journalStore";
 import { useProfileStore } from "@/store/profileStore";
 import { api } from "@/functions/data/apiClient";
+import AppLogo from "@/components/AppLogo";
 import {
   getInitial,
   getProfileDisplayName,
@@ -38,6 +41,14 @@ const routeTitles: Record<string, string> = {
   "/leaderboard": "Leaderboard",
 };
 
+const routeSubtitles: Record<string, string> = {
+  "/dashboard": "Internship command center",
+  "/applications": "Track companies, statuses, and next steps",
+  "/logs": "Document hours, evidence, and daily proof",
+  "/profile": "Profile, academic details, and appearance",
+  "/leaderboard": "Progress across the cohort",
+};
+
 const HOURS_SYNC_CACHE_MS = 5 * 60 * 1000;
 const lastHoursSyncByUser = new Map<string, number>();
 
@@ -52,6 +63,8 @@ const Layout = ({ children }: LayoutProps) => {
   const { user } = useAuthStore();
 
   const pageTitle = routeTitles[location.pathname] ?? "InternPal";
+  const pageSubtitle =
+    routeSubtitles[location.pathname] ?? "Keep your internship progress clear";
   const greeting = (() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -67,6 +80,12 @@ const Layout = ({ children }: LayoutProps) => {
   const { profile, fetchProfile, subscribeToProfile } = useProfileStore();
   const indicatorName = getProfileIndicator(profile, authName);
   const displayName = getProfileDisplayName(profile, authName);
+  const totalHours = profile?.total_hours ?? 0;
+  const requiredHours = profile?.required_hours ?? null;
+  const progressPercent =
+    requiredHours && requiredHours > 0
+      ? Math.min(100, (totalHours / requiredHours) * 100)
+      : 0;
   const [profileCompletionDismissed, setProfileCompletionDismissed] =
     useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
@@ -200,13 +219,13 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   return (
-    <div className="h-screen flex overflow-hidden bg-surface font-sans">
+    <div className="app-shell-root h-screen flex overflow-hidden bg-surface font-sans">
       {/* Mobile Overlay */}
       {isMobileSidebarOpen && (
         <div
           onClick={() => setIsMobileSidebarOpen(false)}
           aria-hidden
-          className="lg:hidden fixed inset-0 bg-black/20 z-30 transition-opacity"
+          className="lg:hidden fixed inset-0 bg-black/20 backdrop-blur-sm z-30 transition-opacity"
         />
       )}
 
@@ -214,39 +233,35 @@ const Layout = ({ children }: LayoutProps) => {
       <aside
         className={`
         fixed lg:static inset-y-0 left-0 z-40
-        w-64 border-r border-border bg-canvas flex flex-col
+        w-72 border-r border-sidebar-border bg-sidebar flex flex-col
         transition-transform duration-200
-        lg:translate-x-0 glass
+        lg:translate-x-0 app-sidebar
         ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}
       `}
       >
         {/* Logo Section */}
         <button
           onClick={() => handleNavClick("/")}
-          className="p-6 flex items-center gap-3 shrink-0 hover:bg-surface transition-colors cursor-pointer text-left"
+          className="p-5 flex items-center gap-3 shrink-0 border-b border-sidebar-border hover:bg-surface transition-colors cursor-pointer text-left"
         >
-          <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-sm tracking-tight">
-              IP
-            </span>
-          </div>
+          <AppLogo size={40} />
           <div className="min-w-0">
             <h1 className="font-bold text-base text-text tracking-tight">
               InternPal
             </h1>
-            <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+            <p className="text-[11px] font-semibold text-sidebar-text-muted uppercase tracking-[0.16em]">
               Student Workspace
             </p>
           </div>
         </button>
 
         {/* Navigation Section */}
-        <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-1">
-          <p className="px-3 text-[11px] font-bold text-text-muted uppercase tracking-[0.15em] mb-2 opacity-60">
-            Menu
+        <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-1">
+          <p className="px-3 text-[11px] font-bold text-sidebar-text-muted uppercase tracking-[0.16em] mb-2">
+            Workspace
           </p>
 
-          <nav className="space-y-1">
+          <nav className="space-y-1.5">
             {sidebar.map((item) => {
               const isActive = location.pathname === item.path;
               return (
@@ -254,21 +269,34 @@ const Layout = ({ children }: LayoutProps) => {
                   key={item.key}
                   onClick={() => handleNavClick(item.path)}
                   className={`
-                    flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium
-                    transition-all duration-200 cursor-pointer group
+                    group flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-sm font-semibold
+                    transition-all duration-200 cursor-pointer
                     ${
                       isActive
-                        ? "bg-primary text-white"
-                        : "text-text-muted hover:bg-black/5 hover:text-text"
+                        ? "bg-primary text-white shadow-[0_10px_24px_rgb(11_115_217_/_0.22)]"
+                        : "text-sidebar-text-muted hover:bg-surface hover:text-sidebar-text"
                     }
                   `}
                 >
-                  <div
-                    className={isActive ? "text-white" : "text-primary opacity-70"}
-                  >
-                    {item.icon}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                        isActive
+                          ? "bg-white/15 text-white"
+                          : "bg-primary/10 text-primary group-hover:bg-primary/15"
+                      }`}
+                    >
+                      {item.icon}
+                    </div>
+                    <span className="truncate">{item.title}</span>
                   </div>
-                  <span>{item.title}</span>
+                  <ChevronRight
+                    className={`w-4 h-4 transition-transform ${
+                      isActive
+                        ? "opacity-90"
+                        : "opacity-0 group-hover:opacity-70 group-hover:translate-x-0.5"
+                    }`}
+                  />
                 </button>
               );
             })}
@@ -276,27 +304,49 @@ const Layout = ({ children }: LayoutProps) => {
         </div>
 
         {/* User / Logout Section */}
-        <div className="p-4 mt-auto border-t border-border">
+        <div className="p-4 mt-auto border-t border-sidebar-border space-y-3">
           <button
             onClick={() => handleNavClick("/profile")}
-            className="flex items-center gap-3 p-3 rounded-lg bg-surface mb-4 w-full text-left hover:bg-black/5 transition-colors cursor-pointer"
+            className="w-full rounded-2xl border border-border bg-surface/80 p-3 text-left shadow-sm transition-colors hover:bg-surface cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary">
-              {getInitial(displayName)}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary shrink-0">
+                {getInitial(displayName)}
+              </div>
+              <div className="min-w-0 overflow-hidden">
+                <p className="text-sm font-semibold text-text truncate leading-none mb-1">
+                  {displayName}
+                </p>
+                <p className="text-[11px] text-text-muted truncate">
+                  {requiredHours
+                    ? `${totalHours.toFixed(1)} of ${requiredHours} hours`
+                    : "Profile and preferences"}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 overflow-hidden">
-              <p className="text-sm font-semibold text-text truncate leading-none mb-1">
-                {displayName}
-              </p>
-              <p className="text-[11px] text-text-muted truncate opacity-80">
-                Logged in
-              </p>
-            </div>
+            {requiredHours ? (
+              <div className="mt-3 h-1.5 rounded-full bg-canvas overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            ) : null}
           </button>
+
+          <div className="hidden rounded-2xl border border-border-subtle bg-canvas/70 p-3 lg:block">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+              <CalendarCheck className="h-3.5 w-3.5" />
+              Today
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-text-muted">
+              Capture hours, proof, and application movement while it is still fresh.
+            </p>
+          </div>
 
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg text-sm font-semibold text-error bg-error/5 hover:bg-error/10 transition-colors cursor-pointer border border-error/10"
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl text-sm font-semibold text-error bg-error/5 hover:bg-error/10 transition-colors cursor-pointer border border-error/10"
           >
             <LogOut className="w-4 h-4" />
             <span>Sign Out</span>
@@ -307,7 +357,7 @@ const Layout = ({ children }: LayoutProps) => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="h-16 flex items-center justify-between px-6 shrink-0 z-20 bg-canvas border-b border-border">
+        <header className="app-topbar min-h-[72px] flex items-center justify-between gap-4 px-4 sm:px-6 shrink-0 z-20 bg-canvas/95 border-b border-border backdrop-blur">
           <div className="flex items-center gap-4 min-w-0">
             <button
               onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
@@ -317,17 +367,21 @@ const Layout = ({ children }: LayoutProps) => {
               {isMobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] leading-none mb-1">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] leading-none mb-1.5">
                 {pageTitle}
               </span>
-              <h2 className="text-lg font-semibold text-text tracking-tight flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-semibold text-text tracking-tight flex items-center gap-2">
                 {greeting}, {indicatorName}
               </h2>
+              <p className="hidden sm:block text-xs text-text-muted mt-1">
+                {pageSubtitle}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden md:inline text-xs font-medium text-text-muted">
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-text-muted">
+              <CalendarCheck className="w-3.5 h-3.5 text-primary" />
               {new Date().toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
@@ -338,8 +392,8 @@ const Layout = ({ children }: LayoutProps) => {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto bg-surface relative">
-          <div className="max-w-[1600px] mx-auto p-6 md:p-8">
+        <main className="app-main flex-1 overflow-y-auto bg-surface relative">
+          <div className="max-w-[1560px] mx-auto p-4 sm:p-6 md:p-8">
             {children}
           </div>
         </main>

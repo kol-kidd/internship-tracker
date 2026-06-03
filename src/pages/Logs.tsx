@@ -2169,25 +2169,27 @@ const LogsPage = () => {
         title="Journal"
         description="Document your internship work, track hours, reflect on progress, and prepare reports."
       />
-      <div className="flex min-h-screen bg-surface">
+      <div className="app-route-frame flex">
         {/* Sidebar */}
-        <aside className="hidden lg:block lg:w-72 lg:border-r lg:border-border lg:bg-canvas lg:shrink-0">
+        <aside className="hidden lg:block lg:w-72 app-sidebar-panel lg:shrink-0">
           <div className="sticky top-0 flex flex-col max-h-screen overflow-y-auto p-5">
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-1">
-                <BookOpen className="w-5 h-5 text-primary" />
-                <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-text-muted uppercase tracking-[0.16em]">
                   Journal
                 </span>
               </div>
-              <h1 className="text-lg font-bold text-text">
+              <h1 className="text-xl font-semibold tracking-tight text-text">
                 Internship Journal
               </h1>
             </div>
 
             <button
               onClick={() => openNewEntry()}
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors mb-4"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors mb-4 shadow-[0_12px_28px_rgb(11_115_217_/_0.18)]"
             >
               <Plus className="w-4 h-4" />
               New Entry
@@ -2228,7 +2230,7 @@ const LogsPage = () => {
               <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
                 View
               </p>
-              <div className="space-y-1 rounded-xl border border-border p-1">
+              <div className="app-segment space-y-1">
                 <button
                   onClick={() => setMainView("entries")}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -2265,7 +2267,7 @@ const LogsPage = () => {
               </div>
             </div>
 
-            <div className="space-y-3 mb-6 pb-6 border-b border-border">
+            <div className="app-soft-panel space-y-3 mb-6 p-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-text-muted">Scope entries</span>
                 <span className="font-semibold text-text">
@@ -2317,7 +2319,7 @@ const LogsPage = () => {
         {/* Main content */}
         <main className="flex-1 flex flex-col min-w-0">
           {/* Top bar: search + export (entries) or title (weekly/notes/gallery) */}
-          <div className="sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-6 py-4 bg-canvas border-b border-border">
+          <div className="app-page-titlebar sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-6 py-4">
             {mainView === "entries" ? (
               <>
                 <div className="flex-1 relative">
@@ -2327,7 +2329,7 @@ const LogsPage = () => {
                     placeholder="Search entries..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-surface text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-canvas text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   />
                   {searchQuery && (
                     <button
@@ -2373,9 +2375,9 @@ const LogsPage = () => {
           </div>
 
           {/* Mobile: view toggle + New Entry + filters (sidebar is hidden) */}
-          <div className="lg:hidden px-4 sm:px-6 py-3 border-b border-border bg-canvas space-y-3">
+          <div className="lg:hidden app-page-titlebar px-4 sm:px-6 py-3 space-y-3">
             <div className="flex items-center gap-2">
-              <div className="grid grid-cols-3 gap-1 rounded-lg border border-border p-0.5 flex-1">
+              <div className="app-segment grid grid-cols-3 gap-1 flex-1">
                 <button
                   onClick={() => setMainView("entries")}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -2463,7 +2465,7 @@ const LogsPage = () => {
               </div>
             )}
             {/* Mobile stats row */}
-            <div className="flex items-center justify-between text-xs text-text-muted bg-surface-alt/50 rounded-lg px-3 py-2">
+            <div className="app-soft-panel flex items-center justify-between text-xs text-text-muted px-3 py-2">
               <span>
                 <span className="font-semibold text-text">
                   {entries.length}
@@ -2775,7 +2777,7 @@ const LogsPage = () => {
               <>
                 {selectedJournalScope === UNASSIGNED_JOURNALS_SCOPE &&
                   bulkAssignableEntries.length > 0 && (
-                    <div className="mb-4 rounded-2xl border border-border bg-canvas p-4">
+                    <div className="app-callout mb-4 p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                           <p className="text-sm font-semibold text-text">
@@ -2841,7 +2843,7 @@ const LogsPage = () => {
                   )}
 
                 {filteredEntries.length === 0 ? (
-                  <div className="bg-canvas rounded-2xl border border-border p-12 text-center">
+                  <div className="app-empty-state p-12 text-center">
                     <div className="relative inline-block mb-6">
                       <div className="w-20 h-20 rounded-2xl bg-surface-alt flex items-center justify-center">
                         <BookOpen className="w-10 h-10 text-primary/40" />
@@ -2874,7 +2876,7 @@ const LogsPage = () => {
                       <div
                         key={entry.id}
                         onClick={() => setViewingEntry(entry)}
-                        className="group bg-canvas rounded-2xl border border-border p-5 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
+                        className="app-data-row group p-5 cursor-pointer"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1 min-w-0">
@@ -2975,7 +2977,7 @@ const LogsPage = () => {
 
             {mainView === "support" && (
               <div className="max-w-3xl mx-auto space-y-6">
-                <div className="bg-canvas rounded-2xl border border-border p-5">
+                <div className="app-panel p-5">
                   <label className="block text-sm font-medium text-text mb-2">
                     Capture note
                   </label>
@@ -3030,7 +3032,7 @@ const LogsPage = () => {
                 {notesLoading && notes.length === 0 ? (
                   <p className="text-text/60 text-sm">Loading notes...</p>
                 ) : notes.length === 0 ? (
-                  <div className="bg-canvas rounded-2xl border border-border p-10 text-center text-text/60 text-sm">
+                  <div className="app-empty-state p-10 text-center text-text/60 text-sm">
                     No notes yet. Add a quick note above, then select several
                     and merge them into a journal entry.
                   </div>
@@ -3039,7 +3041,7 @@ const LogsPage = () => {
                     {notes.map((note) => (
                       <li
                         key={note.id}
-                        className="bg-canvas rounded-xl border border-border p-4 flex items-start gap-3"
+                        className="app-data-row p-4 flex items-start gap-3"
                       >
                         <button
                           type="button"
@@ -3150,13 +3152,13 @@ const LogsPage = () => {
             {mainView === "support" && (
               <div className="max-w-4xl mx-auto space-y-6">
                 {scopedEntries.length === 0 ? (
-                  <div className="bg-canvas rounded-2xl border border-border p-10 text-center text-text/60 text-sm">
+                  <div className="app-empty-state p-10 text-center text-text/60 text-sm">
                     Create a journal entry for {journalScopeLabel}, then add
                     proof-of-work images and link them to that entry.
                   </div>
                 ) : (
                   <>
-                    <div className="bg-canvas rounded-2xl border border-border p-5">
+                    <div className="app-panel p-5">
                       <p className="text-sm font-medium text-text mb-3">
                         Add evidence
                       </p>
@@ -3228,7 +3230,7 @@ const LogsPage = () => {
                     {galleryLoading && scopedGalleryImages.length === 0 ? (
                       <p className="text-text/60 text-sm">Loading gallery...</p>
                     ) : scopedGalleryImages.length === 0 ? (
-                      <div className="bg-canvas rounded-2xl border border-border p-10 text-center text-text/60 text-sm">
+                      <div className="app-empty-state p-10 text-center text-text/60 text-sm">
                         No images yet. Upload a photo or screenshot as proof of
                         work for {journalScopeLabel}.
                       </div>
@@ -3237,7 +3239,7 @@ const LogsPage = () => {
                         {scopedGalleryImages.map((img) => (
                           <div
                             key={img.id}
-                            className="bg-canvas rounded-xl border border-border overflow-hidden group relative"
+                            className="app-data-row overflow-hidden group relative"
                           >
                             <a
                               href={img.image_url}
@@ -3283,7 +3285,7 @@ const LogsPage = () => {
             {mainView === "reports" && (
               <div className="max-w-6xl mx-auto space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="rounded-2xl border border-border bg-canvas p-5">
+                  <div className="app-metric-card p-5">
                     <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
                       Journal scope
                     </p>
@@ -3294,7 +3296,7 @@ const LogsPage = () => {
                       {scopedTotalHoursLogged.toFixed(1)}h logged
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-border bg-canvas p-5">
+                  <div className="app-metric-card p-5">
                     <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
                       Selected range
                     </p>
@@ -3306,7 +3308,7 @@ const LogsPage = () => {
                       {selectedRangeEvidenceCount} evidence
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-border bg-canvas p-5">
+                  <div className="app-metric-card p-5">
                     <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
                       Weekly
                     </p>
@@ -3320,7 +3322,7 @@ const LogsPage = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-6">
-                  <section className="rounded-2xl border border-border bg-canvas p-5 space-y-4">
+                  <section className="app-panel p-5 space-y-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-bold text-text">
@@ -3407,7 +3409,7 @@ const LogsPage = () => {
                   </section>
 
                   <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5">
+                    <div className="app-panel p-5 flex flex-col justify-between gap-5">
                       <div>
                         <h3 className="text-lg font-bold text-text">
                           Journal PDF
@@ -3437,7 +3439,7 @@ const LogsPage = () => {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5">
+                    <div className="app-panel p-5 flex flex-col justify-between gap-5">
                       <div>
                         <h3 className="text-lg font-bold text-text">
                           Internship Summary
@@ -3469,7 +3471,7 @@ const LogsPage = () => {
                       </button>
                     </div>
 
-                    <div className="rounded-2xl border border-border bg-canvas p-5 flex flex-col justify-between gap-5">
+                    <div className="app-panel p-5 flex flex-col justify-between gap-5">
                       <div>
                         <h3 className="text-lg font-bold text-text">
                           CTU Form 6
@@ -3491,7 +3493,7 @@ const LogsPage = () => {
                   </section>
                 </div>
 
-                <section className="rounded-2xl border border-border bg-canvas p-5">
+                <section className="app-panel p-5">
                   <div className="flex items-center justify-between gap-3 mb-4">
                     <h3 className="text-lg font-bold text-text">
                       Recent Exports

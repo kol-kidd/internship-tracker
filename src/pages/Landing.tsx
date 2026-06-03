@@ -5,10 +5,12 @@ import {
   Briefcase,
   Building2,
   CalendarDays,
+  CheckCircle2,
   ClipboardList,
   Clock3,
   FileCheck2,
   FileText,
+  FolderOpen,
   Globe,
   GraduationCap,
   LayoutGrid,
@@ -17,6 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import SEO from "@/components/SEO";
+import AppLogo from "@/components/AppLogo";
 import { useAuthStore } from "@/store/authStore";
 
 const mockApplications = [
@@ -38,29 +41,6 @@ const mockApplications = [
     status: "Applied",
     statusClass: "bg-primary/10 text-primary",
   },
-];
-
-const mockEntries = [
-  {
-    day: "Day 75",
-    date: "May 10",
-    hours: "12.5h",
-    note: "Fixed bugs on CourtHub and prepared report notes.",
-    tags: ["Development", "Teamwork"],
-  },
-];
-
-const mockStats = [
-  { label: "Applications", value: "12" },
-  { label: "Journal hours", value: "656h" },
-  { label: "Reports ready", value: "4" },
-];
-
-const reportActions = [
-  { label: "Journal PDF", meta: "75 entries" },
-  { label: "CTU Form 6", meta: "Coordinator" },
-  { label: "Weekly", meta: "May 6-10" },
-  { label: "Summary", meta: "Ready" },
 ];
 
 const workflowSteps = [
@@ -86,294 +66,321 @@ const workflowSteps = [
   },
 ];
 
-const ctuJournalFormats = [
-  {
-    school: "Cebu Technological University",
-    shortName: "CTU",
-    format: "CTU OJT Form 6 journal export",
-    details: [
-      "Daily activities and hours",
-      "Coordinator and supervisor printed names",
-      "Date-range report export",
-    ],
-  },
+const commandStats = [
+  { label: "Applications", value: "12" },
+  { label: "Journal hours", value: "656h" },
+  { label: "Evidence files", value: "18" },
+  { label: "Reports ready", value: "4" },
 ];
 
-const features = [
+const evidenceItems = [
+  { title: "Dashboard update", meta: "Linked to Day 75" },
+  { title: "QA screenshot", meta: "Linked to Week 12" },
+  { title: "Standup notes", meta: "Merged to journal" },
+];
+
+const reportActions = [
+  { label: "Journal PDF", meta: "75 entries" },
+  { label: "CTU Form 6", meta: "Coordinator" },
+  { label: "Weekly", meta: "May 6-10" },
+  { label: "Summary", meta: "Ready" },
+];
+
+const productReasons = [
   {
     title: "A calmer application board",
     description:
       "See every role by stage, then move accepted offers into internship tracking without losing context.",
-    icon: <LayoutGrid className="w-6 h-6" />,
-    color: "bg-primary/10",
-    textColor: "text-primary",
-    span: "lg:col-span-2",
+    icon: <LayoutGrid className="w-5 h-5" />,
   },
   {
     title: "Journal tools that stay quiet",
     description:
       "Improve entries, suggest tags, and draft summaries without turning the interface into a writing gimmick.",
-    icon: <BookOpen className="w-6 h-6" />,
-    color: "bg-info/10",
-    textColor: "text-info",
-    span: "lg:col-span-1",
+    icon: <BookOpen className="w-5 h-5" />,
   },
   {
     title: "Proof in the same workspace",
     description:
       "Notes and evidence sit beside your logs, so report preparation does not become a scavenger hunt.",
-    icon: <ClipboardList className="w-6 h-6" />,
-    color: "bg-success/10",
-    textColor: "text-success",
-    span: "lg:col-span-1",
+    icon: <ClipboardList className="w-5 h-5" />,
   },
   {
     title: "Exports built for actual requirements",
     description:
       "Journal PDFs, CTU Form 6, weekly ranges, and internship summaries all live in Reports.",
-    icon: <FileText className="w-6 h-6" />,
-    color: "bg-warning/10",
-    textColor: "text-warning",
-    span: "lg:col-span-2",
+    icon: <FileText className="w-5 h-5" />,
   },
 ];
 
-type ProductMockupProps = {
-  className?: string;
-};
+const trustPoints = [
+  {
+    title: "Fast enough for daily use",
+    description:
+      "Add roles, update status, and write logs without making a short school requirement feel like admin work.",
+    icon: <Clock3 className="w-5 h-5" />,
+  },
+  {
+    title: "Private by default",
+    description:
+      "Applications, supervisors, hours, notes, and evidence stay in your own account.",
+    icon: <ShieldCheck className="w-5 h-5" />,
+  },
+  {
+    title: "Ready wherever you work",
+    description:
+      "Keep the journal current across tabs and devices, then export from Reports when requirements come due.",
+    icon: <Globe className="w-5 h-5" />,
+  },
+];
 
-function HeroOutcomeCard() {
+function MiniStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="landing-reveal landing-delay-2 rounded-2xl border border-border bg-canvas p-4 sm:p-5 shadow-[0_22px_60px_rgba(23,32,51,0.12)]">
-      <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
-        <div>
-          <p className="text-xs font-bold uppercase text-primary">
-            Today's workspace
-          </p>
-          <h2 className="text-xl font-semibold">Day 75 is report-ready</h2>
-        </div>
-        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-          <FileCheck2 className="w-5 h-5" />
-        </div>
-      </div>
+    <div className="rounded-xl border border-border bg-canvas p-3">
+      <p className="text-[11px] font-medium text-text-muted">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-text">{value}</p>
+    </div>
+  );
+}
 
-      <div className="py-4 space-y-3">
-        <div className="hidden sm:block rounded-xl border border-border bg-surface p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-semibold">CourtHub journal entry</p>
-              <p className="text-sm text-text-muted">
-                12.5 hours logged with Development and Teamwork tags.
+function ApplicationRows() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-canvas">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-text">Applications</p>
+          <p className="truncate text-xs text-text-muted">Active search pipeline</p>
+        </div>
+        <Briefcase className="h-4 w-4 shrink-0 text-primary" />
+      </div>
+      <div className="divide-y divide-border">
+        {mockApplications.map((application) => (
+          <div
+            key={application.company}
+            className="flex items-center justify-between gap-3 px-4 py-3"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-text">
+                {application.company}
+              </p>
+              <p className="truncate text-xs text-text-muted">
+                {application.role}
               </p>
             </div>
-            <span className="shrink-0 rounded-md bg-success/10 px-2 py-1 text-xs font-semibold text-success">
-              Saved
+            <span
+              className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ${application.statusClass}`}
+            >
+              {application.status}
             </span>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-border bg-canvas p-4">
-            <p className="text-2xl font-bold">656h</p>
-            <p className="text-sm text-text-muted">hours documented</p>
-          </div>
-          <div className="rounded-xl border border-border bg-canvas p-4">
-            <p className="text-2xl font-bold">4</p>
-            <p className="text-sm text-text-muted">exports ready</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="hidden sm:block rounded-xl border border-border bg-text p-4 text-white">
-        <p className="text-sm font-semibold">Next best action</p>
-        <p className="text-sm text-white/65">
-          Review CTU Form 6 names before exporting from Reports.
-        </p>
+        ))}
       </div>
     </div>
   );
 }
 
-function ProductMockup({ className = "" }: ProductMockupProps) {
+function EvidenceStack() {
   return (
-    <div className={`landing-reveal landing-delay-2 min-w-0 ${className}`}>
-      <div className="product-mockup max-w-full rounded-2xl border border-border bg-canvas shadow-[0_24px_70px_rgba(23,32,51,0.14)] overflow-hidden">
-        <div className="h-10 border-b border-border bg-canvas flex items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-error/70" />
-            <span className="w-2.5 h-2.5 rounded-full bg-warning/70" />
-            <span className="w-2.5 h-2.5 rounded-full bg-success/70" />
-          </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1 text-xs text-text-muted">
-            internpal.app/journal
-          </div>
-          <div className="w-10 sm:w-16" />
+    <div className="rounded-xl border border-border bg-canvas p-4">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-text">Proof of work</p>
+          <p className="text-xs text-text-muted">Images, notes, and support</p>
         </div>
-
-        <div className="grid xl:grid-cols-[180px_1fr] bg-surface">
-          <aside className="hidden xl:flex flex-col border-r border-border bg-canvas p-4">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-primary text-white grid place-items-center text-xs font-bold">
-                IP
-              </div>
-              <div>
-                <p className="text-sm font-bold">InternPal</p>
-                <p className="text-[10px] uppercase text-text-muted">
-                  Student Workspace
-                </p>
-              </div>
+        <Upload className="h-4 w-4 text-primary" />
+      </div>
+      <div className="space-y-3">
+        {evidenceItems.map((item, index) => (
+          <div
+            key={item.title}
+            className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface p-3"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-canvas text-primary">
+              {index + 1}
             </div>
-            <div className="space-y-2 text-sm">
-              <div className="mockup-nav-row text-text-muted">
-                <PanelLeft className="w-4 h-4" />
-                Dashboard
-              </div>
-              <div className="mockup-nav-row text-text-muted">
-                <Briefcase className="w-4 h-4" />
-                Applications
-              </div>
-              <div className="mockup-nav-row bg-primary text-white">
-                <BookOpen className="w-4 h-4" />
-                Journal
-              </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-text">
+                {item.title}
+              </p>
+              <p className="truncate text-xs text-text-muted">{item.meta}</p>
             </div>
-          </aside>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-          <div className="min-w-0">
-            <div className="border-b border-border bg-canvas px-4 sm:px-6 py-4 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase text-primary">
-                  Journal
-                </p>
-                <h2 className="text-base sm:text-lg font-semibold">
-                  Good morning, kole
-                </h2>
-              </div>
-              <div className="hidden sm:block text-xs text-text-muted">
-                May 11, 2026
-              </div>
+function ReportsPanel() {
+  return (
+    <div className="rounded-xl border border-border bg-canvas p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-text">Reports</p>
+          <p className="text-xs text-text-muted">Export-ready journal files</p>
+        </div>
+        <FileText className="h-4 w-4 text-success" />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {reportActions.map((report) => (
+          <div
+            key={report.label}
+            className="rounded-lg border border-border bg-surface px-2 py-2 text-center"
+          >
+            <span className="block text-[11px] font-semibold text-text">
+              {report.label}
+            </span>
+            <span className="block text-[10px] text-text-muted">
+              {report.meta}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CommandCenterScene({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={compact ? "landing-command-center compact" : "landing-command-center"}>
+      <div className="landing-command-topbar">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-error/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-warning/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-success/70" />
+        </div>
+        <div className="hidden rounded-lg border border-border bg-surface px-3 py-1 text-xs text-text-muted sm:block">
+          internpal.app/workspace
+        </div>
+        <div className="w-12" />
+      </div>
+
+      <div className="grid min-h-0 lg:grid-cols-[180px_1fr]">
+        <aside className="hidden border-r border-border bg-canvas p-4 lg:block">
+          <div className="mb-6 flex items-center gap-2">
+            <AppLogo size={32} />
+            <div>
+              <p className="text-sm font-bold text-text">InternPal</p>
+              <p className="text-[10px] uppercase text-text-muted">
+                Student workspace
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="mockup-nav-row text-text-muted">
+              <PanelLeft className="h-4 w-4" />
+              Dashboard
+            </div>
+            <div className="mockup-nav-row text-text-muted">
+              <Briefcase className="h-4 w-4" />
+              Applications
+            </div>
+            <div className="mockup-nav-row bg-primary text-white">
+              <BookOpen className="h-4 w-4" />
+              Journal
+            </div>
+            <div className="mockup-nav-row text-text-muted">
+              <FolderOpen className="h-4 w-4" />
+              Reports
+            </div>
+          </div>
+        </aside>
+
+        <div className="min-w-0 bg-surface">
+          <div className="flex items-center justify-between gap-3 border-b border-border bg-canvas px-4 py-4 sm:px-6">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase text-primary">
+                Command center
+              </p>
+              <h2 className="truncate text-base font-semibold text-text sm:text-lg">
+                CourtHub internship, Day 75
+              </h2>
+            </div>
+            <span className="hidden rounded-lg bg-success/10 px-3 py-1.5 text-xs font-semibold text-success sm:inline-flex">
+              Report-ready
+            </span>
+          </div>
+
+          <div className="space-y-4 p-4 sm:p-5">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              {commandStats.map((stat) => (
+                <MiniStat key={stat.label} {...stat} />
+              ))}
             </div>
 
-            <div className="p-4 sm:p-5 space-y-4">
-              <div className="grid grid-cols-1 min-[440px]:grid-cols-3 gap-3">
-                {mockStats.map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="mockup-card rounded-xl border border-border bg-canvas p-3"
-                  >
-                    <p className="text-[11px] text-text-muted">{stat.label}</p>
-                    <p className="text-lg font-bold text-text">{stat.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid 2xl:grid-cols-[1.05fr_0.95fr] gap-4">
-                <div className="mockup-card rounded-xl border border-border bg-canvas overflow-hidden">
-                  <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">Applications</p>
-                      <p className="text-xs text-text-muted truncate">
-                        Active search pipeline
+            <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+              <ApplicationRows />
+              <div className="space-y-4">
+                <div className="rounded-xl border border-border bg-canvas p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-text">
+                        Journal entry
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        12.5h logged with evidence
                       </p>
                     </div>
-                    <button className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white">
-                      Add role
-                    </button>
+                    <CalendarDays className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="divide-y divide-border">
-                    {mockApplications.map((application) => (
-                      <div
-                        key={application.company}
-                        className="px-4 py-3 flex items-center justify-between gap-3"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold truncate">
-                            {application.company}
-                          </p>
-                          <p className="text-xs text-text-muted truncate">
-                            {application.role}
-                          </p>
-                        </div>
+                  <div className="rounded-lg border border-border-subtle bg-surface p-3">
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <p className="text-sm font-bold text-text">Day 75</p>
+                      <span className="text-right text-xs text-text-muted">
+                        May 10 - 12.5h
+                      </span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-text-muted">
+                      Fixed bugs on CourtHub and prepared report notes.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {["Development", "Teamwork"].map((tag) => (
                         <span
-                          className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ${application.statusClass}`}
+                          key={tag}
+                          className="rounded-md border border-border bg-canvas px-2 py-1 text-[10px] text-text-muted"
                         >
-                          {application.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="mockup-card rounded-xl border border-border bg-canvas p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <p className="text-sm font-semibold">Journal Entries</p>
-                        <p className="text-xs text-text-muted">
-                          Daily work and hours
-                        </p>
-                      </div>
-                      <CalendarDays className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="space-y-3">
-                      {mockEntries.map((entry) => (
-                        <div
-                          key={entry.day}
-                          className="rounded-lg border border-border-subtle bg-surface p-3"
-                        >
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <p className="text-sm font-bold">{entry.day}</p>
-                            <span className="text-xs text-text-muted text-right">
-                              {entry.date} - {entry.hours}
-                            </span>
-                          </div>
-                          <p className="text-xs text-text-muted leading-relaxed">
-                            {entry.note}
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {entry.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-md bg-canvas px-2 py-1 text-[10px] text-text-muted border border-border"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mockup-card rounded-xl border border-border bg-canvas p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <p className="text-sm font-semibold">Reports</p>
-                        <p className="text-xs text-text-muted">
-                          Export-ready journal files
-                        </p>
-                      </div>
-                      <FileText className="w-4 h-4 text-success" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {reportActions.map((report) => (
-                        <span
-                          key={report.label}
-                          className="rounded-lg border border-border bg-surface px-2 py-2 text-center"
-                        >
-                          <span className="block text-[11px] font-semibold">
-                            {report.label}
-                          </span>
-                          <span className="block text-[10px] text-text-muted">
-                            {report.meta}
-                          </span>
+                          {tag}
                         </span>
                       ))}
                     </div>
                   </div>
                 </div>
+                {!compact && <EvidenceStack />}
               </div>
             </div>
+
+            {!compact && <ReportsPanel />}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroWorkspaceScene() {
+  return (
+    <div className="landing-hero-scene" aria-hidden>
+      <div className="landing-scene-frame">
+        <CommandCenterScene compact />
+      </div>
+      <div className="landing-scene-support landing-scene-support-a">
+        <p className="text-xs font-semibold text-text-muted">Hours left</p>
+        <p className="mt-1 text-2xl font-bold text-text">46h</p>
+        <div className="mt-3 h-2 rounded-full bg-surface">
+          <div className="h-full w-[82%] rounded-full bg-primary" />
+        </div>
+      </div>
+      <div className="landing-scene-support landing-scene-support-b">
+        <CheckCircle2 className="h-5 w-5 text-success" />
+        <div>
+          <p className="text-sm font-semibold text-text">CTU Form 6</p>
+          <p className="text-xs text-text-muted">Ready to export</p>
         </div>
       </div>
     </div>
@@ -384,118 +391,197 @@ function WorkflowSection() {
   return (
     <section
       id="workspace-feature"
-      className="scroll-mt-20 px-4 sm:px-6 py-16 md:py-20 bg-canvas border-b border-border"
+      className="scroll-mt-20 border-b border-border bg-canvas px-4 py-16 sm:px-6 md:py-20"
     >
-      <div className="max-w-7xl mx-auto grid xl:grid-cols-[0.8fr_1.2fr] gap-10 xl:gap-12 items-start">
+      <div className="mx-auto grid max-w-7xl gap-12 xl:grid-cols-[0.78fr_1.22fr] xl:items-start">
         <div className="landing-reveal min-w-0">
-          <p className="text-sm font-bold uppercase text-primary mb-3">
-            Built around the internship cycle
-          </p>
-          <h2 className="text-3xl md:text-5xl font-bold mb-5 leading-tight">
-            From first application to final report, InternPal keeps the thread.
+          <h2 className="text-3xl font-semibold leading-tight text-text md:text-5xl">
+            From first application to final report, the work stays connected.
           </h2>
-          <p className="text-text-muted text-base sm:text-lg leading-relaxed">
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-text-muted sm:text-lg">
             Students do not need separate places for applications, logs,
-            evidence, weekly summaries, and school forms. InternPal keeps them
-            connected in one workspace.
+            evidence, weekly summaries, and school forms. InternPal keeps those
+            pieces in one workspace.
           </p>
-
-          <div className="mt-8 space-y-3">
-            {workflowSteps.map((step, index) => (
-              <div
-                key={step.title}
-                className="rounded-xl border border-border bg-surface p-4 hover:-translate-y-0.5 hover:border-primary/25 transition-all duration-200"
-              >
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    {step.icon}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-bold text-text-subtle">
-                        0{index + 1}
-                      </span>
-                      <h3 className="font-semibold text-text">
-                        {step.title}
-                      </h3>
-                    </div>
-                    <p className="text-sm leading-relaxed text-text-muted">
-                      {step.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
-        <ProductMockup className="xl:mt-2" />
+        <div className="landing-reveal grid gap-4 md:grid-cols-2">
+          {workflowSteps.map((step, index) => (
+            <div
+              key={step.title}
+              className="landing-step-row group border-t border-border pt-5"
+            >
+              <div className="mb-5 flex items-center justify-between">
+                <span className="text-xs font-bold text-text-subtle">
+                  0{index + 1}
+                </span>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  {step.icon}
+                </div>
+              </div>
+              <h3 className="text-lg font-semibold text-text">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-text-muted">
+                {step.description}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-function CTUJournalFormatSection() {
+function ProductSceneSection() {
+  return (
+    <section className="border-b border-border bg-surface px-4 py-16 sm:px-6 md:py-20">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-10 grid gap-6 md:grid-cols-[1fr_0.62fr] md:items-end">
+          <div className="landing-reveal">
+            <h2 className="text-3xl font-semibold leading-tight text-text md:text-5xl">
+              One command center for search, logs, proof, and reports.
+            </h2>
+          </div>
+          <p className="landing-reveal text-base leading-relaxed text-text-muted">
+            The product scene is not decorative. It mirrors the actual rhythm of
+            internship work: accept the role, document the day, attach proof,
+            then export the required forms.
+          </p>
+        </div>
+        <CommandCenterScene />
+      </div>
+    </section>
+  );
+}
+
+function ReportSupportSection() {
   return (
     <section
       id="ctu-journal-format"
-      className="scroll-mt-20 py-16 px-4 sm:px-6 bg-surface/60 border-b border-border"
+      className="scroll-mt-20 border-b border-border bg-canvas px-4 py-16 sm:px-6 md:py-20"
     >
-      <div className="max-w-7xl mx-auto grid lg:grid-cols-[0.75fr_1.25fr] gap-8 lg:gap-12 items-start">
+      <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
         <div className="landing-reveal">
-          <p className="text-sm font-bold uppercase text-primary mb-3">
-            Supported CTU journal format
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">
-            Built for Cebu Technological University OJT journals.
+          <h2 className="text-3xl font-semibold leading-tight text-text md:text-5xl">
+            CTU journal requirements stay visible before export day.
           </h2>
-          <p className="text-text-muted text-base sm:text-lg leading-relaxed">
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-text-muted sm:text-lg">
             InternPal prepares the CTU journal export around OJT Form 6
             requirements, including daily activities, hours, coordinator name,
             supervisor name, and date ranges.
           </p>
+          <div className="mt-7 inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-3 text-sm font-semibold text-text">
+            <CheckCircle2 className="h-4 w-4 text-success" />
+            Report requirements visible before export
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
-          {ctuJournalFormats.map((format) => (
-            <div
-              key={format.shortName}
-              className="landing-reveal rounded-2xl border border-border bg-canvas p-5 shadow-sm"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:justify-between border-b border-border pb-5">
-                <div className="flex gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <GraduationCap className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold uppercase text-primary">
-                      {format.shortName}
-                    </p>
-                    <h3 className="text-xl font-semibold">{format.school}</h3>
-                    <p className="text-sm text-text-muted">{format.format}</p>
-                  </div>
+        <div className="landing-reveal rounded-2xl border border-border bg-surface p-4 sm:p-5">
+          <div className="rounded-xl border border-border bg-canvas p-5">
+            <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <GraduationCap className="h-6 w-6" />
                 </div>
-                <span className="inline-flex w-fit items-center gap-2 rounded-lg border border-success/20 bg-success/10 px-3 py-2 text-sm font-semibold text-success">
-                  <FileCheck2 className="w-4 h-4" />
-                  Supported
+                <div>
+                  <p className="text-sm font-bold uppercase text-primary">
+                    CTU
+                  </p>
+                  <h3 className="text-xl font-semibold text-text">
+                    Cebu Technological University
+                  </h3>
+                  <p className="text-sm text-text-muted">
+                    OJT Form 6 journal export
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex w-fit items-center gap-2 rounded-lg border border-success/20 bg-success/10 px-3 py-2 text-sm font-semibold text-success">
+                <FileCheck2 className="h-4 w-4" />
+                Supported
+              </span>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                "Daily activities and hours",
+                "Coordinator and supervisor names",
+                "Date-range report export",
+              ].map((detail) => (
+                <div
+                  key={detail}
+                  className="rounded-xl border border-border bg-surface p-4"
+                >
+                  <Building2 className="mb-3 h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold leading-relaxed text-text">
+                    {detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProductReasonsSection() {
+  return (
+    <section className="bg-canvas px-4 py-16 sm:px-6 md:py-20">
+      <div className="mx-auto max-w-7xl">
+        <div className="landing-reveal mb-12 max-w-3xl">
+          <h2 className="text-3xl font-semibold leading-tight text-text md:text-5xl">
+            The repeated work is closer to the surface.
+          </h2>
+          <p className="mt-5 text-base leading-relaxed text-text-muted sm:text-lg">
+            InternPal is shaped around searching, logging, proving, and
+            exporting - the things students actually repeat.
+          </p>
+        </div>
+
+        <div className="divide-y divide-border border-y border-border">
+          {productReasons.map((reason) => (
+            <div
+              key={reason.title}
+              className="landing-reveal grid gap-5 py-6 md:grid-cols-[220px_1fr] md:items-start"
+            >
+              <div className="flex items-center gap-3 text-primary">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  {reason.icon}
+                </div>
+                <span className="text-sm font-semibold text-text">
+                  {reason.title}
                 </span>
               </div>
+              <p className="max-w-3xl text-base leading-relaxed text-text-muted">
+                {reason.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-5">
-                {format.details.map((detail) => (
-                  <div
-                    key={detail}
-                    className="rounded-xl border border-border bg-surface p-4"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-3">
-                      <Building2 className="w-4 h-4" />
-                    </div>
-                    <p className="text-sm font-semibold leading-relaxed">
-                      {detail}
-                    </p>
-                  </div>
-                ))}
+function TrustSection() {
+  return (
+    <section className="border-y border-border bg-surface px-4 py-16 sm:px-6 md:py-20">
+      <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[0.7fr_1.3fr] md:items-start">
+        <div className="landing-reveal">
+          <h2 className="text-3xl font-semibold leading-tight text-text md:text-4xl">
+            Built to feel useful every day, not impressive once.
+          </h2>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          {trustPoints.map((point) => (
+            <div key={point.title} className="landing-reveal">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-canvas text-primary shadow-sm">
+                {point.icon}
               </div>
+              <h3 className="text-lg font-semibold text-text">{point.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-text-muted">
+                {point.description}
+              </p>
             </div>
           ))}
         </div>
@@ -508,22 +594,28 @@ export default function Landing() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
+  const primaryRoute = user ? "/dashboard" : "/register";
+  const primaryLabel = user ? "Go to Dashboard" : "Start tracking now";
+
   return (
-    <div className="min-h-screen bg-canvas text-text overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden bg-canvas text-text">
       <SEO title="Welcome" />
 
-      <nav className="fixed top-0 w-full z-50 glass border-b border-border/50 h-16 flex items-center px-4 sm:px-6 md:px-12 justify-between landing-reveal">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xs">IP</span>
-          </div>
-          <span className="font-bold text-lg">InternPal</span>
-        </div>
+      <nav className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-border/60 bg-canvas/95 px-4 shadow-sm backdrop-blur sm:px-6 md:px-12">
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="flex items-center gap-3 text-left"
+        >
+          <AppLogo size={34} />
+          <span className="text-lg font-bold text-text">InternPal</span>
+        </button>
+
         <div className="flex items-center gap-3 sm:gap-6">
           {user ? (
             <button
               onClick={() => navigate("/dashboard")}
-              className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
+              className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
             >
               Go to Dashboard
             </button>
@@ -531,13 +623,13 @@ export default function Landing() {
             <>
               <button
                 onClick={() => navigate("/login")}
-                className="text-sm font-semibold text-text-muted hover:text-text transition-colors"
+                className="text-sm font-semibold text-text-muted transition-colors hover:text-text"
               >
                 Log In
               </button>
               <button
                 onClick={() => navigate("/register")}
-                className="px-4 sm:px-5 py-2 rounded-lg bg-text text-white text-sm font-semibold hover:opacity-90 transition-colors"
+                className="rounded-lg bg-text px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:opacity-90 sm:px-5"
               >
                 Sign Up
               </button>
@@ -546,27 +638,24 @@ export default function Landing() {
         </div>
       </nav>
 
-      <section className="landing-hero-surface relative pt-20 pb-8 sm:pt-24 sm:pb-10 md:pt-28 md:pb-14 px-4 sm:px-6 border-b border-border bg-surface overflow-hidden">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-[0.9fr_1.1fr] gap-10 xl:gap-14 items-center relative z-10">
-          <div className="landing-reveal landing-delay-1">
-            <p className="text-sm font-bold uppercase text-primary mb-4">
-              Internship tracker for students
-            </p>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold mb-5 leading-tight max-w-3xl">
-              Turn internship chaos into a clean daily record.
+      <section className="landing-hero-stage relative min-h-[92svh] overflow-hidden border-b border-border bg-surface px-4 pt-28 sm:px-6 md:pt-32">
+        <HeroWorkspaceScene />
+        <div className="relative z-10 mx-auto flex min-h-[calc(92svh-8rem)] max-w-7xl flex-col justify-center pb-32">
+          <div className="landing-reveal landing-delay-1 max-w-2xl">
+            <h1 className="text-5xl font-semibold leading-none tracking-normal text-text sm:text-6xl md:text-7xl">
+              InternPal
             </h1>
-            <p className="text-base md:text-lg text-text-muted max-w-2xl mb-7 leading-relaxed">
-              InternPal keeps applications, journal logs, evidence, and school
-              reports together, so the work you do every day is already ready
-              when someone asks for it.
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-text-muted md:text-xl">
+              A clean internship workspace for applications, journal logs,
+              proof of work, and school-ready reports.
             </p>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
               <button
-                onClick={() => navigate(user ? "/dashboard" : "/register")}
-                className="px-8 py-4 rounded-lg bg-primary text-white text-base font-semibold hover:bg-primary-hover transition-colors flex items-center justify-center gap-3 group"
+                onClick={() => navigate(primaryRoute)}
+                className="group flex items-center justify-center gap-3 rounded-lg bg-primary px-7 py-4 text-base font-semibold text-white transition-colors hover:bg-primary-hover"
               >
-                {user ? "Go to Dashboard" : "Start tracking now"}
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                {primaryLabel}
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </button>
               <button
                 onClick={() =>
@@ -574,126 +663,64 @@ export default function Landing() {
                     .getElementById("workspace-feature")
                     ?.scrollIntoView({ behavior: "smooth" })
                 }
-                className="hidden sm:flex px-8 py-4 rounded-lg border border-border bg-canvas text-text text-base font-semibold hover:border-primary/30 transition-colors"
+                className="hidden rounded-lg border border-border bg-canvas px-7 py-4 text-base font-semibold text-text transition-colors hover:border-primary/30 sm:flex"
               >
                 See the workflow
               </button>
             </div>
           </div>
+        </div>
 
-          <HeroOutcomeCard />
+        <div className="landing-next-preview">
+          <div className="mx-auto grid max-w-7xl gap-3 px-4 py-4 sm:grid-cols-4 sm:px-6">
+            {workflowSteps.map((step) => (
+              <div key={step.title} className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  {step.icon}
+                </div>
+                <span className="text-sm font-semibold text-text">
+                  {step.title}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       <WorkflowSection />
+      <ProductSceneSection />
+      <ReportSupportSection />
+      <ProductReasonsSection />
+      <TrustSection />
 
-      <CTUJournalFormatSection />
-
-      <section className="py-20 px-4 sm:px-6 max-w-7xl mx-auto">
-        <div className="mb-12 landing-reveal">
-          <p className="text-sm font-bold uppercase text-primary mb-3">
-            Why it feels useful
-          </p>
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            The parts students actually repeat are one click away.
-          </h2>
-          <p className="text-text-muted font-medium text-lg max-w-3xl">
-            InternPal is not a landing-page checklist. It is shaped around the
-            repeated work of searching, logging, proving, and exporting.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
-            <div
-              key={feature.title}
-              className={`${feature.span} landing-reveal group rounded-xl bg-canvas border border-border p-6 overflow-hidden hover:border-primary/20 hover:-translate-y-1 transition-all duration-200`}
-              style={{ animationDelay: `${120 + index * 70}ms` }}
-            >
-              <div
-                className={`w-10 h-10 rounded-lg ${feature.color} ${feature.textColor} flex items-center justify-center mb-5`}
-              >
-                {feature.icon}
-              </div>
-              <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-              <p className="text-text-muted leading-relaxed max-w-xl">
-                {feature.description}
-              </p>
-            </div>
-          ))}
+      <section className="bg-text px-4 py-20 text-canvas sm:px-6 md:py-24">
+        <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1fr_auto] md:items-end">
+          <div>
+            <h2 className="max-w-3xl text-3xl font-semibold leading-tight md:text-5xl">
+              Keep today's work ready for tomorrow's report.
+            </h2>
+            <p className="mt-5 max-w-2xl text-base font-medium leading-relaxed text-canvas/70 md:text-lg">
+              Create your workspace, add your first role, and let the journal
+              grow into the report you will eventually need.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate(primaryRoute)}
+            className="rounded-lg bg-primary px-8 py-4 text-base font-semibold text-white transition-colors hover:bg-primary-hover"
+          >
+            {user ? "Go to Dashboard" : "Create workspace"}
+          </button>
         </div>
       </section>
 
-      <section className="py-20 px-4 sm:px-6 bg-surface/60 border-y border-border/50">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="rounded-xl border border-border bg-canvas p-6">
-            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-5">
-              <Clock3 size={24} strokeWidth={2.25} />
-            </div>
-            <h4 className="text-xl font-bold mb-3">Fast enough for daily use</h4>
-            <p className="text-text-muted font-medium leading-relaxed">
-              Add roles, move cards, and update logs without turning a quick
-              journal entry into a long admin session.
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-canvas p-6">
-            <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center text-success mb-5">
-              <ShieldCheck size={24} strokeWidth={2.25} />
-            </div>
-            <h4 className="text-xl font-bold mb-3">Private by default</h4>
-            <p className="text-text-muted font-medium leading-relaxed">
-              Your applications, supervisors, hours, notes, and evidence stay in
-              your own account.
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-canvas p-6">
-            <div className="w-12 h-12 bg-info/10 rounded-xl flex items-center justify-center text-info mb-5">
-              <Globe size={24} strokeWidth={2.25} />
-            </div>
-            <h4 className="text-xl font-bold mb-3">Ready wherever you work</h4>
-            <p className="text-text-muted font-medium leading-relaxed">
-              Keep the journal current across tabs and devices, then export from
-              Reports when requirements come due.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto rounded-2xl bg-text p-8 sm:p-12 md:p-16 text-white shadow-sm">
-          <div className="grid md:grid-cols-[1fr_auto] gap-8 md:items-end">
-            <div>
-              <p className="text-sm font-bold uppercase text-white/50 mb-4">
-                Start with one entry
-              </p>
-              <h2 className="text-3xl md:text-5xl font-semibold mb-5 leading-tight">
-                Keep today's work ready for tomorrow's report.
-              </h2>
-              <p className="text-white/65 text-base md:text-lg font-medium max-w-2xl">
-                Create your workspace, add your first role, and let the journal
-                grow into the report you will eventually need.
-              </p>
-            </div>
-            <button
-              onClick={() => navigate(user ? "/dashboard" : "/register")}
-              className="px-8 py-4 rounded-lg bg-primary text-white text-base font-semibold hover:bg-primary-hover transition-colors"
-            >
-              {user ? "Go to Dashboard" : "Create workspace"}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <footer className="py-12 px-4 sm:px-6 border-t border-border/50 max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+      <footer className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-8 border-t border-border/50 px-4 py-12 sm:px-6 md:flex-row">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-            <span className="text-white font-bold text-xs uppercase">IP</span>
-          </div>
-          <span className="font-bold text-sm">
+          <AppLogo size={32} />
+          <span className="text-sm font-bold">
             Copyright 2026 InternPal. All rights reserved.
           </span>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-bold text-text-muted hover:text-text transition-colors cursor-pointer">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-bold text-text-muted">
           <span>Privacy Policy</span>
           <span>Terms of Service</span>
           <span>Support</span>

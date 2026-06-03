@@ -208,128 +208,142 @@ export default function Dashboard() {
         description="View your internship progress, applications, and journal activity."
       />
       <div className="space-y-6">
-        <section className="bg-canvas border border-border rounded-2xl p-6 shadow-sm">
-          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">
+        <section className="app-hero-panel overflow-hidden p-5 sm:p-6 lg:p-8">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-stretch">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-primary">
                 <CalendarCheck className="w-4 h-4" />
                 Today's Internship Focus
               </div>
-              <h1 className="text-2xl sm:text-3xl font-semibold text-text tracking-tight">
-                {completed ? "Your required hours are complete." : "Log today and keep your hours moving."}
-              </h1>
-              <p className="text-sm text-text-muted mt-2 max-w-2xl">
+              <h1 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-text sm:text-3xl lg:text-4xl">
                 {completed
-                  ? `Completed on ${formatLogDate(profile?.hours_completed_at)}. Your certificate is ready.`
-                  : `${hoursRemaining.toFixed(1)} hours left before your certificate unlocks.`}
+                  ? "Your required hours are complete."
+                  : hasTodayLog
+                    ? "Today's log is started. Finish it with proof while it is fresh."
+                    : "Log today, track the search, and keep your certificate moving."}
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted">
+                {completed
+                  ? `Completed on ${formatLogDate(profile?.hours_completed_at)}. Your certificate is ready for download.`
+                  : `${hoursRemaining.toFixed(1)} hours left before your certificate unlocks. Keep applications, journal entries, and evidence moving from one workspace.`}
               </p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={handlePrimaryProgressAction}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgb(11_115_217_/_0.2)] transition-colors hover:bg-primary-hover"
+                >
+                  {completed ? <Award className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  {completed ? "View Certificate" : "Log today's hours"}
+                </button>
+                <button
+                  onClick={() => setOpen(true)}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-5 py-3 text-sm font-semibold text-text transition-colors hover:bg-surface"
+                >
+                  <Briefcase className="w-4 h-4" />
+                  Add Application
+                </button>
+              </div>
+
+              <div className="mt-8 max-w-3xl">
+                <div className="mb-2 flex items-end justify-between gap-4">
+                  <p className="text-3xl font-bold tracking-tight text-text">
+                    {totalHoursLogged.toFixed(1)}
+                    <span className="text-base font-medium text-text-muted">
+                      {" "}
+                      / {requiredHours} hrs
+                    </span>
+                  </p>
+                  <p className="text-sm font-bold text-primary">
+                    {progressPercent.toFixed(0)}%
+                  </p>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-canvas shadow-inner">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
-              <button
-                onClick={handlePrimaryProgressAction}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
-              >
-                {completed ? <Award className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                {completed ? "View Certificate" : "Log today's hours"}
-              </button>
-              <button
-                onClick={() => setOpen(true)}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-border text-text text-sm font-semibold hover:bg-surface transition-colors"
-              >
-                <Briefcase className="w-4 h-4" />
-                Add Application
-              </button>
-            </div>
-          </div>
+            <aside className="rounded-2xl border border-border bg-canvas/80 p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
+                    Progress Snapshot
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold tracking-tight text-text">
+                    Reports-ready details
+                  </h2>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <FileEdit className="h-5 w-5" />
+                </div>
+              </div>
 
-          <div className="mt-6">
-            <div className="flex items-end justify-between mb-2">
-              <p className="text-3xl font-bold text-text">
-                {totalHoursLogged.toFixed(1)}
-                <span className="text-base font-medium text-text-muted">
-                  {" "}
-                  / {requiredHours} hrs
-                </span>
-              </p>
-              <p className="text-sm font-semibold text-primary">
-                {progressPercent.toFixed(0)}%
-              </p>
-            </div>
-            <div className="h-3 rounded-full bg-surface overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-            <div className="rounded-xl border border-border bg-surface p-4">
-              <p className="text-xs font-medium text-text-muted mb-1">
-                Latest valid log
-              </p>
-              <p className="text-sm font-semibold text-text">
-                {formatLogDate(latestLogDate)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border bg-surface p-4">
-              <p className="text-xs font-medium text-text-muted mb-1">
-                Today
-              </p>
-              <p className="text-sm font-semibold text-text flex items-center gap-1.5">
-                {hasTodayLog ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-success" />
-                    Log started
-                  </>
-                ) : (
-                  <>
-                    <Clock className="w-4 h-4 text-primary" />
-                    No dated log yet
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border bg-surface p-4">
-              <p className="text-xs font-medium text-text-muted mb-1">
-                Incomplete logs
-              </p>
-              <p className="text-sm font-semibold text-text flex items-center gap-1.5">
-                {incompleteLogCount > 0 ? (
-                  <>
-                    <AlertTriangle className="w-4 h-4 text-warning" />
-                    {incompleteLogCount} need time
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-success" />
-                    All timed
-                  </>
-                )}
-              </p>
-            </div>
+              <div className="mt-5 divide-y divide-border-subtle">
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <span className="text-sm text-text-muted">Latest valid log</span>
+                  <span className="text-sm font-semibold text-text">
+                    {formatLogDate(latestLogDate)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <span className="text-sm text-text-muted">Today</span>
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-text">
+                    {hasTodayLog ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                        Started
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="h-4 w-4 text-primary" />
+                        Ready
+                      </>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <span className="text-sm text-text-muted">Incomplete logs</span>
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-text">
+                    {incompleteLogCount > 0 ? (
+                      <>
+                        <AlertTriangle className="h-4 w-4 text-warning" />
+                        {incompleteLogCount} need time
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                        All timed
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </aside>
           </div>
         </section>
 
         {setupIncomplete && (
-          <section className="bg-canvas border border-primary/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <section className="app-callout flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <UserRound className="w-4 h-4" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-text">
                   Complete your academic profile
                 </p>
-                <p className="text-xs text-text-muted mt-1">
+                <p className="mt-1 text-xs leading-5 text-text-muted">
                   Add your school and course so certificates and leaderboards use the right details.
                 </p>
               </div>
             </div>
             <button
               onClick={() => navigate("/profile")}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
             >
               Complete Profile
               <ArrowRight className="w-4 h-4" />
@@ -337,85 +351,84 @@ export default function Dashboard() {
           </section>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="p-5 rounded-xl bg-canvas border border-border hover:border-primary/20 transition-colors"
-            >
-              <div
-                className={`w-10 h-10 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center mb-4`}
-              >
-                <stat.icon size={24} strokeWidth={2.5} />
+            <div key={stat.label} className="app-metric-card p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-text-muted">
+                    {stat.label}
+                  </p>
+                  <h3 className="mt-2 text-3xl font-semibold tracking-tight text-text">
+                    {loading ? "..." : stat.value}
+                  </h3>
+                </div>
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.bg} ${stat.color}`}
+                >
+                  <stat.icon size={22} strokeWidth={2.5} />
+                </div>
               </div>
-              <p className="text-sm font-medium text-text-muted mb-1">
-                {stat.label}
+              <p className="mt-4 border-t border-border-subtle pt-3 text-xs font-medium text-text-muted">
+                {stat.description}
               </p>
-              <div className="flex items-end gap-2">
-                <h3 className="text-2xl font-semibold text-text tracking-tight">
-                  {loading ? "..." : stat.value}
-                </h3>
-                <span className="text-xs font-medium text-text-muted mb-1">
-                  {stat.description}
-                </span>
-              </div>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <section className="lg:col-span-2 rounded-2xl bg-canvas border border-border/50 flex flex-col overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-border/50 flex items-center justify-between">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <section className="app-panel flex flex-col overflow-hidden lg:col-span-2">
+            <div className="flex items-center justify-between gap-4 border-b border-border-subtle p-5 sm:p-6">
               <div>
-                <h2 className="text-xl font-semibold text-text tracking-tight">
+                <h2 className="text-xl font-semibold tracking-tight text-text">
                   Recent Applications
                 </h2>
-                <p className="text-sm font-medium text-text-muted">
-                  Latest activity from your search
+                <p className="mt-1 text-sm font-medium text-text-muted">
+                  Latest movement from your internship search
                 </p>
               </div>
               <button
                 onClick={() => navigate("/applications")}
-                className="p-2 w-10 h-10 flex items-center justify-center rounded-xl hover:bg-black/5 text-text-muted hover:text-text transition-colors"
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-text-muted transition-colors hover:bg-surface hover:text-text"
                 title="View all applications"
               >
                 <ArrowRight size={20} />
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {loading ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-surface rounded-2xl" />
+                    <div key={i} className="h-16 rounded-xl bg-surface" />
                   ))}
                 </div>
               ) : applications.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {recentApplicationsSorted.map((app) => {
                     const statusData = getStatusConfig(app.status);
                     return (
                       <button
                         key={app.id}
                         onClick={() => navigate("/applications")}
-                        className="group flex items-center justify-between p-4 rounded-xl hover:bg-surface transition-colors cursor-pointer border border-transparent hover:border-border/50 w-full text-left"
+                        className="group flex w-full items-center justify-between gap-4 rounded-xl border border-border-subtle bg-surface/70 p-4 text-left transition-colors hover:border-primary/20 hover:bg-canvas"
                       >
-                        <div className="flex items-center gap-4 min-w-0">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                            <Building2 size={24} />
+                        <div className="flex min-w-0 items-center gap-4">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <Building2 size={22} />
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-text leading-tight group-hover:text-primary transition-colors truncate">
+                            <p className="truncate font-semibold leading-tight text-text transition-colors group-hover:text-primary">
                               {app.company_name}
                             </p>
-                            <p className="text-xs font-medium text-text-muted tracking-wide truncate">
+                            <p className="mt-1 truncate text-xs font-medium tracking-wide text-text-muted">
                               {app.position || "Developer"} -{" "}
                               {dayjs(app.date_applied).format("MMM DD, YYYY")}
                             </p>
                           </div>
                         </div>
                         <span
-                          className="px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider shrink-0"
+                          className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider"
                           style={{
                             backgroundColor: statusData.color.bg,
                             color: statusData.color.text,
@@ -429,14 +442,16 @@ export default function Dashboard() {
                   })}
                 </div>
               ) : (
-                <div className="py-12 flex flex-col items-center justify-center text-center">
-                  <Briefcase size={48} className="mb-4 text-text-muted" />
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Briefcase size={28} />
+                  </div>
                   <p className="text-sm font-bold uppercase tracking-widest text-text-muted">
                     No applications found
                   </p>
                   <button
                     onClick={() => setOpen(true)}
-                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
                   >
                     <Plus className="w-4 h-4" />
                     Add Application
@@ -448,48 +463,50 @@ export default function Dashboard() {
 
           <section
             onClick={() => navigate("/logs")}
-            className="rounded-2xl bg-canvas border border-border/50 p-6 text-text cursor-pointer group shadow-sm"
+            className="app-accent-panel group cursor-pointer p-6 text-text"
           >
-            <div className="h-full flex flex-col justify-between">
+            <div className="flex h-full flex-col justify-between">
               <div>
-                <div className="flex items-center gap-2 mb-6">
-                  <FileEdit size={20} className="text-primary" />
-                  <span className="text-xs font-semibold text-primary">
-                    Journal tools
+                <div className="mb-6 flex items-center gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <FileEdit size={20} />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
+                    Journal Tools
                   </span>
                 </div>
-                <h2 className="text-xl font-semibold tracking-tight mb-4">
-                  Clean up entries faster.
+                <h2 className="mb-3 text-xl font-semibold tracking-tight">
+                  Turn daily work into clean proof.
                 </h2>
-                <p className="text-sm text-text-muted leading-relaxed max-w-[260px]">
-                  Improve wording, suggest tags, and prepare summaries from your logs.
+                <p className="max-w-[280px] text-sm leading-6 text-text-muted">
+                  Review hours, tighten entries, and keep evidence ready for reports.
                 </p>
               </div>
 
-              <div className="mt-8 space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-surface">
-                  <span className="text-xs font-medium text-text-muted">
+              <div className="mt-8 divide-y divide-border-subtle">
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <span className="text-sm font-medium text-text-muted">
                     Entries
                   </span>
                   <span className="text-lg font-semibold text-text">
                     {entries.length}
                   </span>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-surface">
-                  <span className="text-xs font-medium text-text-muted">
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <span className="text-sm font-medium text-text-muted">
                     Logged Time
                   </span>
                   <span className="text-lg font-semibold text-text">
                     {fallbackTotalHours.toFixed(1)}h
                   </span>
                 </div>
-                <div className="flex items-center justify-between pt-3">
-                  <span className="text-xs font-medium text-text-muted">
-                    Review before saving
+                <div className="flex items-center justify-between gap-4 pt-4">
+                  <span className="text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
+                    Open Journal
                   </span>
                   <ArrowRight
                     size={20}
-                    className="group-hover:translate-x-2 transition-transform"
+                    className="transition-transform group-hover:translate-x-1.5"
                   />
                 </div>
               </div>

@@ -85,7 +85,7 @@ function LeaderboardSummaryCard({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <div className="bg-canvas border border-border rounded-xl p-4">
+      <div className="app-metric-card p-4">
         <p className="text-xs font-medium text-text-muted mb-1">Your rank</p>
         <p className="text-xl font-bold text-text">
           #{summary.rank}
@@ -95,13 +95,13 @@ function LeaderboardSummaryCard({
           </span>
         </p>
       </div>
-      <div className="bg-canvas border border-border rounded-xl p-4">
+      <div className="app-metric-card p-4">
         <p className="text-xs font-medium text-text-muted mb-1">Your hours</p>
         <p className="text-xl font-bold text-text">
           {summary.currentHours.toFixed(1)}h
         </p>
       </div>
-      <div className="bg-canvas border border-border rounded-xl p-4">
+      <div className="app-metric-card p-4">
         <p className="text-xs font-medium text-text-muted mb-1">{label}</p>
         <p className="text-xl font-bold text-text">
           {summary.hoursToNext == null
@@ -125,7 +125,7 @@ function EmptyLeaderboardState({
   onAction?: () => void;
 }) {
   return (
-    <div className="bg-surface rounded-2xl p-8 text-center">
+    <div className="app-empty-state p-8 text-center">
       <p className="text-sm font-semibold text-text">{title}</p>
       <p className="text-sm text-text-muted mt-1 max-w-md mx-auto">
         {message}
@@ -133,7 +133,7 @@ function EmptyLeaderboardState({
       {actionLabel && onAction && (
         <button
           onClick={onAction}
-          className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
+          className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
         >
           {actionLabel}
           <ArrowRight className="w-4 h-4" />
@@ -162,10 +162,10 @@ function LeaderboardList({
         return (
           <div
             key={row.id}
-            className={`flex items-center gap-4 p-3.5 rounded-xl border transition-colors ${
+            className={`app-data-row flex items-center gap-4 p-3.5 ${
               isMe
                 ? "border-primary/40 bg-primary/5"
-                : "border-border bg-canvas"
+                : ""
             }`}
           >
             <div className="w-8 flex items-center justify-center shrink-0">
@@ -499,10 +499,10 @@ export default function Leaderboard() {
   const tabBtn = (key: Tab, label: string, Icon: typeof School) => (
     <button
       onClick={() => setTab(key)}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
         tab === key
           ? "bg-primary text-white"
-          : "text-text-muted hover:bg-black/5"
+          : "text-text-muted hover:bg-canvas hover:text-text"
       }`}
     >
       <Icon className="w-4 h-4" />
@@ -525,20 +525,52 @@ export default function Leaderboard() {
     <>
       <SEO title="Leaderboard" description="See how you rank against other interns." />
 
-      <div className="max-w-3xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Trophy className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-text">Leaderboard</h1>
-            <p className="text-sm text-text-muted">
-              Ranked by total internship hours logged.
-            </p>
+      <div className="max-w-5xl mx-auto space-y-6">
+        <div className="app-hero-panel p-6 sm:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Trophy className="w-7 h-7 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text">
+                  Leaderboard
+                </h1>
+                <p className="mt-1 text-sm text-text-muted">
+                  Ranked by total internship hours logged.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[360px]">
+              <div className="rounded-xl border border-border bg-canvas/80 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  School
+                </p>
+                <p className="mt-1 truncate text-sm font-semibold text-text">
+                  {schoolName || "Not set"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-canvas/80 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  Groups
+                </p>
+                <p className="mt-1 text-sm font-semibold text-text">
+                  {groups.length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-canvas/80 p-3 col-span-2 sm:col-span-1">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  Current
+                </p>
+                <p className="mt-1 text-sm font-semibold text-text">
+                  {(profile?.total_hours ?? 0).toFixed(1)}h
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-2 p-1 bg-surface rounded-xl w-fit">
+        <div className="app-segment flex gap-2 w-fit">
           {tabBtn("school", "My School", School)}
           {tabBtn("groups", "Groups", Users)}
         </div>
@@ -568,7 +600,7 @@ export default function Leaderboard() {
                   meId={userId}
                   label="To next rank"
                 />
-                <div className="bg-surface rounded-2xl p-1">
+                <div className="app-soft-panel p-2">
                   <LeaderboardList rows={schoolRows} meId={userId} />
                 </div>
               </>
@@ -580,7 +612,7 @@ export default function Leaderboard() {
           <div className="space-y-5">
             {/* Create / join */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-canvas border border-border rounded-xl p-4">
+              <div className="app-panel p-5">
                 <p className="text-sm font-semibold text-text mb-2">
                   Create a group
                 </p>
@@ -593,14 +625,14 @@ export default function Leaderboard() {
                   />
                   <button
                     onClick={handleCreate}
-                    className="px-3 rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors"
+                    className="px-3 rounded-xl bg-primary text-white hover:bg-primary-hover transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              <div className="bg-canvas border border-border rounded-xl p-4">
+              <div className="app-panel p-5">
                 <p className="text-sm font-semibold text-text mb-2">
                   Join with code
                 </p>
@@ -613,7 +645,7 @@ export default function Leaderboard() {
                   />
                   <button
                     onClick={handleJoin}
-                    className="px-4 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
+                    className="px-4 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
                   >
                     Join
                   </button>
@@ -632,10 +664,10 @@ export default function Leaderboard() {
                   <button
                     key={g.id}
                     onClick={() => setActiveGroup(g)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
                       activeGroup?.id === g.id
                         ? "bg-primary text-white"
-                        : "bg-canvas border border-border text-text-muted hover:bg-black/5"
+                        : "bg-canvas border border-border text-text-muted hover:bg-surface"
                     }`}
                   >
                     {g.name}
@@ -646,7 +678,7 @@ export default function Leaderboard() {
 
             {activeGroup && (
               <>
-                <div className="flex items-center justify-between bg-accent/40 border border-primary/20 rounded-xl px-4 py-3">
+                <div className="app-callout flex items-center justify-between px-4 py-3">
                   <div>
                     <p className="text-sm font-semibold text-text">
                       {activeGroup.name}
@@ -660,7 +692,7 @@ export default function Leaderboard() {
                   </div>
                   <button
                     onClick={copyCode}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-canvas border border-border text-sm font-medium text-text hover:bg-surface transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-canvas border border-border text-sm font-medium text-text hover:bg-surface transition-colors"
                   >
                     {copied ? (
                       <Check className="w-4 h-4 text-success" />
@@ -679,7 +711,7 @@ export default function Leaderboard() {
                   />
                 )}
 
-                <div className="bg-surface rounded-2xl p-1">
+                <div className="app-soft-panel p-2">
                   {groupRows.length === 0 ? (
                     <EmptyLeaderboardState
                       title="No group participants yet"
