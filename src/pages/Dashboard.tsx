@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import {
   AlertTriangle,
@@ -24,7 +24,13 @@ import { useAppStore } from "@/store/applicationStore";
 import { useAuthStore } from "@/store/authStore";
 import { useJournalStore } from "@/store/journalStore";
 import { useProfileStore } from "@/store/profileStore";
+import { useGalleryStore } from "@/store/galleryStore";
+import ReportReadinessPanel from "@/components/ReportReadinessPanel";
 import { DEFAULT_REQUIRED_HOURS } from "@/lib/academicPresets";
+import {
+  getReportReadiness,
+  type ReadinessTarget,
+} from "@/lib/reportReadiness";
 import {
   countIncompleteTimeEntries,
   formatLogDate,
@@ -112,6 +118,11 @@ export default function Dashboard() {
   const { applications, loading } = useAppStore();
   const { entries } = useJournalStore();
   const { profile } = useProfileStore();
+  const { images: galleryImages, fetchGallery } = useGalleryStore();
+
+  useEffect(() => {
+    if (entries.length > 0) void fetchGallery();
+  }, [entries.length, fetchGallery]);
 
   const applicationsCount = applications.length;
   const inProgressCount = applications.filter(
@@ -136,6 +147,11 @@ export default function Dashboard() {
   const hasTodayLog = hasEntryOnDate(entries, today);
   const completed = Boolean(profile?.hours_completed_at);
   const setupIncomplete = !profile?.school || !profile?.course;
+  const readiness = getReportReadiness({
+    entries,
+    images: galleryImages,
+    profile,
+  });
 
   const recentApplicationsSorted = [...applications]
     .sort((a, b) => {
@@ -199,6 +215,16 @@ export default function Dashboard() {
     }
 
     navigate("/logs?new=today");
+  };
+
+  const handleReadinessAction = (target: ReadinessTarget) => {
+    if (target === "profile") {
+      navigate("/profile");
+      return;
+    }
+
+    const view = target === "evidence" ? "evidence" : target;
+    navigate(`/logs?view=${view}`);
   };
 
   return (
@@ -350,6 +376,12 @@ export default function Dashboard() {
             </button>
           </section>
         )}
+
+        <ReportReadinessPanel
+          readiness={readiness}
+          variant="compact"
+          onAction={handleReadinessAction}
+        />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat) => (

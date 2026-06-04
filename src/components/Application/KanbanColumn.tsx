@@ -8,13 +8,7 @@ import LongMenu from "./LongMenu";
 type KanbanColumnProps = {
   columnId: KanbanColumnId;
   applications: Application[];
-  onEdit: (
-    id: number,
-    name: string,
-    address: string,
-    position?: string,
-    stipend?: "paid" | "unpaid"
-  ) => void;
+  onEdit: (application: Application) => void;
   onDelete: (id: number, name: string) => void;
   onStatusChange: (id: number, status: string) => void;
   winnerId?: number | null;

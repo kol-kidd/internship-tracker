@@ -8,6 +8,7 @@ import {
   LayoutPanelLeft,
   NotebookText,
   ClipboardClock,
+  FileText,
   UserRound,
   Trophy,
 } from "lucide-react";
@@ -62,9 +63,20 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const { user } = useAuthStore();
 
-  const pageTitle = routeTitles[location.pathname] ?? "InternPal";
-  const pageSubtitle =
-    routeSubtitles[location.pathname] ?? "Keep your internship progress clear";
+  const isReportsView =
+    location.pathname === "/logs" &&
+    new URLSearchParams(location.search).get("view") === "reports";
+  const isInternshipWorkspace = location.pathname.startsWith("/internships/");
+  const pageTitle = isReportsView
+    ? "Reports"
+    : isInternshipWorkspace
+      ? "Internship"
+      : routeTitles[location.pathname] ?? "InternPal";
+  const pageSubtitle = isReportsView
+    ? "School-ready outputs and verification"
+    : isInternshipWorkspace
+      ? "Accepted internship command center"
+      : routeSubtitles[location.pathname] ?? "Keep your internship progress clear";
   const greeting = (() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -202,6 +214,41 @@ const Layout = ({ children }: LayoutProps) => {
       title: "Profile",
       path: "/profile",
       icon: <UserRound className="w-4 h-4" />,
+    },
+  ];
+
+  const mobileNav = [
+    {
+      title: "Dashboard",
+      path: "/dashboard",
+      icon: <LayoutPanelLeft className="w-4 h-4" />,
+      active: location.pathname === "/dashboard",
+    },
+    {
+      title: "Apps",
+      path: "/applications",
+      icon: <NotebookText className="w-4 h-4" />,
+      active:
+        location.pathname === "/applications" ||
+        location.pathname.startsWith("/internships/"),
+    },
+    {
+      title: "Journal",
+      path: "/logs?view=entries",
+      icon: <ClipboardClock className="w-4 h-4" />,
+      active: location.pathname === "/logs" && !isReportsView,
+    },
+    {
+      title: "Reports",
+      path: "/logs?view=reports",
+      icon: <FileText className="w-4 h-4" />,
+      active: isReportsView,
+    },
+    {
+      title: "Profile",
+      path: "/profile",
+      icon: <UserRound className="w-4 h-4" />,
+      active: location.pathname === "/profile",
     },
   ];
 
@@ -393,11 +440,29 @@ const Layout = ({ children }: LayoutProps) => {
 
         {/* Main Content Area */}
         <main className="app-main flex-1 min-h-0 overflow-y-auto bg-surface relative">
-          <div className="max-w-[1560px] mx-auto p-4 sm:p-6 md:p-8">
+          <div className="max-w-[1560px] mx-auto p-4 pb-24 sm:p-6 sm:pb-24 md:p-8 lg:pb-8">
             {children}
           </div>
         </main>
       </div>
+
+      <nav className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-5 gap-1 rounded-2xl border border-border bg-canvas/95 p-1.5 shadow-[0_12px_32px_rgba(16,24,40,0.16)] backdrop-blur lg:hidden">
+        {mobileNav.map((item) => (
+          <button
+            key={item.title}
+            type="button"
+            onClick={() => handleNavClick(item.path)}
+            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold transition-colors ${
+              item.active
+                ? "bg-primary text-white"
+                : "text-text-muted hover:bg-surface hover:text-text"
+            }`}
+          >
+            {item.icon}
+            <span className="max-w-full truncate">{item.title}</span>
+          </button>
+        ))}
+      </nav>
 
       <ProfileCompletionModal
         open={showCompletionModal}

@@ -55,8 +55,8 @@ const workflowSteps = [
     icon: <BookOpen className="w-5 h-5" />,
   },
   {
-    title: "Attach support",
-    description: "Keep notes and evidence beside the journal they support.",
+    title: "Attach evidence",
+    description: "Keep notes and proof beside the journal entry they verify.",
     icon: <Upload className="w-5 h-5" />,
   },
   {
@@ -191,7 +191,7 @@ function EvidenceStack() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-text">Proof of work</p>
-          <p className="text-xs text-text-muted">Images, notes, and support</p>
+          <p className="text-xs text-text-muted">Images, notes, and evidence</p>
         </div>
         <Upload className="h-4 w-4 text-primary" />
       </div>
@@ -723,7 +723,7 @@ export default function Landing() {
         <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-bold text-text-muted">
           <span>Privacy Policy</span>
           <span>Terms of Service</span>
-          <span>Support</span>
+          <span>Evidence</span>
         </div>
       </footer>
     </div>

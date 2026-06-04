@@ -1,6 +1,140 @@
 import { supabase } from '../config/supabase.js';
 import { io } from "../index.js"; 
 
+const DEFAULT_CHECKLIST_ITEMS = [
+  'Contract signed',
+  'Documents submitted',
+  'Equipment and access ready',
+  'Supervisor added',
+  'First day prepared',
+];
+
+function cleanString(value) {
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+}
+
+function cleanDate(value) {
+  const text = cleanString(value);
+  if (!text) return null;
+  return text.slice(0, 10);
+}
+
+function cleanPriority(value) {
+  const priority = cleanString(value)?.toLowerCase();
+  return ['low', 'normal', 'high'].includes(priority) ? priority : 'normal';
+}
+
+function buildApplicationFields(body, { includeRequired = false } = {}) {
+  const fields = {};
+
+  if (includeRequired || body.companyName !== undefined) {
+    fields.company_name = cleanString(body.companyName);
+  }
+  if (includeRequired || body.companyAddress !== undefined) {
+    fields.company_address = cleanString(body.companyAddress);
+  }
+  if (body.position !== undefined || includeRequired) {
+    fields.position = cleanString(body.position);
+  }
+  if (body.stipend !== undefined || includeRequired) {
+    fields.stipend =
+      body.stipend === 'paid' || body.stipend === 'unpaid' ? body.stipend : null;
+  }
+  if (body.applicationUrl !== undefined) fields.application_url = cleanString(body.applicationUrl);
+  if (body.contactName !== undefined) fields.contact_name = cleanString(body.contactName);
+  if (body.contactEmail !== undefined) fields.contact_email = cleanString(body.contactEmail);
+  if (body.deadlineDate !== undefined) fields.deadline_date = cleanDate(body.deadlineDate);
+  if (body.interviewDate !== undefined) fields.interview_date = cleanDate(body.interviewDate);
+  if (body.followUpDate !== undefined) fields.follow_up_date = cleanDate(body.followUpDate);
+  if (body.priority !== undefined || includeRequired) fields.priority = cleanPriority(body.priority);
+  if (body.startDate !== undefined) fields.start_date = cleanDate(body.startDate);
+  if (body.endDate !== undefined) fields.end_date = cleanDate(body.endDate);
+  if (body.supervisorName !== undefined) fields.supervisor_name = cleanString(body.supervisorName);
+  if (body.supervisorEmail !== undefined) fields.supervisor_email = cleanString(body.supervisorEmail);
+  if (body.department !== undefined) fields.department = cleanString(body.department);
+
+  return fields;
+}
+
+async function getOwnedApplication(userId, applicationId, columns = 'id, status') {
+  const id = Number(applicationId);
+  if (!Number.isInteger(id) || id <= 0) {
+    return { error: { status: 400, body: { error: 'Invalid application ID' } } };
+  }
+
+  const { data, error } = await supabase
+    .from('applications')
+    .select(columns)
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    return {
+      error: {
+        status: 500,
+        body: { error: 'Failed to validate application', details: error.message },
+      },
+    };
+  }
+
+  if (!data) {
+    return {
+      error: {
+        status: 404,
+        body: { error: 'Application not found or unauthorized' },
+      },
+    };
+  }
+
+  return { application: data };
+}
+
+async function ensureDefaultChecklist(userId, applicationId, application) {
+  if (application?.checklist_seeded_at) return;
+
+  const { count, error: countError } = await supabase
+    .from('application_checklist_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('application_id', applicationId);
+
+  if (countError) return;
+
+  if (count !== 0) {
+    await supabase
+      .from('applications')
+      .update({ checklist_seeded_at: new Date().toISOString() })
+      .eq('id', applicationId)
+      .eq('user_id', userId);
+    return;
+  }
+
+  const rows = DEFAULT_CHECKLIST_ITEMS.map((label, index) => ({
+    user_id: userId,
+    application_id: applicationId,
+    label,
+    sort_order: index,
+  }));
+
+  const { error } = await supabase
+    .from('application_checklist_items')
+    .insert(rows);
+
+  if (error) {
+    console.error('Default checklist insert error:', error.message);
+    return;
+  }
+
+  await supabase
+    .from('applications')
+    .update({ checklist_seeded_at: new Date().toISOString() })
+    .eq('id', applicationId)
+    .eq('user_id', userId);
+}
+
 export const addApplication = async (req, res) => {
   try {
     const body = req.body || {};
@@ -28,15 +162,12 @@ export const addApplication = async (req, res) => {
     const insertData = {
       user_id: userId,
       date_applied: body.dateApplied || new Date().toISOString(),
-      company_name: body.companyName,
-      company_address: body.companyAddress,
       status: body.status || 'applied',
-      position: (body.position != null && body.position !== '') ? String(body.position).trim() : null,
-      stipend: (body.stipend === 'paid' || body.stipend === 'unpaid') ? body.stipend : null
+      ...buildApplicationFields(body, { includeRequired: true }),
     };
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[applications] POST body received:', JSON.stringify({ companyName: body.companyName, companyAddress: body.companyAddress, position: body.position, stipend: body.stipend }));
+      console.log('[applications] POST body received:', JSON.stringify({ companyName: body.companyName, companyAddress: body.companyAddress, position: body.position, stipend: body.stipend, priority: body.priority }));
       console.log('[applications] Insert payload to DB:', JSON.stringify(insertData));
     }
 
@@ -175,14 +306,11 @@ export const updateApplication = async (req, res) => {
 
     const updateData = {
       updated_at: new Date().toISOString(),
-      company_name: body.companyName,
-      company_address: body.companyAddress,
-      position: (body.position != null && body.position !== '') ? String(body.position).trim() : null,
-      stipend: (body.stipend === 'paid' || body.stipend === 'unpaid') ? body.stipend : null
+      ...buildApplicationFields(body),
     };
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[applications] PUT body received:', JSON.stringify({ companyName: body.companyName, companyAddress: body.companyAddress, position: body.position, stipend: body.stipend }));
+      console.log('[applications] PUT body received:', JSON.stringify({ companyName: body.companyName, companyAddress: body.companyAddress, position: body.position, stipend: body.stipend, priority: body.priority }));
       console.log('[applications] Update payload to DB:', JSON.stringify(updateData));
     }
 
@@ -345,7 +473,7 @@ export const deleteApplication = async (req, res) => {
       });
     }
 
-   io.to(userId).emit("application-deleted", appData);
+   io.to(userId).emit("application-deleted", appData[0].id);
 
     res.json({
       message: 'Application deleted successfully',
@@ -354,6 +482,160 @@ export const deleteApplication = async (req, res) => {
 
   } catch (error) {
     console.error('Delete Application Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getApplicationChecklist = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const applicationId = Number(req.params.id);
+    const ownership = await getOwnedApplication(
+      userId,
+      applicationId,
+      'id, status, checklist_seeded_at',
+    );
+    if (ownership.error) {
+      return res.status(ownership.error.status).json(ownership.error.body);
+    }
+
+    await ensureDefaultChecklist(userId, applicationId, ownership.application);
+
+    const { data, error } = await supabase
+      .from('application_checklist_items')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('application_id', applicationId)
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true });
+
+    if (error) {
+      return res.status(500).json({
+        error: 'Failed to fetch checklist',
+        details: error.message,
+      });
+    }
+
+    res.json({ items: data ?? [] });
+  } catch (error) {
+    console.error('Get Application Checklist Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const addChecklistItem = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const applicationId = Number(req.params.id);
+    const ownership = await getOwnedApplication(userId, applicationId);
+    if (ownership.error) {
+      return res.status(ownership.error.status).json(ownership.error.body);
+    }
+
+    const { count } = await supabase
+      .from('application_checklist_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('application_id', applicationId);
+
+    const { data, error } = await supabase
+      .from('application_checklist_items')
+      .insert({
+        user_id: userId,
+        application_id: applicationId,
+        label: cleanString(req.body.label),
+        sort_order: count ?? 0,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({
+        error: 'Failed to add checklist item',
+        details: error.message,
+      });
+    }
+
+    res.status(201).json({ item: data });
+  } catch (error) {
+    console.error('Add Checklist Item Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const updateChecklistItem = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const applicationId = Number(req.params.id);
+    const itemId = Number(req.params.itemId);
+    const ownership = await getOwnedApplication(userId, applicationId);
+    if (ownership.error) {
+      return res.status(ownership.error.status).json(ownership.error.body);
+    }
+
+    const updateData = { updated_at: new Date().toISOString() };
+    if (req.body.label !== undefined) updateData.label = cleanString(req.body.label);
+    if (req.body.completed !== undefined) updateData.completed = Boolean(req.body.completed);
+    if (req.body.sortOrder !== undefined) updateData.sort_order = Number(req.body.sortOrder);
+
+    const { data, error } = await supabase
+      .from('application_checklist_items')
+      .update(updateData)
+      .eq('id', itemId)
+      .eq('application_id', applicationId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Checklist item not found' });
+      }
+      return res.status(500).json({
+        error: 'Failed to update checklist item',
+        details: error.message,
+      });
+    }
+
+    res.json({ item: data });
+  } catch (error) {
+    console.error('Update Checklist Item Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteChecklistItem = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const applicationId = Number(req.params.id);
+    const itemId = Number(req.params.itemId);
+    const ownership = await getOwnedApplication(userId, applicationId);
+    if (ownership.error) {
+      return res.status(ownership.error.status).json(ownership.error.body);
+    }
+
+    const { data, error } = await supabase
+      .from('application_checklist_items')
+      .delete()
+      .eq('id', itemId)
+      .eq('application_id', applicationId)
+      .eq('user_id', userId)
+      .select();
+
+    if (error) {
+      return res.status(500).json({
+        error: 'Failed to delete checklist item',
+        details: error.message,
+      });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Checklist item not found' });
+    }
+
+    res.json({ item: data[0], message: 'Checklist item deleted' });
+  } catch (error) {
+    console.error('Delete Checklist Item Error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

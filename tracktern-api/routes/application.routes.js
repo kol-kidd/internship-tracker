@@ -5,7 +5,11 @@ import {
   validateUpdateApplication,
   validateUpdateStatus,
   validateApplicationId,
-  validateGetApplications
+  validateGetApplications,
+  validateChecklistApplicationId,
+  validateAddChecklistItem,
+  validateUpdateChecklistItem,
+  validateDeleteChecklistItem
 } from '../middleware/validation.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -16,6 +20,12 @@ router.use(authenticateToken);
 
 // GET all applications for the authenticated user
 router.get('/', validateGetApplications, applicationsController.getApplications);
+
+// Checklist routes for accepted internship workspaces
+router.get('/:id/checklist', validateChecklistApplicationId, applicationsController.getApplicationChecklist);
+router.post('/:id/checklist', validateAddChecklistItem, applicationsController.addChecklistItem);
+router.patch('/:id/checklist/:itemId', validateUpdateChecklistItem, applicationsController.updateChecklistItem);
+router.delete('/:id/checklist/:itemId', validateDeleteChecklistItem, applicationsController.deleteChecklistItem);
 
 // GET single application by ID
 router.get('/:id', validateApplicationId, applicationsController.getApplicationById);

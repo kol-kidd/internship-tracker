@@ -20,7 +20,7 @@ export default function WinnerCard({
   application,
   daysUntilStart,
 }: WinnerCardProps) {
-  const days = daysUntilStart ?? daysUntil(application.start_date);
+  const days = daysUntilStart ?? daysUntil(application.start_date ?? undefined);
 
   return (
     <div className="rounded-2xl border-2 border-amber-400 bg-linear-to-br from-amber-50 to-canvas p-6 shadow-sm ring-2 ring-amber-200/60">

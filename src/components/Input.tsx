@@ -30,6 +30,36 @@ export default function CustomInput({
       size={size}
       className="w-full"
       onChange={onChange}
+      sx={{
+        "& .MuiInputBase-root": {
+          color: "var(--color-text)",
+          backgroundColor: "var(--color-surface)",
+          borderRadius: "0.75rem",
+        },
+        "& .MuiInputBase-input": {
+          color: "var(--color-text)",
+        },
+        "& .MuiInputBase-input::placeholder": {
+          color: "var(--color-text-muted)",
+          opacity: 1,
+        },
+        "& .MuiInputLabel-root": {
+          color: "var(--color-text-muted)",
+        },
+        "& .MuiInputLabel-root.Mui-focused": {
+          color: "var(--color-primary)",
+        },
+        "& .MuiOutlinedInput-notchedOutline": {
+          borderColor: "var(--color-border)",
+        },
+        "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": {
+          borderColor: "var(--color-primary)",
+        },
+        "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+          borderColor: "var(--color-primary)",
+          borderWidth: "1px",
+        },
+      }}
     />
   );
 }

@@ -28,7 +28,7 @@ interface JournalState {
 
   initSocket: () => void;
   fetchEntries: () => Promise<void>;
-  addEntry: (entry: Omit<JournalEntry, "id" | "user_id" | "created_at" | "updated_at">) => Promise<void>;
+  addEntry: (entry: Omit<JournalEntry, "id" | "user_id" | "created_at" | "updated_at">) => Promise<JournalEntry>;
   updateEntry: (entryId: number, entry: Partial<Omit<JournalEntry, "id" | "user_id" | "created_at">>) => Promise<void>;
   bulkAssignEntries: (entryIds: number[], applicationId: number | null) => Promise<void>;
   deleteEntry: (entryId: number) => Promise<void>;
@@ -160,10 +160,12 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const res = await api.post("/journal", entry);
+      const created = res.data.entry as JournalEntry;
       set((state) => ({
-        entries: [res.data.entry, ...state.entries],
+        entries: [created, ...state.entries],
         loading: false,
       }));
+      return created;
     } catch (err: unknown) {
       set({ error: getApiErrorMessage(err), loading: false });
       throw err;

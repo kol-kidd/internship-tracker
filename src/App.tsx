@@ -16,6 +16,7 @@ import LogsPage from "./pages/Logs";
 import Landing from "./pages/Landing";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
+import InternshipWorkspace from "./pages/InternshipWorkspace";
 import { useProfileStore } from "./store/profileStore";
 import {
   applyTheme,
@@ -103,6 +104,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <ApplicationList />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/internships/:applicationId"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <InternshipWorkspace />
               </Layout>
             </ProtectedRoute>
           }

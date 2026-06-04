@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Plus,
@@ -15,10 +16,13 @@ import {
   Edit2,
   Trash2,
   ChevronDown,
+  ArrowRight,
+  Flag,
+  Mail,
 } from "lucide-react";
 
 import SEO from "@/components/SEO";
-import { useAppStore } from "@/store/applicationStore";
+import { useAppStore, type Application } from "@/store/applicationStore";
 import Modal from "@/components/Application/Modal";
 import KanbanBoard from "@/components/Application/KanbanBoard";
 import JourneyTimeline from "@/components/Application/JourneyTimeline";
@@ -33,19 +37,6 @@ import ConfirmationDialog from "@/components/Application/ConfirmationDialog";
 import LoadingOverlay from "@/components/Loading";
 
 const ACCEPTED_TIP_DISMISSED_KEY = "application_list_accepted_tip_dismissed";
-
-interface Application {
-  id: number;
-  user_id: string;
-  company_name: string;
-  company_address: string;
-  date_applied: string;
-  status: string;
-  created_at: string;
-  position?: string;
-  notes?: string;
-  stipend?: "paid" | "unpaid";
-}
 
 type StatusType =
   | "applied"
@@ -93,6 +84,7 @@ const statusOptions = Object.entries(statusConfig) as [
 ][];
 
 function formatDate(dateString: string): string {
+  if (!dateString) return "Not set";
   return new Date(dateString).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -100,32 +92,59 @@ function formatDate(dateString: string): string {
   });
 }
 
+function formatNextAction(app: Application): string {
+  if (app.follow_up_date) return `Follow up ${formatDate(app.follow_up_date)}`;
+  if (app.interview_date) return `Interview ${formatDate(app.interview_date)}`;
+  if (app.deadline_date) return `Deadline ${formatDate(app.deadline_date)}`;
+  return "No next action";
+}
+
 function ApplicationListItem({
   app,
   onEdit,
   onDelete,
   onStatusUpdate,
+  onOpenWorkspace,
   disabled,
 }: {
   app: Application;
   onEdit: () => void;
   onDelete: () => void;
   onStatusUpdate: (status: string) => void;
+  onOpenWorkspace: () => void;
   disabled: boolean;
 }) {
   const status = app.status.toLowerCase() as StatusType;
   const config = statusConfig[status] ?? statusConfig.applied;
+  const canOpenWorkspace = status === "accepted";
 
   return (
     <article className="app-data-row p-4">
-      <div className="flex flex-col gap-4 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_88px] sm:items-center">
+      <div className="flex flex-col gap-4 sm:grid sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.9fr)_150px_124px] sm:items-center">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-text truncate">
+          <button
+            type="button"
+            onClick={canOpenWorkspace ? onOpenWorkspace : onEdit}
+            className="block max-w-full truncate text-left text-base font-semibold text-text transition-colors hover:text-primary"
+          >
             {app.company_name}
-          </h3>
+          </button>
           <p className="mt-1 text-sm text-text-muted truncate">
             {app.position || "Internship Role"}
           </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {app.priority && app.priority !== "normal" && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-warning">
+                <Flag className="h-3 w-3" />
+                {app.priority}
+              </span>
+            )}
+            {canOpenWorkspace && (
+              <span className="rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-success">
+                Workspace
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="min-w-0 space-y-1 text-xs text-text-muted">
@@ -137,6 +156,19 @@ function ApplicationListItem({
             <Calendar className="w-3.5 h-3.5 shrink-0 opacity-60" />
             <span>Applied {formatDate(app.date_applied)}</span>
           </p>
+        </div>
+
+        <div className="min-w-0 space-y-1 text-xs text-text-muted">
+          <p className="flex items-center gap-1.5 min-w-0">
+            <Calendar className="w-3.5 h-3.5 shrink-0 opacity-60" />
+            <span className="truncate">{formatNextAction(app)}</span>
+          </p>
+          {app.contact_email && (
+            <p className="flex items-center gap-1.5 min-w-0">
+              <Mail className="w-3.5 h-3.5 shrink-0 opacity-60" />
+              <span className="truncate">{app.contact_email}</span>
+            </p>
+          )}
         </div>
 
         <div className="relative">
@@ -156,6 +188,16 @@ function ApplicationListItem({
         </div>
 
         <div className="flex items-center justify-end gap-2">
+          {canOpenWorkspace && (
+            <button
+              type="button"
+              onClick={onOpenWorkspace}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-primary/30 hover:text-primary"
+              aria-label={`Open ${app.company_name} workspace`}
+            >
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onEdit}
@@ -179,17 +221,15 @@ function ApplicationListItem({
 }
 
 export default function ApplicationList() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
 
   const [selectedAppId, setSelectedAppId] = useState<number>();
   const [selectedAppName, setSelectedAppName] = useState<string>("");
-  const [selectedAppAddress, setSelectedAppAddress] = useState<string>("");
-  const [selectedAppPosition, setSelectedAppPosition] = useState<string>("");
-  const [selectedAppStipend, setSelectedAppStipend] = useState<
-    "paid" | "unpaid" | undefined
-  >(undefined);
+  const [selectedApplication, setSelectedApplication] =
+    useState<Application | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [markAllWithdrawnDialogOpen, setMarkAllWithdrawnDialogOpen] =
     useState(false);
@@ -311,25 +351,15 @@ export default function ApplicationList() {
       setIsCreating(false);
       setSelectedAppId(undefined);
       setSelectedAppName("");
-      setSelectedAppAddress("");
-      setSelectedAppPosition("");
-      setSelectedAppStipend(undefined);
+      setSelectedApplication(null);
     }
     setOpen(!open);
   };
 
-  const handleEditApplication = (
-    appId: number,
-    companyName: string,
-    companyAddress: string,
-    position?: string,
-    stipend?: "paid" | "unpaid",
-  ) => {
-    setSelectedAppId(appId);
-    setSelectedAppName(companyName);
-    setSelectedAppAddress(companyAddress);
-    setSelectedAppPosition(position ?? "");
-    setSelectedAppStipend(stipend);
+  const handleEditApplication = (application: Application) => {
+    setSelectedAppId(application.id);
+    setSelectedAppName(application.company_name);
+    setSelectedApplication(application);
     setOpen(true);
   };
 
@@ -437,7 +467,7 @@ export default function ApplicationList() {
             applications.map((a) => ({
               date_applied: a.date_applied,
               company_name: a.company_name,
-              position: a.position,
+              position: a.position ?? undefined,
               status: a.status,
             })),
             session.access_token,
@@ -718,15 +748,8 @@ export default function ApplicationList() {
                     app={app}
                     disabled={isUpdating}
                     onDelete={() => handleDeleteClick(app.id, app.company_name)}
-                    onEdit={() =>
-                      handleEditApplication(
-                        app.id,
-                        app.company_name,
-                        app.company_address,
-                        app.position,
-                        app.stipend,
-                      )
-                    }
+                    onEdit={() => handleEditApplication(app)}
+                    onOpenWorkspace={() => navigate(`/internships/${app.id}`)}
                     onStatusUpdate={(status) =>
                       handleStatusUpdate(app.id, status)
                     }
@@ -756,15 +779,21 @@ export default function ApplicationList() {
           </div>
         </main>
       </div>
+      <button
+        type="button"
+        onClick={() => handleModal()}
+        className="fixed bottom-24 right-5 z-30 inline-flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-white shadow-[0_12px_28px_rgb(11_115_217_/_0.28)] transition-colors hover:bg-primary-hover lg:hidden"
+      >
+        <Plus className="h-4 w-4" />
+        New
+      </button>
       <Modal
         open={open}
         handleModal={handleModal}
-        isUpdate={!!selectedAppId}
+        isUpdate={!!selectedApplication}
         appId={selectedAppId}
         companyName={selectedAppName}
-        companyAddress={selectedAppAddress}
-        position={selectedAppPosition}
-        stipend={selectedAppStipend}
+        application={selectedApplication}
       />
       <ConfirmationDialog
         open={deleteDialogOpen}

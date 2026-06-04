@@ -19,13 +19,7 @@ const ONBOARDING_COLUMN_IDS = ["offer", "accepted"] as const;
 type KanbanBoardProps = {
   applications: Application[];
   onStatusChange: (id: number, status: string) => Promise<void>;
-  onEdit: (
-    id: number,
-    name: string,
-    address: string,
-    position?: string,
-    stipend?: "paid" | "unpaid"
-  ) => void;
+  onEdit: (application: Application) => void;
   onDelete: (id: number, name: string) => void;
   onboardingMode?: boolean;
 };

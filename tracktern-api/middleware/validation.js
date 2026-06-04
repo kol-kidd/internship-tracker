@@ -30,6 +30,18 @@ export const validateAddApplication = [
   body('companyName').trim().notEmpty().withMessage('Company name is required'),
   body('companyAddress').trim().notEmpty().withMessage('Company address is required'),
   body('position').optional().trim(),
+  body('applicationUrl').optional({ nullable: true }).trim().isLength({ max: 500 }),
+  body('contactName').optional({ nullable: true }).trim().isLength({ max: 160 }),
+  body('contactEmail').optional({ nullable: true, checkFalsy: true }).trim().isEmail().withMessage('Contact email must be valid'),
+  body('deadlineDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid deadline date'),
+  body('interviewDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid interview date'),
+  body('followUpDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid follow-up date'),
+  body('priority').optional().trim().toLowerCase().isIn(['low', 'normal', 'high']).withMessage('Invalid priority'),
+  body('startDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid start date'),
+  body('endDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid end date'),
+  body('supervisorName').optional({ nullable: true }).trim().isLength({ max: 160 }),
+  body('supervisorEmail').optional({ nullable: true, checkFalsy: true }).trim().isEmail().withMessage('Supervisor email must be valid'),
+  body('department').optional({ nullable: true }).trim().isLength({ max: 160 }),
   body('stipend')
     .optional()
     .trim()
@@ -51,6 +63,18 @@ export const validateUpdateApplication = [
   body('companyName').optional().trim().notEmpty().withMessage('Company name cannot be empty'),
   body('companyAddress').optional().trim().notEmpty().withMessage('Company address cannot be empty'),
   body('position').optional().trim(),
+  body('applicationUrl').optional({ nullable: true }).trim().isLength({ max: 500 }),
+  body('contactName').optional({ nullable: true }).trim().isLength({ max: 160 }),
+  body('contactEmail').optional({ nullable: true, checkFalsy: true }).trim().isEmail().withMessage('Contact email must be valid'),
+  body('deadlineDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid deadline date'),
+  body('interviewDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid interview date'),
+  body('followUpDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid follow-up date'),
+  body('priority').optional().trim().toLowerCase().isIn(['low', 'normal', 'high']).withMessage('Invalid priority'),
+  body('startDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid start date'),
+  body('endDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Invalid end date'),
+  body('supervisorName').optional({ nullable: true }).trim().isLength({ max: 160 }),
+  body('supervisorEmail').optional({ nullable: true, checkFalsy: true }).trim().isEmail().withMessage('Supervisor email must be valid'),
+  body('department').optional({ nullable: true }).trim().isLength({ max: 160 }),
   body('stipend')
     .optional()
     .trim()
@@ -79,5 +103,31 @@ export const validateGetApplications = [
   query('status').optional().isIn(['applied', 'interviewing', 'offer', 'rejected', 'accepted', 'withdrawn']),
   query('limit').optional().isInt({ min: 1, max: 100 }),
   query('offset').optional().isInt({ min: 0 }),
+  handleValidationErrors
+];
+
+export const validateChecklistApplicationId = [
+  param('id').isInt().withMessage('Invalid application ID'),
+  handleValidationErrors
+];
+
+export const validateAddChecklistItem = [
+  param('id').isInt().withMessage('Invalid application ID'),
+  body('label').trim().notEmpty().withMessage('Checklist label is required').isLength({ max: 180 }),
+  handleValidationErrors
+];
+
+export const validateUpdateChecklistItem = [
+  param('id').isInt().withMessage('Invalid application ID'),
+  param('itemId').isInt().withMessage('Invalid checklist item ID'),
+  body('label').optional().trim().notEmpty().withMessage('Checklist label cannot be empty').isLength({ max: 180 }),
+  body('completed').optional().isBoolean().withMessage('completed must be boolean'),
+  body('sortOrder').optional().isInt({ min: 0 }).withMessage('sortOrder must be a positive integer'),
+  handleValidationErrors
+];
+
+export const validateDeleteChecklistItem = [
+  param('id').isInt().withMessage('Invalid application ID'),
+  param('itemId').isInt().withMessage('Invalid checklist item ID'),
   handleValidationErrors
 ];

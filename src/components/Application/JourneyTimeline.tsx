@@ -96,7 +96,7 @@ export default function JourneyTimeline({
       applications.map((a) => ({
         date_applied: a.date_applied,
         company_name: a.company_name,
-        position: a.position,
+        position: a.position ?? undefined,
         status: a.status,
       })),
     [applications]

@@ -1,7 +1,9 @@
 import { create } from "zustand";
-import axios from "axios";
 import { supabase } from "@/config/supabaseClient";
 import { io, Socket } from "socket.io-client";
+import { api, getApiErrorMessage } from "@/functions/data/apiClient";
+
+export type ApplicationPriority = "low" | "normal" | "high";
 
 export interface Application {
   id: number;
@@ -11,18 +13,53 @@ export interface Application {
   date_applied: string;
   status: string;
   created_at: string;
-  position?: string;
-  notes?: string;
-  stipend?: "paid" | "unpaid";
-  start_date?: string;
+  updated_at?: string;
+  position?: string | null;
+  notes?: string | null;
+  stipend?: "paid" | "unpaid" | null;
+  application_url?: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  deadline_date?: string | null;
+  interview_date?: string | null;
+  follow_up_date?: string | null;
+  priority?: ApplicationPriority;
+  start_date?: string | null;
+  end_date?: string | null;
+  supervisor_name?: string | null;
+  supervisor_email?: string | null;
+  department?: string | null;
+  checklist_seeded_at?: string | null;
 }
 
-// Separate interface for API updates (camelCase)
-interface UpdateApplicationData {
+export interface ApplicationChecklistItem {
+  id: number;
+  user_id: string;
+  application_id: number;
+  label: string;
+  completed: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApplicationPayload {
   companyName?: string;
   companyAddress?: string;
   position?: string;
   stipend?: "paid" | "unpaid" | "";
+  applicationUrl?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  deadlineDate?: string | null;
+  interviewDate?: string | null;
+  followUpDate?: string | null;
+  priority?: ApplicationPriority;
+  startDate?: string | null;
+  endDate?: string | null;
+  supervisorName?: string | null;
+  supervisorEmail?: string | null;
+  department?: string | null;
 }
 
 interface AppState {
@@ -32,61 +69,33 @@ interface AppState {
   socket: Socket | null;
   hasFetched: boolean;
   lastFetchedAt: number | null;
+  checklistsByApplicationId: Record<number, ApplicationChecklistItem[]>;
+  checklistLoadingByApplicationId: Record<number, boolean>;
 
   initSocket: () => void;
 
   fetchApplications: (options?: { force?: boolean; showLoading?: boolean }) => Promise<void>;
-  addApplication: (data: {
+  addApplication: (data: ApplicationPayload & {
     companyName: string;
     companyAddress: string;
-    position?: string;
-    stipend?: "paid" | "unpaid" | "";
     status?: string;
     dateApplied?: string;
   }) => Promise<void>;
-  updateApplication: (id: number, data: UpdateApplicationData) => Promise<void>;
+  updateApplication: (id: number, data: ApplicationPayload) => Promise<void>;
   updateApplicationStatus: (id: number, status: string) => Promise<void>;
   deleteApplication: (id: number) => Promise<void>;
+  fetchChecklist: (applicationId: number, options?: { force?: boolean }) => Promise<ApplicationChecklistItem[]>;
+  addChecklistItem: (applicationId: number, label: string) => Promise<ApplicationChecklistItem>;
+  updateChecklistItem: (
+    applicationId: number,
+    itemId: number,
+    patch: { label?: string; completed?: boolean; sortOrder?: number },
+  ) => Promise<ApplicationChecklistItem>;
+  deleteChecklistItem: (applicationId: number, itemId: number) => Promise<void>;
   clearApplications: () => void;
 }
 
-type ApiErrorResponse = {
-  error?: string;
-};
-
-function getApiErrorMessage(error: unknown, fallback = "Request failed") {
-  if (axios.isAxiosError<ApiErrorResponse>(error)) {
-    return error.response?.data?.error ?? error.message ?? fallback;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return fallback;
-}
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL, 
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
 const APPLICATION_CACHE_MS = 5 * 60 * 1000;
-
-api.interceptors.request.use(async (config) => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const token = session?.access_token;
-  if (token && config.headers) {
-    config.headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  return config;
-});
 
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -96,6 +105,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   socket: null, 
   hasFetched: false,
   lastFetchedAt: null,
+  checklistsByApplicationId: {},
+  checklistLoadingByApplicationId: {},
 
   initSocket: async () => {
     if (get().socket) return; 
@@ -179,6 +190,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     } catch (err: unknown) {
       set({ error: getApiErrorMessage(err), loading: false });
+      throw err;
     }
   },
 
@@ -195,6 +207,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
     } catch (err: unknown) {
       set({ error: getApiErrorMessage(err), loading: false });
+      throw err;
     }
   },
 
@@ -234,6 +247,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const message = getApiErrorMessage(err);
       set({ error: message, loading: false });
       console.log("Error updating status:", message);
+      throw err;
     }
   },
 
@@ -250,7 +264,94 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
     } catch (err: unknown) {
       set({ error: getApiErrorMessage(err), loading: false });
+      throw err;
     }
+  },
+
+  fetchChecklist: async (applicationId, options = {}) => {
+    const existing = get().checklistsByApplicationId[applicationId];
+    if (!options.force && existing) return existing;
+
+    set((state) => ({
+      checklistLoadingByApplicationId: {
+        ...state.checklistLoadingByApplicationId,
+        [applicationId]: true,
+      },
+    }));
+
+    try {
+      const res = await api.get<{ items: ApplicationChecklistItem[] }>(
+        `/applications/${applicationId}/checklist`,
+      );
+      const items = res.data.items ?? [];
+      set((state) => ({
+        checklistsByApplicationId: {
+          ...state.checklistsByApplicationId,
+          [applicationId]: items,
+        },
+        checklistLoadingByApplicationId: {
+          ...state.checklistLoadingByApplicationId,
+          [applicationId]: false,
+        },
+      }));
+      return items;
+    } catch (err: unknown) {
+      set((state) => ({
+        error: getApiErrorMessage(err, "Failed to fetch checklist"),
+        checklistLoadingByApplicationId: {
+          ...state.checklistLoadingByApplicationId,
+          [applicationId]: false,
+        },
+      }));
+      throw err;
+    }
+  },
+
+  addChecklistItem: async (applicationId, label) => {
+    const res = await api.post<{ item: ApplicationChecklistItem }>(
+      `/applications/${applicationId}/checklist`,
+      { label },
+    );
+    const item = res.data.item;
+    set((state) => ({
+      checklistsByApplicationId: {
+        ...state.checklistsByApplicationId,
+        [applicationId]: [
+          ...(state.checklistsByApplicationId[applicationId] ?? []),
+          item,
+        ],
+      },
+    }));
+    return item;
+  },
+
+  updateChecklistItem: async (applicationId, itemId, patch) => {
+    const res = await api.patch<{ item: ApplicationChecklistItem }>(
+      `/applications/${applicationId}/checklist/${itemId}`,
+      patch,
+    );
+    const item = res.data.item;
+    set((state) => ({
+      checklistsByApplicationId: {
+        ...state.checklistsByApplicationId,
+        [applicationId]: (state.checklistsByApplicationId[applicationId] ?? []).map(
+          (current) => (current.id === itemId ? item : current),
+        ),
+      },
+    }));
+    return item;
+  },
+
+  deleteChecklistItem: async (applicationId, itemId) => {
+    await api.delete(`/applications/${applicationId}/checklist/${itemId}`);
+    set((state) => ({
+      checklistsByApplicationId: {
+        ...state.checklistsByApplicationId,
+        [applicationId]: (state.checklistsByApplicationId[applicationId] ?? []).filter(
+          (item) => item.id !== itemId,
+        ),
+      },
+    }));
   },
 
   // Clear all applications
@@ -261,6 +362,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       error: null,
       hasFetched: false,
       lastFetchedAt: null,
+      checklistsByApplicationId: {},
+      checklistLoadingByApplicationId: {},
     });
   },
 }));

@@ -44,6 +44,7 @@ import {
 import { Bounce, toast } from "react-toastify";
 import LoadingOverlay from "@/components/Loading";
 import ConfirmationDialog from "@/components/Application/ConfirmationDialog";
+import ReportReadinessPanel from "@/components/ReportReadinessPanel";
 import {
   enhanceJournalEntry,
   suggestTags,
@@ -52,6 +53,7 @@ import {
   type EnhanceType,
 } from "@/functions/ai/journalAI";
 import { generateCTUJournalPDF } from "@/lib/exportCTUJournal";
+import { generateSupervisorVerificationPDF } from "@/lib/exportVerification";
 import { getWeekBounds, isDateInWeekBounds } from "@/lib/weekUtils";
 import { toDateInputValue } from "@/lib/dateInput";
 import {
@@ -61,7 +63,12 @@ import {
   hasInvalidTimeRange,
   toLocalDateInputValue,
 } from "@/lib/hours";
-import { useSearchParams } from "react-router-dom";
+import {
+  getReportReadiness,
+  type ReadinessTarget,
+} from "@/lib/reportReadiness";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useProfileStore } from "@/store/profileStore";
 
 const PDF_LANDSCAPE_MAX_PX = 320;
 const PDF_PORTRAIT_MAX_PX = 180;
@@ -133,7 +140,7 @@ interface JournalEntry {
   updated_at: string;
 }
 
-type MainView = "entries" | "support" | "reports";
+type MainView = "entries" | "evidence" | "reports";
 type JournalScope = "all" | "unassigned" | `application-${number}`;
 
 type ReportHistoryItem = {
@@ -153,6 +160,12 @@ const REPORT_SUPERVISOR_KEY = "internpal_report_supervisor_name";
 const DEFAULT_COORDINATOR_NAME = "REYNILDA A. CASTRO";
 const ALL_JOURNALS_SCOPE: JournalScope = "all";
 const UNASSIGNED_JOURNALS_SCOPE: JournalScope = "unassigned";
+
+function normalizeMainView(value: string | null): MainView {
+  if (value === "reports") return "reports";
+  if (value === "evidence" || value === "support") return "evidence";
+  return "entries";
+}
 
 function loadReportHistory(): ReportHistoryItem[] {
   try {
@@ -193,7 +206,9 @@ function createBlankFormData(
 
 const LogsPage = () => {
   const { user, session } = useAuthStore();
+  const navigate = useNavigate();
   const { applications } = useAppStore();
+  const { profile } = useProfileStore();
   const {
     entries,
     loading,
@@ -216,6 +231,8 @@ const LogsPage = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const newEntryRequest = searchParams.get("new");
+  const viewRequest = searchParams.get("view");
+  const applicationScopeRequest = searchParams.get("application");
 
   const [formData, setFormData] = useState(() => createBlankFormData());
 
@@ -252,6 +269,21 @@ const LogsPage = () => {
     number | ""
   >("");
   const [bulkAssigning, setBulkAssigning] = useState(false);
+
+  const setJournalView = useCallback(
+    (view: MainView) => {
+      setMainView(view);
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.set("view", view);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const {
     notes,
@@ -297,6 +329,8 @@ const LogsPage = () => {
   const [editingNoteTime, setEditingNoteTime] = useState("");
   const [entryViewCaption, setEntryViewCaption] = useState("");
   const [entryViewUploading, setEntryViewUploading] = useState(false);
+  const [draftEvidenceFile, setDraftEvidenceFile] = useState<File | null>(null);
+  const [draftEvidenceCaption, setDraftEvidenceCaption] = useState("");
   const [exportPdfModalOpen, setExportPdfModalOpen] = useState(false);
   const [exportPdfEntryPool, setExportPdfEntryPool] = useState<JournalEntry[]>(
     [],
@@ -351,6 +385,21 @@ const LogsPage = () => {
     activeApplicationId != null
       ? applicationById.get(activeApplicationId) ?? null
       : null;
+
+  useEffect(() => {
+    setMainView(normalizeMainView(viewRequest));
+  }, [viewRequest]);
+
+  useEffect(() => {
+    if (!applicationScopeRequest) return;
+    const requestedId = Number(applicationScopeRequest);
+    if (!Number.isInteger(requestedId)) return;
+    const isAccepted = acceptedApplications.some(
+      (application) => application.id === requestedId,
+    );
+    if (!isAccepted) return;
+    setSelectedJournalScope(`application-${requestedId}` as JournalScope);
+  }, [acceptedApplications, applicationScopeRequest]);
 
   const journalScopeLabel =
     selectedJournalScope === ALL_JOURNALS_SCOPE
@@ -561,7 +610,7 @@ const LogsPage = () => {
   }, [user?.id, initSocket]);
 
   useEffect(() => {
-    if (user?.id && mainView === "support") {
+    if (user?.id && mainView === "evidence") {
       fetchNotes();
     }
   }, [user?.id, mainView, fetchNotes]);
@@ -597,6 +646,14 @@ const LogsPage = () => {
 
   useEffect(() => {
     if (newEntryRequest !== "today") return;
+    if (applicationScopeRequest) {
+      const requestedId = Number(applicationScopeRequest);
+      const scopeIsReady = acceptedApplications.some(
+        (application) => application.id === requestedId,
+      );
+      if (!scopeIsReady) return;
+      if (activeApplicationId !== requestedId) return;
+    }
 
     const timer = window.setTimeout(() => {
       openNewEntry(toLocalDateInputValue());
@@ -608,7 +665,14 @@ const LogsPage = () => {
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [newEntryRequest, openNewEntry, setSearchParams]);
+  }, [
+    acceptedApplications,
+    activeApplicationId,
+    applicationScopeRequest,
+    newEntryRequest,
+    openNewEntry,
+    setSearchParams,
+  ]);
 
   const latestTimedEntry = getLatestTimedEntry(entries);
   const formEntryHours = calculateHours(
@@ -665,6 +729,15 @@ const LogsPage = () => {
 
     if (!user?.id) return;
 
+    if (draftEvidenceFile && !draftEvidenceCaption.trim()) {
+      toast.error("Add a caption for the proof image.", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
+
     if (formHasInvalidTimeRange) {
       toast.error("Time out must be later than time in after break time.", {
         position: "top-right",
@@ -702,7 +775,7 @@ const LogsPage = () => {
           transition: Bounce,
         });
       } else {
-        await addEntry({
+        const createdEntry = await addEntry({
           application_id: applicationId,
           title: formData.title,
           date: formData.date,
@@ -714,10 +787,21 @@ const LogsPage = () => {
           break_time: formData.break_time ? Number(formData.break_time) : null,
         });
 
+        if (draftEvidenceFile) {
+          const url = await uploadGalleryImage(draftEvidenceFile, user.id);
+          await addGalleryImage({
+            image_url: url,
+            caption: draftEvidenceCaption.trim(),
+            journal_entry_id: createdEntry.id,
+          });
+        }
+
         toast.success(
-          formEntryHours > 0
-            ? `Entry saved. +${formEntryHours.toFixed(1)}h logged.`
-            : "Entry created successfully",
+          draftEvidenceFile
+            ? "Entry saved with proof."
+            : formEntryHours > 0
+              ? `Entry saved. +${formEntryHours.toFixed(1)}h logged.`
+              : "Entry created successfully",
           {
           position: "top-right",
           theme: "light",
@@ -745,10 +829,14 @@ const LogsPage = () => {
     setIsModalOpen(false);
     setOriginalContent(null);
     setShowWritingTools(false);
+    setDraftEvidenceFile(null);
+    setDraftEvidenceCaption("");
   };
 
   const handleEdit = (entry: JournalEntry) => {
     setEditingEntry(entry);
+    setDraftEvidenceFile(null);
+    setDraftEvidenceCaption("");
     setFormData({
       application_id: entry.application_id ?? "",
       title: entry.title,
@@ -1275,6 +1363,20 @@ const LogsPage = () => {
       issueCount: entriesMissingEvidence.length,
     },
   ];
+  const reportReadiness = getReportReadiness({
+    entries: scopedEntries,
+    images: scopedGalleryImages,
+    profile,
+  });
+
+  const handleReadinessAction = (target: ReadinessTarget) => {
+    if (target === "profile") {
+      navigate("/profile");
+      return;
+    }
+
+    setJournalView(target === "evidence" ? "evidence" : target);
+  };
 
   const handleGenerateWeeklySummary = async () => {
     const entriesToSummarize = entriesForSelectedWeek;
@@ -2148,6 +2250,40 @@ const LogsPage = () => {
     }
   };
 
+  const handleSupervisorVerificationExport = () => {
+    if (!activeApplication) {
+      toast.error("Select one accepted internship before exporting verification.", {
+        position: "top-right",
+        theme: "light",
+        transition: Bounce,
+      });
+      return;
+    }
+
+    generateSupervisorVerificationPDF({
+      application: activeApplication,
+      entries: selectedRangeEntries.length > 0 ? selectedRangeEntries : scopedEntries,
+      profile,
+      evidenceCount:
+        selectedRangeEntries.length > 0
+          ? selectedRangeEvidenceCount
+          : scopedGalleryImages.length,
+    });
+
+    addReportHistory({
+      type: "Internship Summary",
+      title: `${activeApplication.company_name} Verification`,
+      range:
+        selectedRangeEntries.length > 0
+          ? selectedRangeLabel
+          : internshipDateRangeLabel,
+      entryCount:
+        selectedRangeEntries.length > 0
+          ? selectedRangeEntries.length
+          : scopedEntries.length,
+    });
+  };
+
   if (loading && entries.length === 0) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
@@ -2169,10 +2305,10 @@ const LogsPage = () => {
         title="Journal"
         description="Document your internship work, track hours, reflect on progress, and prepare reports."
       />
-      <div className="app-route-frame flex">
+      <div className="app-route-frame journal-route-frame flex">
         {/* Sidebar */}
-        <aside className="hidden lg:block lg:w-72 app-sidebar-panel lg:shrink-0">
-          <div className="sticky top-0 flex flex-col max-h-screen overflow-y-auto p-5">
+        <aside className="hidden lg:flex lg:w-72 app-sidebar-panel lg:shrink-0">
+          <div className="flex h-full min-h-0 w-full flex-col overflow-y-auto p-5">
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -2232,7 +2368,7 @@ const LogsPage = () => {
               </p>
               <div className="app-segment space-y-1">
                 <button
-                  onClick={() => setMainView("entries")}
+                  onClick={() => setJournalView("entries")}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     mainView === "entries"
                       ? "bg-primary text-white"
@@ -2243,18 +2379,18 @@ const LogsPage = () => {
                   Entries
                 </button>
                 <button
-                  onClick={() => setMainView("support")}
+                  onClick={() => setJournalView("evidence")}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    mainView === "support"
+                    mainView === "evidence"
                       ? "bg-primary text-white"
                       : "text-text-muted hover:text-text"
                   }`}
                 >
                   <StickyNote className="w-3.5 h-3.5" />
-                  Notes & Evidence
+                  Evidence
                 </button>
                 <button
-                  onClick={() => setMainView("reports")}
+                  onClick={() => setJournalView("reports")}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     mainView === "reports"
                       ? "bg-primary text-white"
@@ -2317,9 +2453,9 @@ const LogsPage = () => {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 flex min-h-0 flex-col min-w-0 overflow-hidden">
           {/* Top bar: search + export (entries) or title (weekly/notes/gallery) */}
-          <div className="app-page-titlebar sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-6 py-4">
+          <div className="app-page-titlebar z-10 flex shrink-0 items-center gap-3 px-4 sm:px-6 py-4">
             {mainView === "entries" ? (
               <>
                 <div className="flex-1 relative">
@@ -2363,9 +2499,9 @@ const LogsPage = () => {
                   </div>
                 </div>
               </>
-            ) : mainView === "support" ? (
+            ) : mainView === "evidence" ? (
               <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
-                Notes & Evidence
+                Evidence
               </h2>
             ) : mainView === "reports" ? (
               <h2 className="text-base sm:text-lg font-bold text-text truncate min-w-0">
@@ -2375,11 +2511,11 @@ const LogsPage = () => {
           </div>
 
           {/* Mobile: view toggle + New Entry + filters (sidebar is hidden) */}
-          <div className="lg:hidden app-page-titlebar px-4 sm:px-6 py-3 space-y-3">
+          <div className="lg:hidden app-page-titlebar shrink-0 px-4 sm:px-6 py-3 space-y-3">
             <div className="flex items-center gap-2">
               <div className="app-segment grid grid-cols-3 gap-1 flex-1">
                 <button
-                  onClick={() => setMainView("entries")}
+                  onClick={() => setJournalView("entries")}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     mainView === "entries"
                       ? "bg-primary text-white"
@@ -2389,17 +2525,17 @@ const LogsPage = () => {
                   Entries
                 </button>
                 <button
-                  onClick={() => setMainView("support")}
+                  onClick={() => setJournalView("evidence")}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    mainView === "support"
+                    mainView === "evidence"
                       ? "bg-primary text-white"
                       : "text-text-muted hover:text-text"
                   }`}
                 >
-                  Support
+                  Evidence
                 </button>
                 <button
-                  onClick={() => setMainView("reports")}
+                  onClick={() => setJournalView("reports")}
                   className={`flex items-center justify-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     mainView === "reports"
                       ? "bg-primary text-white"
@@ -2491,7 +2627,7 @@ const LogsPage = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
             {mainView === "reports" && (
               <div className="max-w-4xl w-full min-w-0 mx-auto space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 pt-2 sm:pt-6">
@@ -2975,7 +3111,7 @@ const LogsPage = () => {
               </>
             )}
 
-            {mainView === "support" && (
+            {mainView === "evidence" && (
               <div className="max-w-3xl mx-auto space-y-6">
                 <div className="app-panel p-5">
                   <label className="block text-sm font-medium text-text mb-2">
@@ -3149,7 +3285,7 @@ const LogsPage = () => {
               </div>
             )}
 
-            {mainView === "support" && (
+            {mainView === "evidence" && (
               <div className="max-w-4xl mx-auto space-y-6">
                 {scopedEntries.length === 0 ? (
                   <div className="app-empty-state p-10 text-center text-text/60 text-sm">
@@ -3284,6 +3420,11 @@ const LogsPage = () => {
 
             {mainView === "reports" && (
               <div className="max-w-6xl mx-auto space-y-6">
+                <ReportReadinessPanel
+                  readiness={reportReadiness}
+                  onAction={handleReadinessAction}
+                />
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="app-metric-card p-5">
                     <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
@@ -3490,6 +3631,28 @@ const LogsPage = () => {
                         Compile range
                       </button>
                     </div>
+
+                    <div className="app-panel p-5 flex flex-col justify-between gap-5">
+                      <div>
+                        <h3 className="text-lg font-bold text-text">
+                          Supervisor Verification
+                        </h3>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {activeApplication
+                            ? `${activeApplication.company_name} supervisor-ready summary`
+                            : "Select one accepted internship"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSupervisorVerificationExport}
+                        disabled={!activeApplication || scopedEntries.length === 0}
+                        className="w-fit flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-canvas text-sm font-medium text-text hover:bg-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export verification
+                      </button>
+                    </div>
                   </section>
                 </div>
 
@@ -3542,6 +3705,17 @@ const LogsPage = () => {
               </div>
             )}
           </div>
+
+          {mainView !== "reports" && (
+            <button
+              type="button"
+              onClick={() => openNewEntry()}
+              className="fixed bottom-24 right-5 z-30 inline-flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-white shadow-[0_12px_28px_rgb(11_115_217_/_0.28)] transition-colors hover:bg-primary-hover lg:hidden"
+            >
+              <Plus className="h-4 w-4" />
+              Add log
+            </button>
+          )}
 
           {/* Create/Edit Modal */}
           {isModalOpen && (
@@ -3873,6 +4047,55 @@ const LogsPage = () => {
                       className="w-full px-4 py-3 rounded-xl border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                   </div>
+
+                  {!editingEntry && (
+                    <div className="rounded-xl border border-border bg-surface p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-text">
+                            Proof of work
+                          </p>
+                          <p className="text-xs text-text-muted">
+                            Attach a screenshot or photo now to make this log report-ready.
+                          </p>
+                        </div>
+                        <ImagePlus className="h-5 w-5 shrink-0 text-primary" />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-text-muted">
+                            Caption
+                          </label>
+                          <input
+                            type="text"
+                            value={draftEvidenceCaption}
+                            onChange={(event) =>
+                              setDraftEvidenceCaption(event.target.value)
+                            }
+                            placeholder="e.g. Dashboard update"
+                            className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm text-text placeholder-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                        <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-2 text-sm font-semibold text-text transition-colors hover:bg-accent/30">
+                          <Upload className="h-4 w-4" />
+                          {draftEvidenceFile ? "Change file" : "Choose file"}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
+                            className="sr-only"
+                            onChange={(event) =>
+                              setDraftEvidenceFile(event.target.files?.[0] ?? null)
+                            }
+                          />
+                        </label>
+                      </div>
+                      {draftEvidenceFile && (
+                        <p className="mt-2 truncate text-xs font-medium text-text-muted">
+                          Selected: {draftEvidenceFile.name}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex gap-3 pt-4">
                     <button

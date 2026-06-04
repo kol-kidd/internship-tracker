@@ -1,6 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Building2, MapPin, Edit2, Trash2 } from "lucide-react";
+import { Building2, MapPin, Edit2, Trash2, CalendarClock } from "lucide-react";
 import type { Application } from "@/store/applicationStore";
 
 function daysSince(dateStr: string): number {
@@ -20,13 +20,7 @@ function formatTimeline(dateStr: string): string {
 type KanbanCardProps = {
   app: Application;
   isWinner?: boolean;
-  onEdit: (
-    id: number,
-    name: string,
-    address: string,
-    position?: string,
-    stipend?: "paid" | "unpaid"
-  ) => void;
+  onEdit: (application: Application) => void;
   onDelete: (id: number, name: string) => void;
   onStatusChange: (id: number, status: string) => void;
   renderStatusMenu: (app: Application) => React.ReactNode;
@@ -57,6 +51,8 @@ export default function KanbanCard({
       : app.stipend === "unpaid"
       ? "Unpaid"
       : null;
+
+  const nextAction = app.follow_up_date || app.interview_date || app.deadline_date;
 
   return (
     <div
@@ -115,18 +111,29 @@ export default function KanbanCard({
         <span className="truncate">{app.company_address}</span>
       </div>
 
+      {nextAction && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg border border-border-subtle bg-surface px-2.5 py-2 text-xs font-medium text-text-muted">
+          <CalendarClock className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="truncate">
+            {app.follow_up_date
+              ? "Follow-up"
+              : app.interview_date
+                ? "Interview"
+                : "Deadline"}{" "}
+            {new Date(nextAction).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center justify-end gap-1 pt-2 border-t border-border">
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onEdit(
-              app.id,
-              app.company_name,
-              app.company_address,
-              app.position,
-              app.stipend
-            );
+            onEdit(app);
           }}
           className="p-1.5 rounded-lg text-text-muted hover:bg-surface-alt hover:text-text transition-colors"
           aria-label="Edit application"
